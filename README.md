@@ -17,7 +17,7 @@ Optional:
 
 ```bash
 bash install.sh --with-cli      # npm i -g @devcontainers/cli if missing
-bash install.sh --with-skill    # copy skill to ~/.pi/agent/skills (Pi loads this)
+bash install.sh --with-skill    # copy SKILL.md into each agent you already have
 ```
 
 Tagged one-liner (prefer a release tag, not `main`):
@@ -29,6 +29,22 @@ curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/v0.1.0/install.sh 
 (`curl | bash` runs remote code. Clone + `bash install.sh` is safer.)
 
 Needs: `bash`, Docker (or Colima). `socat` only for `dc-forward`.
+
+### `--with-skill` (multi-agent)
+
+If that product’s home dir exists, the same `skill/SKILL.md` is copied to:
+
+| Agent | Path |
+|---|---|
+| Shared (Agent Skills) | `~/.agents/skills/devcontainer-cli-global/` |
+| Pi | `~/.pi/agent/skills/` |
+| Claude Code | `~/.claude/skills/` |
+| Codex | `~/.codex/skills/` |
+| Gemini CLI | `~/.gemini/skills/` |
+| Cursor | `~/.cursor/skills/` |
+| OpenCode | `~/.opencode/skills/` |
+
+Does **not** create a harness home just to drop a skill. Restart the agent after install. Cursor/Gemini also read `~/.agents/skills` in many setups.
 
 ## Commands
 

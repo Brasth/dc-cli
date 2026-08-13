@@ -81,29 +81,33 @@ install_skill_dir() {
   echo "Installed agent skill to $dest"
 }
 
+# Copy into a harness skills dir only if that product is already on this machine.
+maybe_skill() {
+  local marker_dir="$1"
+  local skills_dir="$2"
+  if [[ -d "$marker_dir" ]]; then
+    install_skill_dir "$skills_dir"
+    return 0
+  fi
+  return 1
+}
+
 if [[ "$WITH_SKILL" -eq 1 ]]; then
   installed=0
-  # Pi auto-loads these (Agent Skills spec).
-  if [[ -d "$HOME/.pi/agent" ]]; then
-    install_skill_dir "$HOME/.pi/agent/skills"
-    installed=1
-  fi
-  if [[ -d "$HOME/.agents" || -d "$HOME/.agents/skills" ]]; then
-    install_skill_dir "$HOME/.agents/skills"
-    installed=1
-  fi
-  # Optional extra copies if those trees already exist.
-  if [[ -d "$HOME/.claude/skills" ]]; then
-    install_skill_dir "$HOME/.claude/skills"
-    installed=1
-  fi
+  maybe_skill "$HOME/.pi/agent" "$HOME/.pi/agent/skills" && installed=1
+  maybe_skill "$HOME/.claude" "$HOME/.claude/skills" && installed=1
+  maybe_skill "$HOME/.codex" "$HOME/.codex/skills" && installed=1
+  maybe_skill "$HOME/.gemini" "$HOME/.gemini/skills" && installed=1
+  maybe_skill "$HOME/.cursor" "$HOME/.cursor/skills" && installed=1
+  maybe_skill "$HOME/.opencode" "$HOME/.opencode/skills" && installed=1
+  # Shared Agent Skills location (Pi, Gemini, Cursor often honor this).
+  install_skill_dir "$HOME/.agents/skills"
+  installed=1
   if [[ -d "$HOME/.pi/agent/pi-hermes-memory/skills" ]]; then
     install_skill_dir "$HOME/.pi/agent/pi-hermes-memory/skills"
-    installed=1
   fi
   if [[ "$installed" -eq 0 ]]; then
-    mkdir -p "$HOME/.pi/agent/skills"
-    install_skill_dir "$HOME/.pi/agent/skills"
+    echo "--with-skill: no known agent home found; wrote ~/.agents/skills only" >&2
   fi
 fi
 
