@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Forward extra host ports into a running container.
+# Usage:
+#   dc-forward [container] hostPort [containerPort]
+#   dc-forward [container] hostPort:containerPort ...
+#
+# If container is omitted, uses the most recently started Docker container.
+# Prefers docker publish-style mapping; falls back to socat on the host
+# if you later want host:port -> container IP:port without recreating.
+
+set -euo pipefail
+
+usage() {
+  echo "Usage: dc-forward [container] HOST_PORT[:CONTAINER_PORT] ..." >&2
+  exit 2
+}
+
+[[ $# -ge 1 ]] || usage
+
+container=""
+if docker inspect "$1" >/dev/null 2>&1; then
+  container="$1"
+  shift
+elif [[ "$1" != *:* && "$1" =~ ^[0-9]+$ ]]; then
+  :
+else
+  # first arg looks like a name that isn't running
+  if [[ "$1" != *:* && ! "$1" =~ ^[0-9]+$ ]]; then
+    echo "Container not found: $1" >&2
+    exit 1
+  fi
+fi
+
+if [[ -z "$container" ]]; then
+  container="$(docker ps -q --latest || true)"
+  if [[ -z "$container" ]]; then
+    echo "No running container found." >&2
+    exit 1
+  fi
+fi
+
+[[ $# -ge 1 ]] || usage
+
+ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$container")"
+if [[ -z "$ip" ]]; then
+  echo "Could not resolve container IP for $container" >&2
+  exit 1
+fi
+
+if ! command -v socat >/dev/null 2>&1; then
+  echo "socat is required for extra forwards. Install with: brew install socat" >&2
+  exit 1
+fi
+
+pids=()
+cleanup() {
+  for pid in "${pids[@]:-}"; do
+    kill "$pid" 2>/dev/null || true
+  done
+}
+trap cleanup EXIT INT TERM
+
+for spec in "$@"; do
+  host="${spec%%:*}"
+  cont="${spec##*:}"
+  [[ "$spec" == *:* ]] || cont="$host"
+  echo "Forwarding localhost:${host} -> ${ip}:${cont} ($container)"
+  socat "TCP-LISTEN:${host},fork,reuseaddr" "TCP:${ip}:${cont}" &
+  pids+=("$!")
+done
+
+echo "Ctrl-C to stop."
+wait

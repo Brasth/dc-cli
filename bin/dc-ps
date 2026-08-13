@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# List likely devcontainers (label + compose project).
+set -euo pipefail
+echo "== docker ps =="
+docker ps --format 'table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Ports}}\t{{.Status}}'
+echo
+echo "== containers with devcontainer.local_folder =="
+docker ps -a --filter 'label=devcontainer.local_folder' --format 'table {{.ID}}\t{{.Names}}\t{{.Label "devcontainer.local_folder"}}\t{{.Label "com.docker.compose.project"}}\t{{.Status}}\t{{.Ports}}' 2>/dev/null || true

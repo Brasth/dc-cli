@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Start official @devcontainers/cli for a workspace.
+# Default uses the PROJECT devcontainer.json (safe).
+# --ports / --override REPLACE that file entirely (not a merge).
+set -euo pipefail
+
+workspace="."
+override=""
+ports=0
+
+usage() {
+  cat <<'EOF'
+dc-up — start a workspace with official @devcontainers/cli
+
+  dc-up [workspace]              use project .devcontainer (safe default)
+  dc-up --ports [workspace]      REPLACE config with ~/.config/devcontainer/override.json
+  dc-up --override FILE [dir]    REPLACE config with FILE
+  dc-up --help
+
+--ports / --override do NOT merge. Image, features, and mounts from the
+project file are dropped. Prefer dc-forward for extra ports.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --ports)
+      ports=1
+      override="${HOME}/.config/devcontainer/override.json"
+      ;;
+    --override)
+      shift
+      [[ $# -ge 1 ]] || { echo "--override needs a file" >&2; exit 2; }
+      override="$1"
+      ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      workspace="$1"
+      ;;
+  esac
+  shift
+done
+
+if ! command -v devcontainer >/dev/null 2>&1; then
+  echo "devcontainer CLI not found. npm install -g @devcontainers/cli" >&2
+  exit 1
+fi
+
+ws="$(cd "$workspace" && pwd)"
+args=(up --workspace-folder "$ws")
+
+if [[ -n "$override" ]]; then
+  if [[ ! -f "$override" ]]; then
+    echo "Override file missing: $override" >&2
+    exit 1
+  fi
+  echo "WARNING: --override-config REPLACES project devcontainer.json (not a merge)." >&2
+  args+=(--override-config "$override")
+fi
+
+exec devcontainer "${args[@]}"

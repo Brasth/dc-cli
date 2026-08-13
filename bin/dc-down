@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+# Stop/remove official @devcontainers/cli containers.
+# The CLI (v0.87) has no `down` command.
+#
+# Usage:
+#   dc-down [workspace]
+#   dc-down --rm [--volumes] [workspace]
+#   dc-down --id CONTAINER
+#   dc-down --compose [workspace]
+#   dc-down --all --yes
+set -euo pipefail
+
+remove=0
+volumes=0
+all=0
+yes=0
+compose=0
+workspace="."
+explicit_id=""
+
+usage() {
+  cat <<'EOF'
+dc-down — stop/remove the workspace devcontainer (official CLI has no down)
+
+  dc-down [workspace]          stop only (keep container for next dc-up)
+  dc-down --rm [workspace]     stop + remove container
+  dc-down --volumes            also docker rm -v / compose down -v
+  dc-down --id NAME_OR_ID      target one container
+  dc-down --compose            stop/down the compose project if labeled
+  dc-down --all --yes          every container with devcontainer.local_folder
+  dc-down --help
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --rm) remove=1 ;;
+    --volumes|-v) volumes=1; remove=1 ;;
+    --all) all=1 ;;
+    --yes|-y) yes=1 ;;
+    --compose) compose=1 ;;
+    --id)
+      shift
+      [[ $# -ge 1 ]] || { echo "--id needs a container" >&2; exit 2; }
+      explicit_id="$1"
+      ;;
+    -h|--help) usage; exit 0 ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if [[ -d "$1" ]]; then
+        workspace="$1"
+      elif docker inspect "$1" >/dev/null 2>&1; then
+        explicit_id="$1"
+      else
+        echo "Unknown arg (not a dir or container): $1" >&2
+        exit 2
+      fi
+      ;;
+  esac
+  shift
+done
+
+if [[ "$all" -eq 1 && "${DC_DOWN_YES:-}" == "1" ]]; then
+  yes=1
+fi
+if [[ "$all" -eq 1 && "$yes" -ne 1 ]]; then
+  echo "Refusing --all without --yes (or DC_DOWN_YES=1)." >&2
+  exit 2
+fi
+
+ids=()
+
+if [[ -n "$explicit_id" ]]; then
+  ids=("$explicit_id")
+elif [[ "$all" -eq 1 ]]; then
+  mapfile -t ids < <(docker ps -aq --filter 'label=devcontainer.local_folder' 2>/dev/null || true)
+else
+  abs="$(cd "$workspace" && pwd)"
+  mapfile -t ids < <(docker ps -aq --filter "label=devcontainer.local_folder=${abs}" 2>/dev/null || true)
+  if [[ ${#ids[@]} -eq 0 || -z "${ids[0]:-}" ]]; then
+    if git -C "$abs" rev-parse --show-toplevel >/dev/null 2>&1; then
+      root="$(git -C "$abs" rev-parse --show-toplevel)"
+      if [[ "$root" != "$abs" ]]; then
+        mapfile -t ids < <(docker ps -aq --filter "label=devcontainer.local_folder=${root}" 2>/dev/null || true)
+      fi
+    fi
+  fi
+fi
+
+cleaned=()
+for id in "${ids[@]+"${ids[@]}"}"; do
+  [[ -n "${id:-}" ]] && cleaned+=("$id")
+done
+if [[ ${#cleaned[@]} -eq 0 ]]; then
+  echo "No matching devcontainer."
+  exit 0
+fi
+ids=("${cleaned[@]}")
+
+compose_projects=()
+
+stop_one() {
+  local id="$1"
+  local name status folder
+  name="$(docker inspect -f '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')" || name="?"
+  status="$(docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo missing)"
+  folder="$(docker inspect -f '{{index .Config.Labels "devcontainer.local_folder"}}' "$id" 2>/dev/null || true)"
+  local proj
+  proj="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$id" 2>/dev/null || true)"
+
+  if [[ "$compose" -eq 1 && -n "$proj" ]]; then
+    compose_projects+=("$proj")
+    echo "$id  $name  compose=$proj  folder=${folder:-}  (queued compose)"
+    return
+  fi
+
+  if [[ "$status" == "running" ]]; then
+    docker stop "$id" >/dev/null
+    echo "$id  $name  folder=${folder:-}  stopped"
+  elif [[ "$status" == "missing" ]]; then
+    echo "$id  missing" >&2
+    return
+  else
+    echo "$id  $name  folder=${folder:-}  already ${status}"
+  fi
+
+  if [[ "$remove" -eq 1 ]]; then
+    if [[ "$volumes" -eq 1 ]]; then
+      docker rm -v "$id" >/dev/null
+      echo "$id  removed (+ anonymous volumes)"
+    else
+      docker rm "$id" >/dev/null
+      echo "$id  removed"
+    fi
+  fi
+}
+
+for id in "${ids[@]}"; do
+  stop_one "$id"
+done
+
+if [[ "$compose" -eq 1 && ${#compose_projects[@]} -gt 0 ]]; then
+  # unique
+  printf '%s\n' "${compose_projects[@]}" | awk 'NF && !seen[$0]++' | while read -r proj; do
+    if [[ "$remove" -eq 1 ]]; then
+      if [[ "$volumes" -eq 1 ]]; then
+        docker compose -p "$proj" down -v
+      else
+        docker compose -p "$proj" down
+      fi
+      echo "compose $proj  down"
+    else
+      docker compose -p "$proj" stop
+      echo "compose $proj  stopped"
+    fi
+  done
+fi

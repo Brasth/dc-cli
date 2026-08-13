@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Exec into the official @devcontainers/cli workspace container.
+# Usage:
+#   dc-exec                 # interactive bash in .
+#   dc-exec -- ls -la       # run a command
+#   dc-exec /path/to/ws -- npm test
+set -euo pipefail
+
+workspace="."
+if [[ $# -gt 0 && "$1" != "--" && "$1" != -* ]]; then
+  if [[ -d "$1" ]]; then
+    workspace="$1"
+    shift
+  fi
+fi
+if [[ "${1:-}" == "--" ]]; then
+  shift
+fi
+
+if [[ $# -eq 0 ]]; then
+  exec devcontainer exec --workspace-folder "$workspace" bash
+fi
+exec devcontainer exec --workspace-folder "$workspace" "$@"
