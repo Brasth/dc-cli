@@ -9,12 +9,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
       - name: bash -n
         run: |
           bash -n install.sh
           bash -n lib/dc-common.sh
           bash -n bin/dc-up bin/dc-exec bin/dc-down bin/dc-ps bin/dc-forward
           bash -n bin/dc-ls bin/dc-open bin/dc-tui
+      - name: go build dc-tui
+        run: go build -o /tmp/dc-tui ./cmd/dc-tui
       - name: install to prefix
         run: |
           PREFIX="$RUNNER_TEMP/dc-bin" bash install.sh --prefix "$RUNNER_TEMP/dc-bin"
@@ -42,3 +47,4 @@ jobs:
       - name: help flags
         run: |
           bash install.sh --help | grep -q -- --full
+          bash install.sh --help | grep -q -- --ref

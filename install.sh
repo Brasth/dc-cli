@@ -6,6 +6,8 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 PREFIX="${PREFIX:-$HOME/bin}"
 WITH_CLI=0
 WITH_SKILL=0
+REF=""
+REPO="${DC_REPO:-Canvilled/dc-cli}"
 
 usage() {
   cat <<'EOF'
@@ -16,6 +18,8 @@ Usage: bash install.sh [options]
   --with-skill      copy SKILL.md into existing agent homes
   --full            --with-cli + --with-skill
   --prefix DIR      install helpers here (default: ~/bin)
+  --ref latest|TAG|main   fetch that GitHub tree first
+                    (auto latest when this script is not next to bin/)
 EOF
 }
 
@@ -27,6 +31,11 @@ while [[ $# -gt 0 ]]; do
     --prefix)
       shift
       PREFIX="$1"
+      ;;
+    --ref)
+      shift
+      [[ $# -ge 1 ]] || { echo "--ref needs latest|TAG|main" >&2; exit 2; }
+      REF="$1"
       ;;
     -h|--help)
       usage
@@ -41,11 +50,60 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
+latest_tag() {
+  local body
+  body="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest")" || return 1
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])' <<<"$body"
+    return
+  fi
+  printf '%s\n' "$body" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1
+}
+
+fetch_tree() {
+  local ref="$1" url tmp extracted
+  if [[ "$ref" == "latest" ]]; then
+    ref="$(latest_tag)" || { echo "Could not resolve latest release of $REPO" >&2; exit 1; }
+  fi
+  if [[ "$ref" == "main" || "$ref" == "master" ]]; then
+    url="https://github.com/${REPO}/archive/refs/heads/${ref}.tar.gz"
+  else
+    url="https://github.com/${REPO}/archive/refs/tags/${ref}.tar.gz"
+  fi
+  tmp="$(mktemp -d)"
+  echo "Fetching $REPO@$ref ..."
+  curl -fsSL "$url" | tar -xz -C "$tmp"
+  extracted="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -1)"
+  if [[ -z "$extracted" || ! -f "$extracted/bin/dc-up" ]]; then
+    echo "Fetched tree missing bin/dc-up ($url)" >&2
+    exit 1
+  fi
+  ROOT="$extracted"
+  echo "Using $ROOT ($ref)"
+}
+
+if [[ -n "$REF" ]]; then
+  fetch_tree "$REF"
+elif [[ ! -f "$ROOT/bin/dc-up" ]]; then
+  fetch_tree latest
+fi
+
 mkdir -p "$PREFIX"
-for f in dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-tui; do
+for f in dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open; do
   cp "$ROOT/bin/$f" "$PREFIX/$f"
   chmod +x "$PREFIX/$f"
 done
+# Clickable Go TUI when go is on PATH; else bash menu.
+if [[ -f "$ROOT/cmd/dc-tui/main.go" ]] && command -v go >/dev/null 2>&1; then
+  echo "Building clickable dc-tui (Go)..."
+  (cd "$ROOT" && go build -o "$PREFIX/dc-tui" ./cmd/dc-tui)
+  chmod +x "$PREFIX/dc-tui"
+  echo "Installed Go dc-tui to $PREFIX/dc-tui"
+else
+  cp "$ROOT/bin/dc-tui" "$PREFIX/dc-tui"
+  chmod +x "$PREFIX/dc-tui"
+  echo "Installed bash dc-tui (install Go for clickable buttons)"
+fi
 echo "Installed helpers to $PREFIX"
 
 cfg="$HOME/.config/devcontainer"

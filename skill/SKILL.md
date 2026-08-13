@@ -1,9 +1,9 @@
 ---
 name: "devcontainer-cli-global"
-description: "Host-global official @devcontainers/cli helpers: dc-tui (this folder; --all fleet), dc-up, dc-exec, dc-down, dc-ls, dc-open (zed/code/subl; --attach VS Code only), dc-ps, dc-forward. No project .devcontainer edits."
-version: 4
+description: "Host-global official @devcontainers/cli helpers: dc-tui (clickable if Go; this folder; --all fleet), dc-up, dc-exec, dc-down, dc-ls, dc-open (zed/code/subl; --attach VS Code only), dc-ps, dc-forward. Install: curl main/install.sh (latest release). No project .devcontainer edits."
+version: 5
 created: "2026-08-13"
-updated: "2026-08-13"
+updated: "2026-08-14"
 ---
 ## When to Use
 Use automatically for official @devcontainers/cli without editing project .devcontainer files. Triggers: start/stop/exec a devcontainer, dc-tui, dc-up, dc-down, dc-open, extra ports, override.json.
@@ -11,7 +11,7 @@ Use automatically for official @devcontainers/cli without editing project .devco
 ## Procedure
 1. Confirm `devcontainer` and Docker/Colima (`docker ps`).
 2. Never edit project `.devcontainer/devcontainer.json`.
-3. Interactive: `dc-tui` (current folder) or `dc-tui --all` (fleet). Do not invent a `dc` alias.
+3. Interactive: `dc-tui` (current folder; click buttons if Go-built) or `dc-tui --all` (fleet). Do not invent a `dc` alias. Install latest: `curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/main/install.sh | bash`.
 4. Start: `dc-up` (project config). Only `dc-up --ports` if user accepts REPLACE via ~/.config/devcontainer/override.json. TUI `u` refuses folders with no `.devcontainer`.
 5. Exec: `dc-exec` / `dc-exec -- <cmd>`. List: `dc-ls --json` / `dc-ps`.
 6. Stop with `dc-down` (same label matcher as `dc-ls`). Default stop only; `--rm`; `--compose`; `--all --yes`.

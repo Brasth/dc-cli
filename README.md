@@ -22,15 +22,26 @@ bash install.sh --with-skill    # copy SKILL.md into each agent you already have
 bash install.sh --full          # --with-cli + --with-skill
 ```
 
-Tagged one-liner (prefer a release tag, not `main`):
+One-liner always installs the **latest GitHub release** (installer on `main` fetches `releases/latest`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/v0.2.0/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/main/install.sh | bash
 ```
 
-(`curl | bash` runs remote code. Clone + `bash install.sh` is safer.)
+Pin or use HEAD:
 
-Needs: `bash` 4+, Docker. Node 18+ + npm only for `--with-cli` / `--full`. `socat` only for `dc-forward`. Optional: `gum` or `fzf` for a nicer `dc-tui` (falls back to a numbered prompt).
+```bash
+bash install.sh --ref v0.2.0    # that tag
+bash install.sh --ref main      # default branch, not a release
+```
+
+(`curl | bash` runs remote code. Clone + `bash install.sh` is safer and uses the tree you cloned.)
+
+Needs: `bash` 4+, Docker. Node 18+ + npm only for `--with-cli` / `--full`. `socat` only for `dc-forward`. **Go 1.22+** on PATH builds the clickable `dc-tui`; otherwise the bash menu is installed.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/main/install.sh | bash -s -- --full
+```
 
 ## Platform support
 
@@ -82,7 +93,7 @@ There is **no** `dc` meta-binary. Scripts keep calling `dc-up` / `dc-down`.
 
 ## `dc-tui`
 
-Default is the **current folder**, not every Docker container.
+Default is the **current folder**, not every Docker container. With Go, install builds a **clickable** Bubble Tea TUI (mouse + keys). Without Go, you get the bash menu.
 
 ```
 dc-tui              # this workspace
@@ -90,9 +101,9 @@ dc-tui ~/src/app
 dc-tui --all        # fleet
 ```
 
-Keys: `u` up · `e` exec · `o` open host editor · `a` VS Code attach · `s` stop · `x` rm · `l` logs · `f` fleet · `q` quit.
+Click the buttons (`up` `exec` `open` `attach` `stop` `rm` `logs` `fleet` `quit`). Fleet: click a row to open that folder. Keys still work: `u` `e` `o` `a` `s` `x` `l` `f` `q` `r`.
 
-`u` / `e` / `l` **suspend** the TUI so you see official CLI / docker output. `u` is refused if the folder has no `.devcontainer` (use CLI `dc-up --ports` if you really want REPLACE).
+`u` / `e` / `l` **leave** the TUI so you see official CLI / docker output. `u` is refused if the folder has no `.devcontainer` (use CLI `dc-up --ports` if you really want REPLACE).
 
 ## Editors (host only)
 
