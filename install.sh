@@ -96,6 +96,7 @@ done
 # Clickable Go TUI when go is on PATH; else bash menu.
 if [[ -f "$ROOT/cmd/dc-tui/main.go" ]] && command -v go >/dev/null 2>&1; then
   echo "Building clickable dc-tui (Go)..."
+  rm -f "$PREFIX/dc-tui"
   (cd "$ROOT" && go build -o "$PREFIX/dc-tui" ./cmd/dc-tui)
   chmod +x "$PREFIX/dc-tui"
   echo "Installed Go dc-tui to $PREFIX/dc-tui"
