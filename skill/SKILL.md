@@ -13,7 +13,7 @@ Use automatically for official @devcontainers/cli without VS Code and without ed
 2. Never edit project `.devcontainer/devcontainer.json`.
 3. Start: `dc-up` (project config). Only `dc-up --ports` if user accepts REPLACE via ~/.config/devcontainer/override.json.
 4. Exec: `dc-exec` / `dc-exec -- <cmd>`. List: `dc-ps`.
-5. Stop: official CLI has no down. `dc-down` stop only; `dc-down --rm`; `dc-down --compose`; `dc-down --all --yes`.
+5. Stop with `dc-down` (this repo; upstream has no down). Default stop only; `--rm`; `--compose`; `--all --yes`.
 6. Extra ports: `dc-forward` (socat), do not use override just for ports.
 
 ## Pitfalls

@@ -165,5 +165,5 @@ echo "  dc-down --help"
 if ! command -v devcontainer >/dev/null 2>&1; then
   echo "Official CLI not installed. Need it: bash install.sh --with-cli"
 fi
-echo "Official CLI has no down — use dc-down."
+echo "Stop/remove: dc-down (upstream CLI has no down)."
 echo "dc-up --ports REPLACES project devcontainer.json (not a merge)."

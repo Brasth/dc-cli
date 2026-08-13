@@ -2,7 +2,7 @@
 
 Host-global helpers for the official [`@devcontainers/cli`](https://github.com/devcontainers/cli). No VS Code. **Does not edit** project `.devcontainer/devcontainer.json`.
 
-The official CLI has `up` and `exec`. **It has no `down`.** That is the main gap this repo fills.
+You already get **`dc-down`** here. The upstream CLI only ships `up` / `exec` — this repo adds stop/remove plus thin wrappers (`dc-up`, `dc-exec`, `dc-ps`, `dc-forward`).
 
 ## Install
 
