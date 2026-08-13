@@ -46,7 +46,13 @@ fi
 marker="# dc-cli helpers"
 append_rc() {
   local rc="$1"
-  [[ -f "$rc" ]] || return 0
+  # Create bashrc on Linux if it is the login shell rc and missing.
+  if [[ ! -f "$rc" ]]; then
+    case "$rc" in
+      *bashrc) touch "$rc" ;;
+      *) return 0 ;;
+    esac
+  fi
   if grep -q 'dc-cli helpers' "$rc" 2>/dev/null; then
     echo "PATH block already in $rc"
     return 0

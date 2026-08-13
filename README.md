@@ -28,7 +28,18 @@ curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/v0.1.0/install.sh 
 
 (`curl | bash` runs remote code. Clone + `bash install.sh` is safer.)
 
-Needs: `bash`, Docker (or Colima). `socat` only for `dc-forward`.
+Needs: `bash` 4+, Docker. `socat` only for `dc-forward`.
+
+## Platform support
+
+| OS | Status | Notes |
+|---|---|---|
+| macOS | Supported | What we dogfood (Colima or Docker Desktop). |
+| Linux | Supported | `bash install.sh` writes `~/bin` + `~/.bashrc`. Docker Engine or Desktop. `sudo apt-get install socat` for `dc-forward`. |
+| Windows + **WSL2** | Best-effort | Run the same bash installer **inside WSL**. Docker Desktop WSL backend. |
+| Windows native (cmd/PowerShell) | **Not supported** | No `.ps1`. Do not run Git Bash against Docker Desktop labels mixed with `C:\` vs `/mnt/c` — `dc-down` matches `devcontainer.local_folder` as a string. |
+
+`dc-down` compares the Docker label to `pwd`. Create and stop from the **same** environment (all WSL, or all macOS/Linux), or pass `dc-down --id`.
 
 ### `--with-skill` (multi-agent)
 

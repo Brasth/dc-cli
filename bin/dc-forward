@@ -48,7 +48,10 @@ if [[ -z "$ip" ]]; then
 fi
 
 if ! command -v socat >/dev/null 2>&1; then
-  echo "socat is required for extra forwards. Install with: brew install socat" >&2
+  echo "socat is required for extra forwards." >&2
+  echo "  macOS:  brew install socat" >&2
+  echo "  Debian: sudo apt-get install -y socat" >&2
+  echo "  WSL:    sudo apt-get install -y socat  (not native Windows)" >&2
   exit 1
 fi
 
