@@ -101,9 +101,24 @@ dc-tui ~/src/app
 dc-tui --all        # fleet
 ```
 
-Click the buttons (`up` `exec` `open` `attach` `stop` `rm` `logs` `fleet` `quit`). Fleet: click a row to open that folder. Keys still work: `u` `e` `o` `a` `s` `x` `l` `f` `q` `r`.
+Click a button, or press `?` / **more** for the on-screen legend.
 
-`u` / `e` / `l` **leave** the TUI so you see official CLI / docker output. `u` is refused if the folder has no `.devcontainer` (use CLI `dc-up --ports` if you really want REPLACE).
+| Button | Key | What it does |
+|---|---|---|
+| **start** | `u` | `dc-up` — create/start this folder. Needs `.devcontainer`. Leaves TUI so you see pull logs. |
+| **shell** | `e` | `dc-exec` — bash **inside** the container. Leaves TUI. |
+| **open host** | `o` | `dc-open` — host editor on the **bind-mount** (Zed / VS Code / Sublime). |
+| **attach vscode** | `a` | `dc-open --attach` — VS Code **Remote into** the running container. `code` only. |
+| **stop** | `s` | `dc-down` — stop, keep the container. |
+| **rm** | `x` | `dc-down --rm` — stop and delete. |
+| **logs** | `l` | `docker logs -f`. Ctrl-C returns to the TUI. |
+| **fleet** | `f` | Every labeled workspace. Click a row to open that folder. |
+| **more** | `?` | This legend in the TUI. |
+| **quit** | `q` | Exit. |
+
+**open ≠ attach.** Open edits files on the Mac/Linux host. Attach is VS Code’s in-container terminal/debugger. Zed and Sublime cannot attach.
+
+`start` is refused if the folder has no `.devcontainer` (use CLI `dc-up --ports` only if you accept REPLACE).
 
 ## Editors (host only)
 

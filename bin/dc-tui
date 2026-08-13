@@ -20,19 +20,25 @@ fleet=0
 
 usage() {
   cat <<'EOF'
-dc-tui — control this folder's devcontainer (not a Docker zoo)
+dc-tui — this folder's devcontainer (not a Docker zoo)
 
   dc-tui [workspace]     this folder (cwd, then git root)
-  dc-tui --all           fleet of labeled containers
+  dc-tui --all           every labeled container (fleet)
   dc-tui --help
 
-Keys (workspace):
-  u  dc-up          e  dc-exec         o  dc-open (host)
-  a  VS Code attach s  dc-down         x  dc-down --rm
-  l  docker logs    f  fleet           q  quit
+Keys:
+  u  start   dc-up              create/start this folder
+  e  shell   dc-exec            bash inside the container
+  o  open    dc-open            host editor (zed/code/subl)
+  a  attach  dc-open --attach   VS Code INTO the container (code only)
+  s  stop    dc-down            stop, keep container
+  x  rm      dc-down --rm       stop and delete
+  l  logs    docker logs -f
+  f  fleet   all labeled workspaces
+  q  quit
 
-Up/exec/logs suspend the TUI so you see real CLI output.
-Editors stay on the host. Only VS Code can attach inside.
+open = files on the host. attach = VS Code Remote in Linux.
+Zed/Sublime cannot attach. start needs .devcontainer.
 EOF
 }
 
@@ -82,8 +88,8 @@ choose_action() {
       fi
     fi
     case "$k" in
-      u|U) echo "[u] up" ;;
-      e|E) echo "[e] exec" ;;
+      u|U) echo "[u] start" ;;
+      e|E) echo "[e] shell" ;;
       o|O) echo "[o] open host" ;;
       a|A) echo "[a] attach vscode" ;;
       s|S) echo "[s] stop" ;;
@@ -150,7 +156,7 @@ print("\t".join([
 
     local pick key
     pick="$(choose_action "workspace $ws" \
-      "[u] up" "[e] exec" "[o] open host" "[a] attach vscode" \
+      "[u] start" "[e] shell" "[o] open host" "[a] attach vscode" \
       "[s] stop" "[x] rm" "[l] logs" "[f] fleet" "[q] quit")" || return 1
     key="$(action_key "$pick")"
     case "$key" in

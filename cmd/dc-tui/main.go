@@ -41,6 +41,7 @@ type model struct {
 	width     int
 	err       string
 	quitting  bool
+	more      bool
 }
 
 type reloadMsg struct {
@@ -100,19 +101,34 @@ func main() {
 	}
 }
 
-const helpText = `dc-tui — control this folder's devcontainer (click or keys)
+const helpText = `dc-tui — this folder's devcontainer (click buttons or keys)
 
   dc-tui [workspace]     this folder (cwd, then git root)
-  dc-tui --all           fleet of labeled containers
+  dc-tui --all           every labeled container (fleet)
   dc-tui --help
 
-Click a button or fleet row. Keys:
-  u  dc-up          e  dc-exec         o  dc-open (host)
-  a  VS Code attach s  dc-down         x  dc-down --rm
-  l  docker logs    f  fleet           q  quit
+In the TUI, click more (or press ?) for the full legend.
 
-Up/exec/logs leave the TUI so you see real CLI output.
-Editors stay on the host. Only VS Code can attach inside.
+Buttons / keys
+  start  (u)  dc-up          create/start this folder's container
+  shell  (e)  dc-exec        bash inside the container (leaves TUI)
+  open   (o)  dc-open        host editor on the bind-mount (zed/code/subl)
+  attach (a)  dc-open --attach
+                             VS Code Remote INTO the running container
+                             (code only; needs a running box)
+  stop   (s)  dc-down        stop, keep the container for next start
+  rm     (x)  dc-down --rm   stop and delete the container
+  logs   (l)  docker logs -f (leaves TUI; Ctrl-C back)
+  fleet  (f)  all labeled workspaces; click a row to open it
+  more   (?)  this legend
+  quit   (q)
+
+Open vs attach: open = edit files on the Mac/Linux host.
+Attach = VS Code's terminal/debugger run inside Linux.
+Zed and Sublime cannot attach.
+
+start is refused if this folder has no .devcontainer.
+Use CLI dc-up --ports only if you accept REPLACE of project config.
 `
 
 func (m model) Init() tea.Cmd {
@@ -170,8 +186,12 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 	case "q", "ctrl+c", "esc":
 		m.quitting = true
 		return m, tea.Quit
+	case "?", "h":
+		m.more = !m.more
+		return m, nil
 	case "f":
 		m.fleet = !m.fleet
+		m.more = false
 		return m, m.reload()
 	case "r":
 		return m, m.reload()
@@ -198,8 +218,12 @@ func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
 			case "q":
 				m.quitting = true
 				return m, tea.Quit
+			case "?":
+				m.more = !m.more
+				return m, nil
 			case "f":
 				m.fleet = !m.fleet
+				m.more = false
 				return m, m.reload()
 			case "r":
 				return m, m.reload()
@@ -276,20 +300,22 @@ func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 func (m model) layout() (string, []button, int) {
 	var b strings.Builder
 	if m.fleet {
-		b.WriteString(titleStyle.Render("dc-tui --all") + "  " + mutedStyle.Render("click a row · f workspace · q quit") + "\n\n")
+		b.WriteString(titleStyle.Render("dc-tui  fleet") + "  " + mutedStyle.Render("every labeled container — click a row") + "\n\n")
 	} else {
 		b.WriteString(titleStyle.Render("dc-tui") + "  " + headerStyle.Render(m.workspace) + "\n")
-		cfg := badStyle.Render("NO")
+		cfg := badStyle.Render("NO  (start disabled — add .devcontainer)")
 		if m.hasConfig {
 			cfg = okStyle.Render("YES")
 		}
-		status, id, ports, folder := "(none)", "", "", m.workspace
+		status, id, ports, folder := "not running", "", "", m.workspace
 		if len(m.rows) > 0 {
 			status, id, ports, folder = m.rows[0].Status, shortID(m.rows[0].ID), m.rows[0].Ports, m.rows[0].LocalFolder
 		}
-		fmt.Fprintf(&b, "  config   .devcontainer   %s\n", cfg)
-		fmt.Fprintf(&b, "  label    %s  %s  %s  %s\n", folder, status, id, ports)
-		fmt.Fprintf(&b, "  editor   %s\n\n", m.editor)
+		fmt.Fprintf(&b, "  this folder   %s\n", m.workspace)
+		fmt.Fprintf(&b, "  .devcontainer %s\n", cfg)
+		fmt.Fprintf(&b, "  container     %s  %s  %s\n", status, id, ports)
+		fmt.Fprintf(&b, "  docker label  %s\n", folder)
+		fmt.Fprintf(&b, "  host editor   %s  (open uses this; attach needs VS Code)\n\n", m.editor)
 	}
 
 	line, buttons := renderButtons(m.fleet)
@@ -303,25 +329,30 @@ func (m model) layout() (string, []button, int) {
 		b.WriteString("\n" + errStyle.Render(m.err) + "\n")
 	}
 
+	if m.more {
+		b.WriteString("\n" + morePanel(m.editor) + "\n")
+	}
+
 	rowY0 := -1
 	if m.fleet {
 		b.WriteString("\n")
 		rowY0 = strings.Count(b.String(), "\n")
 		if len(m.rows) == 0 {
-			b.WriteString(mutedStyle.Render("  (no labeled containers)") + "\n")
+			b.WriteString(mutedStyle.Render("  (no labeled containers — start one with dc-up in a project)") + "\n")
 		} else {
+			b.WriteString(mutedStyle.Render("  status    name                      folder") + "\n")
 			for _, r := range m.rows {
 				fmt.Fprintf(&b, "  %-8s  %-24s  %s  %s\n", r.Status, r.Name, r.LocalFolder, shortID(r.ID))
 			}
 		}
 	} else if len(m.rows) > 1 {
-		b.WriteString("\n" + mutedStyle.Render("  extra matches:") + "\n")
+		b.WriteString("\n" + mutedStyle.Render("  extra matches for this folder:") + "\n")
 		for _, r := range m.rows[1:] {
 			fmt.Fprintf(&b, "  %-8s  %s  %s\n", r.Status, r.LocalFolder, shortID(r.ID))
 		}
 	}
 
-	b.WriteString("\n" + hintStyle.Render("click buttons · keys u/e/o/a/s/x/l/f/q · r reload") + "\n")
+	b.WriteString("\n" + hintStyle.Render("click a button  ·  ? more  ·  q quit") + "\n")
 	return b.String(), buttons, rowY0
 }
 
@@ -333,6 +364,23 @@ func (m model) View() string {
 	return s
 }
 
+func morePanel(editor string) string {
+	lines := []string{
+		titleStyle.Render("more — what each action does"),
+		"  start    create/start this folder (needs .devcontainer)",
+		"  shell    bash inside the container — TUI closes while it runs",
+		"  open     host editor on the bind-mount  now: " + editor,
+		"  attach   VS Code Remote INTO the container (code only, must be running)",
+		"  stop     docker stop — keep the container for next start",
+		"  rm       stop and delete the container",
+		"  logs     follow docker logs — Ctrl-C returns here",
+		"  fleet    list every labeled workspace",
+		"",
+		mutedStyle.Render("open ≠ attach. Zed/Sublime = open only. Docs: https://github.com/Canvilled/dc-cli"),
+	}
+	return strings.Join(lines, "\n")
+}
+
 func renderButtons(fleet bool) (string, []button) {
 	type spec struct {
 		key, label string
@@ -340,17 +388,23 @@ func renderButtons(fleet bool) (string, []button) {
 	}
 	var specs []spec
 	if fleet {
-		specs = []spec{{"f", "workspace", false}, {"r", "reload", false}, {"q", "quit", false}}
+		specs = []spec{
+			{"f", "this folder", false},
+			{"r", "reload", false},
+			{"?", "more", false},
+			{"q", "quit", false},
+		}
 	} else {
 		specs = []spec{
-			{"u", "up", false},
-			{"e", "exec", false},
-			{"o", "open", false},
-			{"a", "attach", false},
+			{"u", "start", false},
+			{"e", "shell", false},
+			{"o", "open host", false},
+			{"a", "attach vscode", false},
 			{"s", "stop", false},
 			{"x", "rm", true},
 			{"l", "logs", false},
 			{"f", "fleet", false},
+			{"?", "more", false},
 			{"q", "quit", false},
 		}
 	}
