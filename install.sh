@@ -7,20 +7,34 @@ PREFIX="${PREFIX:-$HOME/bin}"
 WITH_CLI=0
 WITH_SKILL=0
 
+usage() {
+  cat <<'EOF'
+Usage: bash install.sh [options]
+
+  (default)         helpers + override.json + PATH  (does not install CLI)
+  --with-cli        npm i -g @devcontainers/cli if missing
+  --with-skill      copy SKILL.md into existing agent homes
+  --full            --with-cli + --with-skill
+  --prefix DIR      install helpers here (default: ~/bin)
+EOF
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --with-cli) WITH_CLI=1 ;;
     --with-skill) WITH_SKILL=1 ;;
+    --full) WITH_CLI=1; WITH_SKILL=1 ;;
     --prefix)
       shift
       PREFIX="$1"
       ;;
     -h|--help)
-      echo "Usage: bash install.sh [--with-cli] [--with-skill] [--prefix DIR]"
+      usage
       exit 0
       ;;
     *)
       echo "Unknown arg: $1" >&2
+      usage >&2
       exit 2
       ;;
   esac
@@ -46,7 +60,7 @@ fi
 marker="# dc-cli helpers"
 append_rc() {
   local rc="$1"
-  # Create bashrc on Linux if it is the login shell rc and missing.
+  # Create bashrc on Linux if missing.
   if [[ ! -f "$rc" ]]; then
     case "$rc" in
       *bashrc) touch "$rc" ;;
@@ -76,6 +90,10 @@ if [[ "$WITH_CLI" -eq 1 ]]; then
   if command -v devcontainer >/dev/null 2>&1; then
     echo "devcontainer already on PATH"
   else
+    if ! command -v npm >/dev/null 2>&1; then
+      echo "npm not found. Install Node 18+ then rerun: bash install.sh --with-cli" >&2
+      exit 1
+    fi
     npm install -g @devcontainers/cli
   fi
 fi
@@ -99,28 +117,53 @@ maybe_skill() {
 }
 
 if [[ "$WITH_SKILL" -eq 1 ]]; then
-  installed=0
-  maybe_skill "$HOME/.pi/agent" "$HOME/.pi/agent/skills" && installed=1
-  maybe_skill "$HOME/.claude" "$HOME/.claude/skills" && installed=1
-  maybe_skill "$HOME/.codex" "$HOME/.codex/skills" && installed=1
-  maybe_skill "$HOME/.gemini" "$HOME/.gemini/skills" && installed=1
-  maybe_skill "$HOME/.cursor" "$HOME/.cursor/skills" && installed=1
-  maybe_skill "$HOME/.opencode" "$HOME/.opencode/skills" && installed=1
-  # Shared Agent Skills location (Pi, Gemini, Cursor often honor this).
+  maybe_skill "$HOME/.pi/agent" "$HOME/.pi/agent/skills" || true
+  maybe_skill "$HOME/.claude" "$HOME/.claude/skills" || true
+  maybe_skill "$HOME/.codex" "$HOME/.codex/skills" || true
+  maybe_skill "$HOME/.gemini" "$HOME/.gemini/skills" || true
+  maybe_skill "$HOME/.cursor" "$HOME/.cursor/skills" || true
+  maybe_skill "$HOME/.opencode" "$HOME/.opencode/skills" || true
   install_skill_dir "$HOME/.agents/skills"
-  installed=1
   if [[ -d "$HOME/.pi/agent/pi-hermes-memory/skills" ]]; then
     install_skill_dir "$HOME/.pi/agent/pi-hermes-memory/skills"
   fi
-  if [[ "$installed" -eq 0 ]]; then
-    echo "--with-skill: no known agent home found; wrote ~/.agents/skills only" >&2
-  fi
 fi
+
+doctor() {
+  echo
+  echo "Doctor:"
+  if command -v docker >/dev/null 2>&1; then
+    echo "  docker        OK  $(command -v docker)"
+  else
+    echo "  docker        MISSING  install Docker Engine or Desktop"
+  fi
+  if command -v devcontainer >/dev/null 2>&1; then
+    echo "  devcontainer  OK  $(command -v devcontainer)"
+  else
+    echo "  devcontainer  MISSING  rerun: bash install.sh --with-cli"
+  fi
+  if command -v socat >/dev/null 2>&1; then
+    echo "  socat         OK  (dc-forward)"
+  else
+    echo "  socat         optional  dc-forward only — brew/apt install socat"
+  fi
+  if [[ -x "$PREFIX/dc-up" ]]; then
+    echo "  helpers       OK  $PREFIX"
+  else
+    echo "  helpers       MISSING  $PREFIX"
+  fi
+}
+
+doctor
 
 echo
 echo "Next:"
-echo "  source ~/.zshrc   # or open a new terminal"
+echo "  source ~/.bashrc   # Linux / WSL"
+echo "  source ~/.zshrc    # macOS zsh"
 echo "  dc-up --help"
 echo "  dc-down --help"
+if ! command -v devcontainer >/dev/null 2>&1; then
+  echo "Official CLI not installed. Need it: bash install.sh --with-cli"
+fi
 echo "Official CLI has no down — use dc-down."
 echo "dc-up --ports REPLACES project devcontainer.json (not a merge)."

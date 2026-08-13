@@ -10,25 +10,27 @@ The official CLI has `up` and `exec`. **It has no `down`.** That is the main gap
 git clone https://github.com/Canvilled/dc-cli.git
 cd dc-cli
 bash install.sh
-source ~/.zshrc
+source ~/.bashrc   # Linux / WSL
+source ~/.zshrc    # macOS zsh
 ```
 
-Optional:
+Default install is **wrappers only**. It does **not** install `@devcontainers/cli`.
 
 ```bash
 bash install.sh --with-cli      # npm i -g @devcontainers/cli if missing
 bash install.sh --with-skill    # copy SKILL.md into each agent you already have
+bash install.sh --full          # --with-cli + --with-skill
 ```
 
 Tagged one-liner (prefer a release tag, not `main`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/v0.1.0/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/v0.1.4/install.sh | bash
 ```
 
 (`curl | bash` runs remote code. Clone + `bash install.sh` is safer.)
 
-Needs: `bash` 4+, Docker. `socat` only for `dc-forward`.
+Needs: `bash` 4+, Docker. Node 18+ + npm only for `--with-cli` / `--full`. `socat` only for `dc-forward`.
 
 ## Platform support
 

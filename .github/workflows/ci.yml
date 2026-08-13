@@ -1,0 +1,25 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: bash -n
+        run: |
+          bash -n install.sh
+          bash -n bin/dc-up bin/dc-exec bin/dc-down bin/dc-ps bin/dc-forward
+      - name: install to prefix
+        run: |
+          PREFIX="$RUNNER_TEMP/dc-bin" bash install.sh --prefix "$RUNNER_TEMP/dc-bin"
+          test -x "$RUNNER_TEMP/dc-bin/dc-up"
+          test -x "$RUNNER_TEMP/dc-bin/dc-down"
+          "$RUNNER_TEMP/dc-bin/dc-up" --help
+          "$RUNNER_TEMP/dc-bin/dc-down" --help
+      - name: help flags
+        run: |
+          bash install.sh --help | grep -q -- --full
