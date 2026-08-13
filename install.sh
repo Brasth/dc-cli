@@ -74,14 +74,36 @@ if [[ "$WITH_CLI" -eq 1 ]]; then
   fi
 fi
 
+install_skill_dir() {
+  local dest="$1/devcontainer-cli-global"
+  mkdir -p "$dest"
+  cp "$ROOT/skill/SKILL.md" "$dest/SKILL.md"
+  echo "Installed agent skill to $dest"
+}
+
 if [[ "$WITH_SKILL" -eq 1 ]]; then
-  dest="$HOME/.pi/agent/pi-hermes-memory/skills/devcontainer-cli-global"
-  if [[ -d "$(dirname "$dest")" ]]; then
-    mkdir -p "$dest"
-    cp "$ROOT/skill/SKILL.md" "$dest/SKILL.md"
-    echo "Installed agent skill to $dest"
-  else
-    echo "Skipped --with-skill (no $HOME/.pi/agent/pi-hermes-memory/skills)"
+  installed=0
+  # Pi auto-loads these (Agent Skills spec).
+  if [[ -d "$HOME/.pi/agent" ]]; then
+    install_skill_dir "$HOME/.pi/agent/skills"
+    installed=1
+  fi
+  if [[ -d "$HOME/.agents" || -d "$HOME/.agents/skills" ]]; then
+    install_skill_dir "$HOME/.agents/skills"
+    installed=1
+  fi
+  # Optional extra copies if those trees already exist.
+  if [[ -d "$HOME/.claude/skills" ]]; then
+    install_skill_dir "$HOME/.claude/skills"
+    installed=1
+  fi
+  if [[ -d "$HOME/.pi/agent/pi-hermes-memory/skills" ]]; then
+    install_skill_dir "$HOME/.pi/agent/pi-hermes-memory/skills"
+    installed=1
+  fi
+  if [[ "$installed" -eq 0 ]]; then
+    mkdir -p "$HOME/.pi/agent/skills"
+    install_skill_dir "$HOME/.pi/agent/skills"
   fi
 fi
 

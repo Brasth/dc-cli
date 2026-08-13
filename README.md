@@ -17,7 +17,7 @@ Optional:
 
 ```bash
 bash install.sh --with-cli      # npm i -g @devcontainers/cli if missing
-bash install.sh --with-skill    # copy agent skill if ~/.pi/.../skills exists
+bash install.sh --with-skill    # copy skill to ~/.pi/agent/skills (Pi loads this)
 ```
 
 Tagged one-liner (prefer a release tag, not `main`):
