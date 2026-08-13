@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# Open a workspace in a host editor. --attach is VS Code only.
+set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  exit 1
+fi
+
+editor=""
+attach=0
+workspace="."
+
+usage() {
+  cat <<'EOF'
+dc-open — open the workspace in a host editor
+
+  dc-open [workspace]
+  dc-open --editor zed|code|subl [workspace]
+  dc-open --attach [workspace]     VS Code attach into the container
+
+Host folder for zed / code / subl (bind-mount is the content).
+--attach needs `code` on PATH and a running labeled container.
+
+Editor: --editor → $DC_EDITOR → first of zed, code, subl on PATH.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --editor)
+      shift
+      [[ $# -ge 1 ]] || { echo "--editor needs zed|code|subl" >&2; exit 2; }
+      editor="$1"
+      ;;
+    --attach) attach=1 ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      workspace="$1"
+      ;;
+  esac
+  shift
+done
+
+DC_RESOLVE_VERBOSE=1
+ws="$(dc_resolve_workspace "$workspace")" || exit 1
+
+if [[ "$attach" -eq 1 ]]; then
+  if ! command -v code >/dev/null 2>&1; then
+    echo "dc-open --attach needs VS Code (code) on PATH. Zed/Sublime cannot attach." >&2
+    exit 2
+  fi
+  mapfile -t ids < <(dc_ids_for_workspace "$ws")
+  cleaned=()
+  for id in "${ids[@]+"${ids[@]}"}"; do
+    [[ -n "${id:-}" ]] && cleaned+=("$id")
+  done
+  if [[ ${#cleaned[@]} -eq 0 ]]; then
+    echo "No running/labeled container for $ws. Start with dc-up first." >&2
+    exit 1
+  fi
+  id="${cleaned[0]}"
+  status="$(docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo missing)"
+  if [[ "$status" != "running" ]]; then
+    echo "Container $id is $status — start it before attach." >&2
+    exit 1
+  fi
+  name="$(docker inspect -f '{{.Name}}' "$id" | sed 's#^/##')"
+  folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id")"
+  inner="$(dc_container_workspace_path "$id" "$folder")"
+  payload="$(printf '{"containerName":"%s"}' "$name")"
+  hex="$(dc_hex "$payload")"
+  uri="vscode-remote://attached-container+${hex}${inner}"
+  echo "Attaching VS Code: $name → $inner"
+  exec code --folder-uri "$uri"
+fi
+
+if ! picked="$(dc_pick_editor "$editor")"; then
+  echo "No host editor on PATH. Install zed, VS Code (code), or Sublime (subl)." >&2
+  echo "Or set --editor / DC_EDITOR." >&2
+  exit 1
+fi
+
+case "$picked" in
+  zed|code|subl) ;;
+  *)
+    echo "Unsupported editor: $picked (use zed, code, or subl)" >&2
+    exit 2
+    ;;
+esac
+
+if ! command -v "$picked" >/dev/null 2>&1; then
+  echo "Editor not on PATH: $picked" >&2
+  case "$picked" in
+    zed) echo "  https://zed.dev" >&2 ;;
+    code) echo "  https://code.visualstudio.com (install 'code' shell command)" >&2 ;;
+    subl) echo "  https://www.sublimetext.com (install 'subl' on PATH)" >&2 ;;
+  esac
+  exit 1
+fi
+
+if [[ ! -d "$ws" ]]; then
+  echo "Workspace missing on disk: $ws" >&2
+  exit 1
+fi
+
+echo "Opening $ws with $picked (host folder)"
+exec "$picked" "$ws"

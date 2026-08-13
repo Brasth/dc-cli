@@ -12,14 +12,33 @@ jobs:
       - name: bash -n
         run: |
           bash -n install.sh
+          bash -n lib/dc-common.sh
           bash -n bin/dc-up bin/dc-exec bin/dc-down bin/dc-ps bin/dc-forward
+          bash -n bin/dc-ls bin/dc-open bin/dc-tui
       - name: install to prefix
         run: |
           PREFIX="$RUNNER_TEMP/dc-bin" bash install.sh --prefix "$RUNNER_TEMP/dc-bin"
           test -x "$RUNNER_TEMP/dc-bin/dc-up"
           test -x "$RUNNER_TEMP/dc-bin/dc-down"
+          test -x "$RUNNER_TEMP/dc-bin/dc-ls"
+          test -x "$RUNNER_TEMP/dc-bin/dc-open"
+          test -x "$RUNNER_TEMP/dc-bin/dc-tui"
+          test -f "$HOME/.config/devcontainer/dc-common.sh"
           "$RUNNER_TEMP/dc-bin/dc-up" --help
           "$RUNNER_TEMP/dc-bin/dc-down" --help
+          "$RUNNER_TEMP/dc-bin/dc-ls" --help
+          "$RUNNER_TEMP/dc-bin/dc-open" --help
+          "$RUNNER_TEMP/dc-bin/dc-tui" --help
+      - name: dc-ls empty json
+        run: |
+          PREFIX="$RUNNER_TEMP/dc-bin" bash install.sh --prefix "$RUNNER_TEMP/dc-bin" >/dev/null
+          out="$("$RUNNER_TEMP/dc-bin/dc-ls" --json --all)"
+          test "$out" = "[]"
+      - name: dc-down --all refuses without --yes
+        run: |
+          set +e
+          "$RUNNER_TEMP/dc-bin/dc-down" --all
+          test $? -eq 2
       - name: help flags
         run: |
           bash install.sh --help | grep -q -- --full

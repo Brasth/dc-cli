@@ -10,6 +10,18 @@
 #   dc-down --all --yes
 set -euo pipefail
 
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  exit 1
+fi
+
 remove=0
 volumes=0
 all=0
@@ -81,18 +93,9 @@ ids=()
 if [[ -n "$explicit_id" ]]; then
   ids=("$explicit_id")
 elif [[ "$all" -eq 1 ]]; then
-  mapfile -t ids < <(docker ps -aq --filter 'label=devcontainer.local_folder' 2>/dev/null || true)
+  mapfile -t ids < <(dc_labeled_ids)
 else
-  abs="$(cd "$workspace" && pwd)"
-  mapfile -t ids < <(docker ps -aq --filter "label=devcontainer.local_folder=${abs}" 2>/dev/null || true)
-  if [[ ${#ids[@]} -eq 0 || -z "${ids[0]:-}" ]]; then
-    if git -C "$abs" rev-parse --show-toplevel >/dev/null 2>&1; then
-      root="$(git -C "$abs" rev-parse --show-toplevel)"
-      if [[ "$root" != "$abs" ]]; then
-        mapfile -t ids < <(docker ps -aq --filter "label=devcontainer.local_folder=${root}" 2>/dev/null || true)
-      fi
-    fi
-  fi
+  mapfile -t ids < <(dc_ids_for_workspace "$workspace")
 fi
 
 cleaned=()

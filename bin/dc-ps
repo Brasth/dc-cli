@@ -1,8 +1,21 @@
 #!/usr/bin/env bash
 # List likely devcontainers (label + compose project).
 set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  exit 1
+fi
+
 echo "== docker ps =="
-docker ps --format 'table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Ports}}\t{{.Status}}'
+docker ps --format 'table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Ports}}\t{{.Status}}' 2>/dev/null || echo "(docker not available)"
 echo
-echo "== containers with devcontainer.local_folder =="
-docker ps -a --filter 'label=devcontainer.local_folder' --format 'table {{.ID}}\t{{.Names}}\t{{.Label "devcontainer.local_folder"}}\t{{.Label "com.docker.compose.project"}}\t{{.Status}}\t{{.Ports}}' 2>/dev/null || true
+echo "== containers with ${DC_LABEL_FOLDER} =="
+dc_ls_table --all

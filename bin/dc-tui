@@ -1,0 +1,251 @@
+#!/usr/bin/env bash
+# Workspace-default TUI. --all is the fleet list.
+set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  exit 1
+fi
+
+PATH="$_here:$PATH"
+workspace="."
+fleet=0
+
+usage() {
+  cat <<'EOF'
+dc-tui — control this folder's devcontainer (not a Docker zoo)
+
+  dc-tui [workspace]     this folder (cwd, then git root)
+  dc-tui --all           fleet of labeled containers
+  dc-tui --help
+
+Keys (workspace):
+  u  dc-up          e  dc-exec         o  dc-open (host)
+  a  VS Code attach s  dc-down         x  dc-down --rm
+  l  docker logs    f  fleet           q  quit
+
+Up/exec/logs suspend the TUI so you see real CLI output.
+Editors stay on the host. Only VS Code can attach inside.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --all) fleet=1 ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      workspace="$1"
+      ;;
+  esac
+  shift
+done
+
+choose_action() {
+  local title="$1"
+  shift
+  local -a items=("$@")
+  if command -v gum >/dev/null 2>&1; then
+    gum choose --header "$title" "${items[@]}"
+    return
+  fi
+  if command -v fzf >/dev/null 2>&1; then
+    printf '%s\n' "${items[@]}" | fzf --prompt "$title > "
+    return
+  fi
+  if [[ -t 0 ]]; then
+    echo "$title" >&2
+    local i=1 item
+    for item in "${items[@]}"; do
+      echo "  $i) $item" >&2
+      i=$((i + 1))
+    done
+    printf 'number (or u/e/o/a/s/x/l/f/q): ' >&2
+    local k
+    read -r k
+    if [[ "$k" =~ ^[0-9]+$ ]]; then
+      local idx=$((k - 1))
+      if [[ "$idx" -ge 0 && "$idx" -lt ${#items[@]} ]]; then
+        echo "${items[$idx]}"
+        return
+      fi
+    fi
+    case "$k" in
+      u|U) echo "[u] up" ;;
+      e|E) echo "[e] exec" ;;
+      o|O) echo "[o] open host" ;;
+      a|A) echo "[a] attach vscode" ;;
+      s|S) echo "[s] stop" ;;
+      x|X) echo "[x] rm" ;;
+      l|L) echo "[l] logs" ;;
+      f|F) echo "[f] fleet" ;;
+      q|Q|"") echo "[q] quit" ;;
+      *) echo "[q] quit" ;;
+    esac
+    return
+  fi
+  echo "Need a TTY (or gum/fzf)." >&2
+  return 1
+}
+
+action_key() {
+  local line="$1"
+  if [[ "$line" =~ \[([a-zA-Z])\] ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]}"
+    return
+  fi
+  printf '%s\n' "${line:0:1}"
+}
+
+workspace_screen() {
+  local dir="$1"
+  local ws
+  if [[ ! -d "$dir" ]]; then
+    echo "Workspace missing on disk: $dir" >&2
+    return 1
+  fi
+  ws="$(DC_RESOLVE_VERBOSE=1 dc_resolve_workspace "$dir")" || return 1
+
+  while true; do
+    local has="NO" editor="(none)"
+    dc_has_devcontainer "$ws" && has="YES"
+    editor="$(dc_pick_editor "" 2>/dev/null || echo "(none)")"
+
+    local id="" name="" status="(none)" ports="" folder=""
+    local json
+    json="$(dc_ls_json --workspace "$ws")"
+    if command -v python3 >/dev/null 2>&1 && [[ "$json" != "[]" ]]; then
+      IFS=$'\t' read -r id name status folder ports < <(
+        python3 -c '
+import json,sys
+rows=json.loads(sys.argv[1])
+if not rows:
+    raise SystemExit(0)
+r=rows[0]
+print("\t".join([
+    r.get("id",""), r.get("name",""), r.get("status",""),
+    r.get("local_folder",""), r.get("ports",""),
+]))
+' "$json"
+      ) || true
+    fi
+
+    echo
+    echo "dc-tui  $ws"
+    echo "  config   .devcontainer   $has"
+    echo "  label    ${folder:-$ws}  ${status}  ${id:-}  ${ports}"
+    echo "  editor   $editor"
+    echo
+
+    local pick key
+    pick="$(choose_action "workspace $ws" \
+      "[u] up" "[e] exec" "[o] open host" "[a] attach vscode" \
+      "[s] stop" "[x] rm" "[l] logs" "[f] fleet" "[q] quit")" || return 1
+    key="$(action_key "$pick")"
+    case "$key" in
+      u)
+        if ! dc_has_devcontainer "$ws"; then
+          echo "No .devcontainer in $ws. Add one, or use CLI: dc-up --ports (REPLACE)." >&2
+          continue
+        fi
+        echo "→ dc-up $ws"
+        dc-up "$ws" || true
+        ;;
+      e)
+        echo "→ dc-exec $ws"
+        dc-exec "$ws" || true
+        ;;
+      o)
+        dc-open "$ws" || true
+        ;;
+      a)
+        dc-open --attach "$ws" || true
+        ;;
+      s)
+        dc-down "$ws" || true
+        ;;
+      x)
+        printf 'dc-down --rm %s ? [y/N] ' "$ws"
+        local ans
+        read -r ans
+        if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
+          dc-down --rm "$ws" || true
+        fi
+        ;;
+      l)
+        if [[ -z "$id" ]]; then
+          echo "No container to log." >&2
+          continue
+        fi
+        echo "→ docker logs -f $id  (Ctrl-C back to TUI)"
+        docker logs -f "$id" || true
+        ;;
+      f)
+        fleet_screen
+        ;;
+      q|*)
+        return 0
+        ;;
+    esac
+  done
+}
+
+fleet_screen() {
+  while true; do
+    local json
+    json="$(dc_ls_json --all)"
+    echo
+    echo "dc-tui --all"
+    if [[ "$json" == "[]" ]]; then
+      echo "  (no labeled containers)"
+      echo
+    fi
+
+    local -a items=()
+    if command -v python3 >/dev/null 2>&1 && [[ "$json" != "[]" ]]; then
+      mapfile -t items < <(
+        python3 -c '
+import json,sys
+for r in json.loads(sys.argv[1]):
+    folder=r.get("local_folder") or "?"
+    print("%s\t%s\t%s\t%s" % (r.get("status","?"), r.get("name","?"), folder, r.get("id","")[:12]))
+' "$json"
+      )
+    fi
+    items+=("[q] back/quit")
+
+    local pick
+    pick="$(choose_action "fleet (Enter = workspace)" "${items[@]}")" || return 1
+    if [[ "$pick" == "[q] back/quit" || "$pick" == q ]]; then
+      return 0
+    fi
+    local folder
+    folder="$(printf '%s' "$pick" | awk -F'\t' '{print $3}')"
+    if [[ -z "$folder" || "$folder" == "?" ]]; then
+      echo "Bad row: $pick" >&2
+      continue
+    fi
+    if [[ ! -d "$folder" ]]; then
+      echo "Folder missing on disk (raw label): $folder" >&2
+      continue
+    fi
+    workspace_screen "$folder" || true
+  done
+}
+
+if [[ "$fleet" -eq 1 ]]; then
+  fleet_screen
+else
+  workspace_screen "$workspace"
+fi

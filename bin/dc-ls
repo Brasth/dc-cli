@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# Machine-readable list of official-CLI labeled containers.
+set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  exit 1
+fi
+
+json=0
+mode="workspace"
+dir="."
+
+usage() {
+  cat <<'EOF'
+dc-ls — list containers labeled devcontainer.local_folder
+
+  dc-ls [workspace]           this folder (cwd / git root)
+  dc-ls --all                 every labeled container
+  dc-ls --json [...]          JSON array (default for scripts)
+  dc-ls --workspace DIR
+  dc-ls --help
+
+Empty match prints [] with --json, or a header-only table.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --json) json=1 ;;
+    --all) mode="all" ;;
+    --workspace)
+      shift
+      [[ $# -ge 1 ]] || { echo "--workspace needs a dir" >&2; exit 2; }
+      mode="workspace"
+      dir="$1"
+      ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      mode="workspace"
+      dir="$1"
+      ;;
+  esac
+  shift
+done
+
+# Default to JSON when stdout is not a TTY (scripts). Human table on a TTY unless --json.
+if [[ "$json" -eq 0 && ! -t 1 ]]; then
+  json=1
+fi
+
+if [[ "$mode" == "all" ]]; then
+  if [[ "$json" -eq 1 ]]; then
+    dc_ls_json --all
+  else
+    dc_ls_table --all
+  fi
+else
+  if [[ "$json" -eq 1 ]]; then
+    dc_ls_json --workspace "$dir"
+  else
+    dc_ls_table --workspace "$dir"
+  fi
+fi

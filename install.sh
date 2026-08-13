@@ -42,7 +42,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 mkdir -p "$PREFIX"
-for f in dc-up dc-exec dc-down dc-ps dc-forward; do
+for f in dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-tui; do
   cp "$ROOT/bin/$f" "$PREFIX/$f"
   chmod +x "$PREFIX/$f"
 done
@@ -50,6 +50,8 @@ echo "Installed helpers to $PREFIX"
 
 cfg="$HOME/.config/devcontainer"
 mkdir -p "$cfg"
+cp "$ROOT/lib/dc-common.sh" "$cfg/dc-common.sh"
+echo "Wrote $cfg/dc-common.sh"
 if [[ ! -f "$cfg/override.json" ]]; then
   cp "$ROOT/config/override.json" "$cfg/override.json"
   echo "Wrote $cfg/override.json"
@@ -147,11 +149,18 @@ doctor() {
   else
     echo "  socat         optional  dc-forward only — brew/apt install socat"
   fi
-  if [[ -x "$PREFIX/dc-up" ]]; then
-    echo "  helpers       OK  $PREFIX"
+  if [[ -x "$PREFIX/dc-up" && -x "$PREFIX/dc-tui" ]]; then
+    echo "  helpers       OK  $PREFIX (dc-up dc-tui dc-ls dc-open ...)"
   else
     echo "  helpers       MISSING  $PREFIX"
   fi
+  for e in zed code subl; do
+    if command -v "$e" >/dev/null 2>&1; then
+      echo "  editor $e     OK  $(command -v "$e")"
+    else
+      echo "  editor $e     optional"
+    fi
+  done
 }
 
 doctor
@@ -161,7 +170,8 @@ echo "Next:"
 echo "  source ~/.bashrc   # Linux / WSL"
 echo "  source ~/.zshrc    # macOS zsh"
 echo "  dc-up --help"
-echo "  dc-down --help"
+echo "  dc-tui --help     # this folder"
+echo "  dc-tui --all      # fleet"
 if ! command -v devcontainer >/dev/null 2>&1; then
   echo "Official CLI not installed. Need it: bash install.sh --with-cli"
 fi

@@ -1,8 +1,8 @@
 # dc-cli
 
-Host-global helpers for the official [`@devcontainers/cli`](https://github.com/devcontainers/cli). No VS Code. **Does not edit** project `.devcontainer/devcontainer.json`.
+Host-global helpers for the official [`@devcontainers/cli`](https://github.com/devcontainers/cli). No VS Code required. **Does not edit** project `.devcontainer/devcontainer.json`.
 
-You already get **`dc-down`** here. The upstream CLI only ships `up` / `exec` — this repo adds stop/remove plus thin wrappers (`dc-up`, `dc-exec`, `dc-ps`, `dc-forward`).
+The upstream CLI only ships `up` / `exec`. This repo adds **`dc-down`**, **`dc-ls`**, **`dc-open`**, and **`dc-tui`** (this folder by default; `--all` is the fleet).
 
 ## Install
 
@@ -25,12 +25,12 @@ bash install.sh --full          # --with-cli + --with-skill
 Tagged one-liner (prefer a release tag, not `main`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/v0.1.4/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/v0.2.0/install.sh | bash
 ```
 
 (`curl | bash` runs remote code. Clone + `bash install.sh` is safer.)
 
-Needs: `bash` 4+, Docker. Node 18+ + npm only for `--with-cli` / `--full`. `socat` only for `dc-forward`.
+Needs: `bash` 4+, Docker. Node 18+ + npm only for `--with-cli` / `--full`. `socat` only for `dc-forward`. Optional: `gum` or `fzf` for a nicer `dc-tui` (falls back to a numbered prompt).
 
 ## Platform support
 
@@ -41,7 +41,7 @@ Needs: `bash` 4+, Docker. Node 18+ + npm only for `--with-cli` / `--full`. `soca
 | Windows + **WSL2** | Best-effort | Run the same bash installer **inside WSL**. Docker Desktop WSL backend. |
 | Windows native (cmd/PowerShell) | **Not supported** | No `.ps1`. Do not run Git Bash against Docker Desktop labels mixed with `C:\` vs `/mnt/c` — `dc-down` matches `devcontainer.local_folder` as a string. |
 
-`dc-down` compares the Docker label to `pwd`. Create and stop from the **same** environment (all WSL, or all macOS/Linux), or pass `dc-down --id`.
+`dc-down` / `dc-ls` compare the Docker label to the resolved workspace. Create and stop from the **same** environment (all WSL, or all macOS/Linux), or pass `dc-down --id`.
 
 ### `--with-skill` (multi-agent)
 
@@ -63,6 +63,8 @@ Does **not** create a harness home just to drop a skill. Restart the agent after
 
 | Command | What |
 |---|---|
+| `dc-tui [dir]` | TUI for **this folder** (cwd, then git root) |
+| `dc-tui --all` | Fleet of labeled containers; Enter drills into that folder |
 | `dc-up [dir]` | `devcontainer up` using the **project** config (safe default) |
 | `dc-up --ports` | **REPLACE** project config with `~/.config/devcontainer/override.json` |
 | `dc-exec` / `dc-exec -- cmd` | exec in the workspace container |
@@ -70,8 +72,37 @@ Does **not** create a harness home just to drop a skill. Restart the agent after
 | `dc-down --rm` | stop + remove |
 | `dc-down --compose` | stop/down the compose project if labeled |
 | `dc-down --all --yes` | every `devcontainer.local_folder` container |
+| `dc-ls [--json] [--all]` | machine-readable list (same labels as `dc-down`) |
+| `dc-open [dir]` | open host folder in zed / code / subl |
+| `dc-open --attach` | VS Code attach into the running container |
 | `dc-ps` | list docker + labeled containers |
 | `dc-forward 9000` | extra host→container port via `socat` |
+
+There is **no** `dc` meta-binary. Scripts keep calling `dc-up` / `dc-down`.
+
+## `dc-tui`
+
+Default is the **current folder**, not every Docker container.
+
+```
+dc-tui              # this workspace
+dc-tui ~/src/app
+dc-tui --all        # fleet
+```
+
+Keys: `u` up · `e` exec · `o` open host editor · `a` VS Code attach · `s` stop · `x` rm · `l` logs · `f` fleet · `q` quit.
+
+`u` / `e` / `l` **suspend** the TUI so you see official CLI / docker output. `u` is refused if the folder has no `.devcontainer` (use CLI `dc-up --ports` if you really want REPLACE).
+
+## Editors (host only)
+
+| Editor | `dc-open` | In-container attach |
+|---|---|---|
+| Zed (`zed`) | Host folder | **No** |
+| VS Code (`code`) | Host folder | **Yes** (`dc-open --attach`) |
+| Sublime (`subl`) | Host folder | **No** |
+
+Bind-mount **is** the project content. Pick editor with `--editor`, `DC_EDITOR`, or first of `zed`, `code`, `subl` on PATH. Nothing is downloaded.
 
 ## `dc-up --ports` is a replace, not a merge
 
@@ -89,7 +120,7 @@ dc-down --id NAME       # explicit container
 dc-down --all --yes     # required confirmation
 ```
 
-Matching uses Docker label `devcontainer.local_folder` (cwd, then git root).
+Matching uses Docker label `devcontainer.local_folder` (cwd, then git root) via `lib/dc-common.sh` (same as `dc-ls`).
 
 ## Maintainer
 
