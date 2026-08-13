@@ -91,6 +91,10 @@ dc-down --all --yes     # required confirmation
 
 Matching uses Docker label `devcontainer.local_folder` (cwd, then git root).
 
+## Maintainer
+
+[Canvilled](https://github.com/Canvilled) (Huy Nguyen).
+
 ## License
 
 MIT
