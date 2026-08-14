@@ -139,7 +139,7 @@ In the TUI, click more (or press ?) for the full legend.
 Buttons / keys
   start  (u)  dc-up          create/start this folder + auto-forward ports
   shell  (e)  dc-exec        bash in the labeled app (leaves TUI)
-                             click a stack row (db / mailpit / …) for siblings
+                             click a stack row: start if down, then exec
   open   (o)  dc-open        host editor on the bind-mount (zed/code/subl)
   attach (a)  dc-open --attach
                              VS Code Remote INTO the running container
@@ -344,14 +344,14 @@ func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
 
 func (m model) execStack(i int) (tea.Model, tea.Cmd) {
 	s := m.stack[i]
-	if s.Status != "running" {
-		m.err = s.Service + " is " + s.Status
-		return m, nil
+	label := s.Service
+	if label == "" {
+		label = s.Name
 	}
 	cmd := exec.Command("dc-exec", "--id", s.ID)
 	cmd.Stdin = os.Stdin
 	return m, tea.ExecProcess(cmd, func(err error) tea.Msg {
-		return execDoneMsg{action: "exec-" + s.Service, err: err}
+		return execDoneMsg{action: "exec-" + label, err: err}
 	})
 }
 
@@ -560,7 +560,7 @@ func morePanel(editor string) string {
 		titleStyle.Render("more — what each action does"),
 		"  start    create/start this folder (needs .devcontainer) then dc-forward",
 		"  shell    bash in the labeled app — TUI closes while it runs",
-		"  stack    click db / mailpit / wordpress to docker exec that box",
+		"  stack    click a row — starts the box if it is down, then exec",
 		"  open     host editor on the bind-mount  now: " + editor,
 		"  attach   VS Code Remote INTO the container (code only, must be running)",
 		"  ports    sidecar publish compose/forwardPorts (Colima: not host socat)",

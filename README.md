@@ -1,176 +1,152 @@
 # dc-cli
 
-Host-global helpers for the official [`@devcontainers/cli`](https://github.com/devcontainers/cli). No VS Code required. **Does not edit** project `.devcontainer/devcontainer.json`.
+Host-global helpers around official [`@devcontainers/cli`](https://github.com/devcontainers/cli). **No VS Code required. Does not edit** project `.devcontainer/devcontainer.json`.
 
-The upstream CLI only ships `up` / `exec`. This repo adds **`dc-down`**, **`dc-ls`**, **`dc-open`**, and **`dc-tui`** (this folder by default; `--all` is the fleet).
+Upstream only has `up` / `exec`. This repo adds **stop**, **list**, **open**, **port publish**, and a **TUI**.
+
+```
+this folder
+   │
+   ├─ dc-tui          clickable board (default)
+   ├─ dc-up           start the labeled app + publish ports
+   ├─ dc-exec         shell in the app
+   ├─ dc-exec db      start (if needed) + shell in a sibling
+   ├─ dc-forward      host localhost:3000 → app (Colima-safe)
+   └─ dc-down         stop the app (sidecars go too)
+```
 
 ## Install
-
-```bash
-git clone https://github.com/Canvilled/dc-cli.git
-cd dc-cli
-bash install.sh
-source ~/.bashrc   # Linux / WSL
-source ~/.zshrc    # macOS zsh
-```
-
-Default install is **wrappers only**. It does **not** install `@devcontainers/cli`.
-
-```bash
-bash install.sh --with-cli      # npm i -g @devcontainers/cli if missing
-bash install.sh --with-skill    # copy SKILL.md into each agent you already have
-bash install.sh --full          # --with-cli + --with-skill
-```
-
-One-liner always installs the **latest GitHub release** (installer on `main` fetches `releases/latest`):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/main/install.sh | bash
 ```
 
-Pin or use HEAD:
+Always tracks the **latest GitHub release**. Safer: clone, then `bash install.sh`.
+
+| Flag | What you get |
+|---|---|
+| *(default)* | wrappers in `~/bin` only — **not** the official CLI |
+| `--with-cli` | `npm i -g @devcontainers/cli` if missing |
+| `--with-skill` | copy the agent skill into homes you already have |
+| `--full` | `--with-cli` + `--with-skill` |
+| `--ref v0.4.3` / `main` | pin a tag or use HEAD |
+
+Needs: bash 4+, Docker (Colima or Desktop). Go 1.22+ builds the clickable TUI; otherwise you get the bash menu. `source ~/.zshrc` or `~/.bashrc` after install.
+
+## Daily flow
 
 ```bash
-bash install.sh --ref v0.2.0    # that tag
-bash install.sh --ref main      # default branch, not a release
+cd ~/Xenia/brothermarcus
+dc-tui                          # or the CLI below
+
+dc-up                           # start app, then auto-forward :3000
+dc-exec                         # bash in the app  (pnpm, node)
+dc-exec --list                  # app + db + mailpit + wordpress + …
+dc-exec --service wordpress     # start wordpress if it is down, then bash
+dc-exec wordpress -- composer   # same, run a command
+dc-forward                      # if the browser still cannot hit :3000
+dc-down                         # stop app + drop sidecars
 ```
 
-(`curl | bash` runs remote code. Clone + `bash install.sh` is safer and uses the tree you cloned.)
+**App vs sibling**
 
-Needs: `bash` 4+, Docker. Node 18+ + npm only for `--with-cli` / `--full`. `socat` only for `dc-forward`. **Go 1.22+** on PATH builds the clickable `dc-tui`; otherwise the bash menu is installed.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/main/install.sh | bash -s -- --full
-```
-
-## Platform support
-
-| OS | Status | Notes |
+| Target | Command | How |
 |---|---|---|
-| macOS | Supported | What we dogfood (Colima or Docker Desktop). |
-| Linux | Supported | `bash install.sh` writes `~/bin` + `~/.bashrc`. Docker Engine or Desktop. `sudo apt-get install socat` for `dc-forward`. |
-| Windows + **WSL2** | Best-effort | Run the same bash installer **inside WSL**. Docker Desktop WSL backend. |
-| Windows native (cmd/PowerShell) | **Not supported** | No `.ps1`. Do not run Git Bash against Docker Desktop labels mixed with `C:\` vs `/mnt/c` — `dc-down` matches `devcontainer.local_folder` as a string. |
+| labeled **app** | `dc-exec` | `devcontainer exec` (remoteUser, cwd, features) |
+| **db / mailpit / wordpress / …** | `dc-exec --service NAME` | `docker start` if exited, then `docker exec` |
 
-`dc-down` / `dc-ls` compare the Docker label to the resolved workspace. Create and stop from the **same** environment (all WSL, or all macOS/Linux), or pass `dc-down --id`.
+Click a **stack row** in the TUI for the same sibling path. `e` / **shell** is always the app.
 
-### `--with-skill` (multi-agent)
-
-If that product’s home dir exists, the same `skill/SKILL.md` is copied to:
-
-| Agent | Path |
-|---|---|
-| Shared (Agent Skills) | `~/.agents/skills/devcontainer-cli-global/` |
-| Pi | `~/.pi/agent/skills/` |
-| Claude Code | `~/.claude/skills/` |
-| Codex | `~/.codex/skills/` |
-| Gemini CLI | `~/.gemini/skills/` |
-| Cursor | `~/.cursor/skills/` |
-| OpenCode | `~/.opencode/skills/` |
-
-Does **not** create a harness home just to drop a skill. Restart the agent after install. Cursor/Gemini also read `~/.agents/skills` in many setups.
-
-## Commands
-
-| Command | What |
-|---|---|
-| `dc-tui [dir]` | TUI for **this folder** (cwd, then git root) |
-| `dc-tui --all` | Fleet of labeled containers; Enter drills into that folder |
-| `dc-up [dir]` | `devcontainer up` using the **project** config, then **`dc-forward`** |
-| `dc-up --ports` | **REPLACE** project config with `~/.config/devcontainer/override.json` |
-| `dc-up --no-forward` | skip sidecar publish (`DC_FORWARD=0` too) |
-| `dc-exec` / `dc-exec -- cmd` | bash in the **labeled app** |
-| `dc-exec --list` | compose siblings (db, mailpit, wordpress, …) |
-| `dc-exec --service db` | `docker exec` into that sibling |
-| `dc-down` | **stop** the labeled container (keep it for next `dc-up`) |
-| `dc-down --rm` | stop + remove |
-| `dc-down --compose` | stop/down the compose project if labeled |
-| `dc-down --all --yes` | every `devcontainer.local_folder` container |
-| `dc-ls [--json] [--all]` | machine-readable list (same labels as `dc-down`) |
-| `dc-open [dir]` | open host folder in zed / code / subl |
-| `dc-open --attach` | VS Code attach into the running container |
-| `dc-ps` | list docker + labeled containers |
-| `dc-forward [dir]` | sidecar-publish unpublished app ports (Colima-safe) |
-| `dc-forward 3000` | same, explicit host port |
-| `dc-forward --stop` | remove our sidecars |
-
-There is **no** `dc` meta-binary. Scripts keep calling `dc-up` / `dc-down`.
-
-## `dc-tui`
-
-Default is the **current folder**, not every Docker container. With Go, install builds a **clickable** Bubble Tea TUI (mouse + keys). Without Go, you get the bash menu.
-
-<img width="756" height="248" alt="Screenshot 2026-08-14 at 06 59 02" src="https://github.com/user-attachments/assets/cfd7abef-eddb-41e2-b93b-2f9b2d69c414" />
+## TUI
 
 ```
-dc-tui              # this workspace
+dc-tui              # this folder (cwd, then git root)
 dc-tui ~/src/app
-dc-tui --all        # fleet
+dc-tui --all        # every labeled workspace
 ```
 
-Equal-width button grid (not a ragged wrap). Compact header. Stack rows color **up** / **down** and highlight on hover. After **shell** / **logs**, the TUI comes back — a normal `exit` is not a crash.
+Equal-width button grid. Compact header. Stack rows: **up** / **down**, hover, click to exec (starts the box first).
 
-| Button | Key | What it does |
+| Button | Key | Does |
 |---|---|---|
-| **start** | `u` | `dc-up` then auto **`dc-forward`**. Needs `.devcontainer`. Leaves TUI for pull logs. |
-| **shell** | `e` | `dc-exec` — bash in the **labeled app**. Leaves TUI. Click a **stack row** (db / mailpit / …) for siblings. |
-| **open host** | `o` | `dc-open` — host editor on the **bind-mount** (Zed / VS Code / Sublime). |
-| **attach vscode** | `a` | `dc-open --attach` — VS Code **Remote into** the running container. `code` only. |
-| **ports** | `p` | `dc-forward` — sidecar so **host** `localhost:3000` reaches the app (Colima). |
-| **stop** | `s` | `dc-down` — stop, keep the container. Sidecars removed. |
-| **rm** | `x` | `dc-down --rm` — stop and delete. |
-| **logs** | `l` | `docker logs -f`. Ctrl-C returns to the TUI. |
-| **fleet** | `f` | Every labeled workspace. Click a row to open that folder. |
-| **more** | `?` | This legend in the TUI. |
-| **quit** | `q` | Exit. |
+| **start** | `u` | `dc-up` + `dc-forward` |
+| **shell** | `e` | `dc-exec` — **app** only |
+| **open** | `o` | host editor on the bind-mount |
+| **attach** | `a` | VS Code Remote **into** the app (`code` only) |
+| **ports** | `p` | `dc-forward` (Colima sidecar) |
+| **stop** / **rm** | `s` / `x` | `dc-down` / `dc-down --rm` |
+| **logs** | `l` | `docker logs -f` on the app |
+| **fleet** | `f` | other workspaces |
+| **more** / **quit** | `?` / `q` | legend / exit |
 
-**open ≠ attach.** Open edits files on the Mac/Linux host. Attach is VS Code’s in-container terminal/debugger. Zed and Sublime cannot attach.
+After **shell** / **logs**, the TUI comes back. A normal `exit` is not a crash.
 
-`start` is refused if the folder has no `.devcontainer` (use CLI `dc-up --ports` only if you accept REPLACE).
+**open ≠ attach.** Open = files on the Mac/Linux host. Attach = VS Code terminal/debugger inside Linux. Zed and Sublime cannot attach.
 
-## Editors (host only)
+## Commands (all of them)
 
-| Editor | `dc-open` | In-container attach |
-|---|---|---|
-| Zed (`zed`) | Host folder | **No** |
-| VS Code (`code`) | Host folder | **Yes** (`dc-open --attach`) |
-| Sublime (`subl`) | Host folder | **No** |
+| Command | Purpose |
+|---|---|
+| `dc-tui [dir]` | this folder |
+| `dc-tui --all` | fleet |
+| `dc-up [dir]` | project config, then `dc-forward` |
+| `dc-up --no-forward` | skip sidecars (`DC_FORWARD=0`) |
+| `dc-up --ports` | **REPLACE** project config (not a merge) |
+| `dc-exec` | app shell |
+| `dc-exec --list` | stack table |
+| `dc-exec --service db` | sibling (starts if down) |
+| `dc-exec --id NAME` | that container (starts if down) |
+| `dc-down` / `--rm` / `--compose` | stop / delete / whole compose project |
+| `dc-down --all --yes` | every labeled box |
+| `dc-ls [--json] [--all]` | labeled app list |
+| `dc-open` / `--attach` | host editor / VS Code attach |
+| `dc-forward` / `3000` / `--stop` | sidecar publish |
+| `dc-ps` | docker + labels |
 
-Bind-mount **is** the project content. Pick editor with `--editor`, `DC_EDITOR`, or first of `zed`, `code`, `subl` (PATH **or** macOS `/Applications/*.app` — Zed.app is enough; you do not need `zed` on PATH). Nothing is downloaded.
+There is **no** `dc` meta-binary.
 
-**open** in the TUI stays on screen (it does not tear down). If no editor is found you get an error line, not a crash.
+## Ports (Colima)
 
-## `dc-up --ports` is a replace, not a merge
+`dc-up` starts `.devcontainer/docker-compose.yml`. That file often has **no** `3000:3000`. The app listens **inside**; the Mac has nothing on `:3000`.
 
-`--override-config` **replaces** the project `devcontainer.json`. Image, features, and mounts from the project file are dropped.
-
-Prefer `dc-forward` if you only need another port. That starts an `alpine/socat` sidecar on the **Docker network** (same trick as `benoy-next-proxy`). Host `socat` to `172.x` does **not** work on Colima.
+`dc-forward` starts `alpine/socat` **on the Docker network** (same idea as `benoy-next-proxy`). Host `socat` → `172.x` does **not** work on Colima.
 
 ```bash
-dc-forward                 # detect 3000/5173/… from compose + forwardPorts
-dc-forward 3000            # just that port
+dc-forward                 # detect app ports from compose `app.ports` + forwardPorts
+dc-forward 3000
 dc-forward --status
 dc-forward --stop
 ```
 
 `dc-up` runs this after a successful start. `dc-down` removes the sidecars.
 
-## `dc-down`
+`dc-up --ports` is **not** “add 3000”. It **replaces** the whole `devcontainer.json`.
 
-```bash
-dc-down                 # stop
-dc-down --rm            # stop + rm
-dc-down --volumes       # also anonymous volumes
-dc-down --id NAME       # explicit container
-dc-down --all --yes     # required confirmation
-```
+## Editors
 
-Matching uses Docker label `devcontainer.local_folder` (cwd, then git root) via `lib/dc-common.sh` (same as `dc-ls`).
+| Editor | Host open | Attach into container |
+|---|---|---|
+| Zed | yes (`/Applications/Zed.app` is enough) | **no** |
+| VS Code | yes | **yes** — `dc-open --attach` |
+| Sublime | yes | **no** |
+
+`--editor` / `$DC_EDITOR` / first of `zed`, `code`, `subl` on PATH **or** as a macOS `.app`.
+
+## Platform
+
+| OS | Status |
+|---|---|
+| macOS | Supported (Colima or Docker Desktop) |
+| Linux | Supported |
+| WSL2 | Best-effort (run the installer **inside** WSL) |
+| Native Windows | **Not supported** |
+
+Create and stop from the same environment so `devcontainer.local_folder` matches.
+
+## Skill
+
+`--with-skill` copies into existing agent homes only (`~/.pi`, `~/.claude`, `~/.codex`, `~/.gemini`, `~/.cursor`, `~/.opencode`, plus `~/.agents/skills`). Restart the agent after install.
 
 ## Maintainer
 
-[Canvilled](https://github.com/Canvilled) (Huy Nguyen).
-
-## License
-
-MIT
+[Canvilled](https://github.com/Canvilled) (Huy Nguyen). MIT.

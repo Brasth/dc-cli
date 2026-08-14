@@ -43,6 +43,7 @@ dc-exec — shell into the app container, or another service in the same compose
 
 Siblings share com.docker.compose.project with the labeled app.
 Sidecars from dc-forward are omitted. Default shell is bash, then sh.
+Stopped siblings are docker-started first (so you can exec wordpress / db).
 EOF
 }
 
@@ -115,25 +116,16 @@ if [[ -n "$explicit_id" ]]; then
     echo "Container not found: $explicit_id" >&2
     exit 1
   fi
-  st="$(docker inspect -f '{{.State.Status}}' "$explicit_id")"
-  if [[ "$st" != "running" ]]; then
-    echo "Container $explicit_id is $st" >&2
-    exit 1
-  fi
+  dc_ensure_running "$explicit_id" || exit 1
   docker_shell "$explicit_id" "${cmd[@]+"${cmd[@]}"}"
 fi
 
 if [[ -n "$service" ]]; then
-  found=""
   while IFS=$'\t' read -r id name status svc image; do
     [[ -n "$id" ]] || continue
     if [[ "$svc" == "$service" || "$name" == "$service" || "$id" == "$service"* ]]; then
-      found="$id"
-      if [[ "$status" != "running" ]]; then
-        echo "Service $service ($name) is $status" >&2
-        exit 1
-      fi
-      echo "exec  $svc  $name  ${id:0:12}"
+      echo "exec  ${svc:-$name}  $name  ${id:0:12}"
+      dc_ensure_running "$id" || exit 1
       docker_shell "$id" "${cmd[@]+"${cmd[@]}"}"
     fi
   done < <(dc_stack_rows "$workspace")

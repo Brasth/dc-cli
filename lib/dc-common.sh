@@ -87,6 +87,34 @@ dc_inspect_row() {
   printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$id" "$name" "$status" "$folder" "$compose" "$ports"
 }
 
+# docker start if needed. Wait until running (or fail if it dies immediately).
+dc_ensure_running() {
+  local id="$1" st i
+  st="$(docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo missing)"
+  if [[ "$st" == "running" ]]; then
+    return 0
+  fi
+  if [[ "$st" == "missing" ]]; then
+    echo "Container missing: $id" >&2
+    return 1
+  fi
+  echo "start  $id  (was $st)"
+  docker start "$id" >/dev/null
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    st="$(docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo missing)"
+    if [[ "$st" == "running" ]]; then
+      return 0
+    fi
+    if [[ "$st" == "exited" || "$st" == "dead" || "$st" == "missing" ]]; then
+      echo "Container $id started then $st. Logs: docker logs $id" >&2
+      return 1
+    fi
+    sleep 0.3
+  done
+  echo "Container $id did not become running (status=$st)" >&2
+  return 1
+}
+
 dc_compose_project_for() {
   local id="$1"
   docker inspect -f "{{index .Config.Labels \"${DC_LABEL_COMPOSE}\"}}" "$id" 2>/dev/null || true
