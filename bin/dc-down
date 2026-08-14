@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Stop/remove official @devcontainers/cli containers.
+# Stop/remove official @devcontainers/cli containers + compose siblings.
 # The CLI (v0.87) has no `down` command.
 #
 # Usage:
-#   dc-down [workspace]
-#   dc-down --rm [--volumes] [workspace]
+#   dc-down [workspace]              # full compose stack (app + db + mitm + …)
+#   dc-down --app [workspace]        # labeled app only
+#   dc-down --rm [--volumes] [dir]
 #   dc-down --id CONTAINER
-#   dc-down --compose [workspace]
 #   dc-down --all --yes
 set -euo pipefail
 
@@ -26,21 +26,32 @@ remove=0
 volumes=0
 all=0
 yes=0
-compose=0
+# Default: whole compose project (mitm/db/mailpit), not just the labeled app.
+# --app keeps the old app-only behavior.
+stack=1
+app_only=0
 workspace="."
 explicit_id=""
 
 usage() {
   cat <<'EOF'
-dc-down — stop/remove the workspace devcontainer (official CLI has no down)
+dc-down — stop/remove the workspace stack (official CLI has no down)
 
-  dc-down [workspace]          stop only (keep container for next dc-up)
-  dc-down --rm [workspace]     stop + remove container
-  dc-down --volumes            also docker rm -v / compose down -v
-  dc-down --id NAME_OR_ID      target one container
-  dc-down --compose            stop/down the compose project if labeled
-  dc-down --all --yes          every container with devcontainer.local_folder
+  dc-down [workspace]          stop the FULL compose project
+                               (app + db + wordpress + mitm + … + dc-forward)
+  dc-down --app [workspace]    stop only the labeled app (+ its sidecars)
+  dc-down --rm [workspace]     stop + remove (compose down / docker rm)
+  dc-down --volumes            also remove volumes (compose down -v / rm -v)
+  dc-down --id NAME_OR_ID      target one container only
+  dc-down --compose            same as default (kept for scripts)
+  dc-down --all --yes          every labeled workspace stack
   dc-down --help
+
+Why full stack by default:
+  Host ports (e.g. 9001 on wordpress-mitm) stay allocated if only the app
+  is stopped. That blocks dc-up of another project on the same ports.
+
+--all is nuclear; requires --yes or DC_DOWN_YES=1.
 EOF
 }
 
@@ -50,7 +61,15 @@ while [[ $# -gt 0 ]]; do
     --volumes|-v) volumes=1; remove=1 ;;
     --all) all=1 ;;
     --yes|-y) yes=1 ;;
-    --compose) compose=1 ;;
+    --app)
+      app_only=1
+      stack=0
+      ;;
+    --compose)
+      # alias for default full-stack (backward compatible)
+      stack=1
+      app_only=0
+      ;;
     --id)
       shift
       [[ $# -ge 1 ]] || { echo "--id needs a container" >&2; exit 2; }
@@ -88,6 +107,17 @@ if [[ "$all" -eq 1 && "$yes" -ne 1 ]]; then
   exit 2
 fi
 
+# --id is always a single container (unless that container is only used to
+# discover a compose project when --compose/--stack default and no --app).
+# Explicit id without --app: stop that one box only (predictable).
+if [[ -n "$explicit_id" && "$app_only" -eq 0 && "$stack" -eq 1 ]]; then
+  # If user passed a path-less id, keep single-container semantics unless
+  # they also asked for full stack via staying on default with a workspace.
+  # Single id → app-only for safety.
+  app_only=1
+  stack=0
+fi
+
 ids=()
 
 if [[ -n "$explicit_id" ]]; then
@@ -108,24 +138,8 @@ if [[ ${#cleaned[@]} -eq 0 ]]; then
 fi
 ids=("${cleaned[@]}")
 
-compose_projects=()
-
-stop_one() {
-  local id="$1"
-  local name status folder
-  name="$(docker inspect -f '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')" || name="?"
-  status="$(docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo missing)"
-  folder="$(docker inspect -f '{{index .Config.Labels "devcontainer.local_folder"}}' "$id" 2>/dev/null || true)"
-  local proj
-  proj="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$id" 2>/dev/null || true)"
-
-  if [[ "$compose" -eq 1 && -n "$proj" ]]; then
-    compose_projects+=("$proj")
-    echo "$id  $name  compose=$proj  folder=${folder:-}  (queued compose)"
-    return
-  fi
-
-  # Drop our sidecars first so host :3000 is free.
+drop_sidecars() {
+  local id="$1" fwd fid
   fwd="$(command -v dc-forward 2>/dev/null || true)"
   if [[ -z "$fwd" && -x "$_here/dc-forward" ]]; then
     fwd="$_here/dc-forward"
@@ -133,51 +147,87 @@ stop_one() {
   if [[ -n "$fwd" ]]; then
     "$fwd" --stop --id "$id" >/dev/null 2>&1 || true
   else
-    local fid
     while IFS= read -r fid; do
       [[ -n "$fid" ]] || continue
       docker rm -f "$fid" >/dev/null 2>&1 || true
     done < <(docker ps -aq --filter "label=dc.forward.for=${id}" 2>/dev/null)
   fi
+}
+
+compose_projects=()
+declare -A compose_seen=()
+
+queue_compose() {
+  local proj="$1"
+  [[ -n "$proj" && "$proj" != "<no value>" ]] || return 0
+  [[ -n "${compose_seen[$proj]:-}" ]] && return 0
+  compose_seen[$proj]=1
+  compose_projects+=("$proj")
+}
+
+stop_app_only() {
+  local id="$1"
+  local name status folder
+  name="$(docker inspect -f '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')" || name="?"
+  status="$(docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo missing)"
+  folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id" 2>/dev/null || true)"
+  [[ "$folder" == "<no value>" ]] && folder=""
+
+  drop_sidecars "$id"
 
   if [[ "$status" == "running" ]]; then
     docker stop "$id" >/dev/null
-    echo "$id  $name  folder=${folder:-}  stopped"
+    echo "$id  $name  folder=${folder:-}  stopped (app only)"
   elif [[ "$status" == "missing" ]]; then
     echo "$id  missing" >&2
     return
   else
-    echo "$id  $name  folder=${folder:-}  already ${status}"
+    echo "$id  $name  folder=${folder:-}  already ${status} (app only)"
   fi
 
   if [[ "$remove" -eq 1 ]]; then
     if [[ "$volumes" -eq 1 ]]; then
-      docker rm -v "$id" >/dev/null
+      docker rm -v "$id" >/dev/null 2>&1 || docker rm "$id" >/dev/null 2>&1 || true
       echo "$id  removed (+ anonymous volumes)"
     else
-      docker rm "$id" >/dev/null
+      docker rm "$id" >/dev/null 2>&1 || true
       echo "$id  removed"
     fi
   fi
 }
 
 for id in "${ids[@]}"; do
-  stop_one "$id"
+  name="$(docker inspect -f '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')" || name="?"
+  folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id" 2>/dev/null || true)"
+  proj="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_COMPOSE}\"}}" "$id" 2>/dev/null || true)"
+  [[ "$folder" == "<no value>" ]] && folder=""
+  [[ "$proj" == "<no value>" ]] && proj=""
+
+  # Always free sidecars for this labeled app.
+  drop_sidecars "$id"
+
+  if [[ "$stack" -eq 1 && -n "$proj" ]]; then
+    queue_compose "$proj"
+    echo "$id  $name  compose=$proj  folder=${folder:-}  (full stack)"
+    continue
+  fi
+
+  # No compose label, or --app: single container.
+  stop_app_only "$id"
 done
 
-if [[ "$compose" -eq 1 && ${#compose_projects[@]} -gt 0 ]]; then
-  # unique
-  printf '%s\n' "${compose_projects[@]}" | awk 'NF && !seen[$0]++' | while read -r proj; do
+if [[ ${#compose_projects[@]} -gt 0 ]]; then
+  for proj in "${compose_projects[@]}"; do
     if [[ "$remove" -eq 1 ]]; then
       if [[ "$volumes" -eq 1 ]]; then
         docker compose -p "$proj" down -v
       else
         docker compose -p "$proj" down
       fi
-      echo "compose $proj  down"
+      echo "compose $proj  down (all services)"
     else
       docker compose -p "$proj" stop
-      echo "compose $proj  stopped"
+      echo "compose $proj  stopped (all services)"
     fi
   done
 fi

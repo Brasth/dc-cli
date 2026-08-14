@@ -495,9 +495,10 @@ dc_stop_port_holder() {
   folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id" 2>/dev/null || true)"
   [[ "$compose" == "<no value>" ]] && compose=""
   [[ "$folder" == "<no value>" ]] && folder=""
+  # dc-down default = full compose stack (mitm/db/…), which frees host ports.
   if [[ -n "$folder" && -d "$folder" ]] && command -v dc-down >/dev/null 2>&1; then
-    echo "stop holder via dc-down  $folder  ($name)"
-    dc-down "$folder" || docker stop "$id" >/dev/null
+    echo "stop holder stack via dc-down  $folder  ($name)"
+    dc-down "$folder" || docker compose -p "$compose" stop >/dev/null 2>&1 || docker stop "$id" >/dev/null
   elif [[ -n "$compose" ]]; then
     echo "stop holder compose  $compose  ($name)"
     docker compose -p "$compose" stop >/dev/null 2>&1 || docker stop "$id" >/dev/null

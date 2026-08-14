@@ -48,7 +48,9 @@ dc-exec --list                  # labeled app + other services in that compose p
 dc-exec --service NAME          # start that compose service if it is down, then bash
 dc-exec --service NAME -- cmd   # same, run a command (works without a TTY)
 dc-forward                      # if the host browser cannot reach the app port
-dc-down                         # stop the app + drop sidecars
+dc-down                         # stop FULL compose stack (app+db+mitm+…)
+dc-down --app                   # labeled app only (+ its sidecars)
+dc-down --rm                    # compose down (remove stack containers)
 
 # out of disk (ENOSPC) — report, then safe reclaim
 dc-df                           # Docker + Colima disk report
@@ -84,7 +86,7 @@ Equal-width button grid. Compact header. Stack rows: **up** / **down**, hover, c
 | **open** | `o` | host editor on the bind-mount |
 | **attach** | `a` | VS Code Remote **into** the app (`code` only) |
 | **ports** | `p` | `dc-forward` (Colima sidecar) |
-| **stop** / **rm** | `s` / `x` | `dc-down` / `dc-down --rm` |
+| **stop** / **rm** | `s` / `x` | full stack `dc-down` / `dc-down --rm` |
 | **logs** | `l` | `docker logs -f` on the app |
 | **fleet** | `f` | other workspaces |
 | **more** / **quit** | `?` / `q` | legend / exit |
@@ -110,8 +112,11 @@ After **shell** / **logs**, the TUI comes back. A normal `exit` is not a crash.
 | `dc-exec --list` | stack table |
 | `dc-exec --service NAME` | other compose service (starts if down) |
 | `dc-exec --id NAME` | that container (starts if down) |
-| `dc-down` / `--rm` / `--compose` | stop / delete / whole compose project |
-| `dc-down --all --yes` | every labeled box |
+| `dc-down` | **full compose stack** (app + db + mitm + … + sidecars) |
+| `dc-down --app` | labeled app only (+ sidecars) |
+| `dc-down --rm` / `--volumes` | compose down / down -v |
+| `dc-down --compose` | alias for default full stack (scripts) |
+| `dc-down --all --yes` | every labeled workspace stack |
 | `dc-ls [--json] [--all]` | labeled app list |
 | `dc-open` / `--attach` | host editor / VS Code attach |
 | `dc-forward` / `3000` / `--stop` | sidecar publish |

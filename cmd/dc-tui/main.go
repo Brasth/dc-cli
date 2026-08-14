@@ -147,8 +147,8 @@ Buttons / keys
                              VS Code Remote INTO the running container
                              (code only; needs a running box)
   ports  (p)  dc-forward     sidecar publish (Colima-safe; localhost:3000)
-  stop   (s)  dc-down        stop, keep the container for next start
-  rm     (x)  dc-down --rm   stop and delete the container
+  stop   (s)  dc-down        full compose stack (app+db+mitm+sidecars)
+  rm     (x)  dc-down --rm   compose down (remove stack containers)
   logs   (l)  docker logs -f (leaves TUI; Ctrl-C back)
   disk   (d)  dc-df report (stays in TUI)
   fleet  (f)  all labeled workspaces; click a row to open it
@@ -438,6 +438,7 @@ func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 	case "a":
 		return m.stayCmd("dc-open", "--attach", ws)
 	case "s":
+		// full compose stack (default dc-down) — frees host ports on siblings
 		return m.stayCmd("dc-down", ws)
 	case "x":
 		return m.stayCmd("dc-down", "--rm", ws)
@@ -591,8 +592,8 @@ func morePanel(editor string) string {
 		"  open     host editor on the bind-mount  now: " + editor,
 		"  attach   VS Code Remote INTO the container (code only, must be running)",
 		"  ports    sidecar publish compose/forwardPorts (Colima: not host socat)",
-		"  stop     docker stop — keep the container for next start",
-		"  rm       stop and delete the container",
+		"  stop     full compose stack (app+db+mitm+…) — not app-only",
+		"  rm       compose down (remove stack containers)",
 		"  logs     follow docker logs — Ctrl-C returns here",
 		"  fleet    list every labeled workspace",
 		"  disk     dc-df report (d key). Reclaim: dc-prune --yes (CLI)",
