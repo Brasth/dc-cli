@@ -272,7 +272,19 @@ func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 	case "e":
 		cmd = exec.Command("dc-exec", ws)
 	case "o":
-		cmd = exec.Command("dc-open", ws)
+		// Spawn; do not tear down the TUI (ExecProcess looks like a crash).
+		c := exec.Command("dc-open", ws)
+		out, err := c.CombinedOutput()
+		if err != nil {
+			msg := strings.TrimSpace(string(out))
+			if msg == "" {
+				msg = err.Error()
+			}
+			m.err = msg
+			return m, nil
+		}
+		m.err = ""
+		return m, nil
 	case "a":
 		cmd = exec.Command("dc-open", "--attach", ws)
 	case "s":
@@ -468,17 +480,49 @@ func resolveWorkspace(dir string) (string, error) {
 	return abs, nil
 }
 
+func editorBin(name string) string {
+	if p, err := exec.LookPath(name); err == nil {
+		return p
+	}
+	home, _ := os.UserHomeDir()
+	var cands []string
+	switch name {
+	case "zed":
+		cands = []string{
+			"/Applications/Zed.app/Contents/MacOS/cli",
+			filepath.Join(home, "Applications/Zed.app/Contents/MacOS/cli"),
+			"/Applications/Zed.app/Contents/MacOS/zed",
+		}
+	case "code":
+		cands = []string{
+			"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+			filepath.Join(home, "Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"),
+		}
+	case "subl":
+		cands = []string{
+			"/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl",
+			filepath.Join(home, "Applications/Sublime Text.app/Contents/SharedSupport/bin/subl"),
+		}
+	}
+	for _, p := range cands {
+		if st, err := os.Stat(p); err == nil && !st.IsDir() {
+			return p
+		}
+	}
+	return ""
+}
+
 func pickEditor() string {
 	if e := os.Getenv("DC_EDITOR"); e != "" {
-		if _, err := exec.LookPath(e); err == nil {
+		if editorBin(e) != "" {
 			return e
 		}
 		return e + " (missing)"
 	}
 	for _, e := range []string{"zed", "code", "subl"} {
-		if _, err := exec.LookPath(e); err == nil {
+		if editorBin(e) != "" {
 			return e
 		}
 	}
-	return "(none)"
+	return "(none — install Zed / VS Code / Sublime)"
 }

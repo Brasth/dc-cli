@@ -130,7 +130,9 @@ Click a button, or press `?` / **more** for the on-screen legend.
 | VS Code (`code`) | Host folder | **Yes** (`dc-open --attach`) |
 | Sublime (`subl`) | Host folder | **No** |
 
-Bind-mount **is** the project content. Pick editor with `--editor`, `DC_EDITOR`, or first of `zed`, `code`, `subl` on PATH. Nothing is downloaded.
+Bind-mount **is** the project content. Pick editor with `--editor`, `DC_EDITOR`, or first of `zed`, `code`, `subl` (PATH **or** macOS `/Applications/*.app` — Zed.app is enough; you do not need `zed` on PATH). Nothing is downloaded.
+
+**open** in the TUI stays on screen (it does not tear down). If no editor is found you get an error line, not a crash.
 
 ## `dc-up --ports` is a replace, not a merge
 

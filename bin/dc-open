@@ -58,8 +58,9 @@ DC_RESOLVE_VERBOSE=1
 ws="$(dc_resolve_workspace "$workspace")" || exit 1
 
 if [[ "$attach" -eq 1 ]]; then
-  if ! command -v code >/dev/null 2>&1; then
-    echo "dc-open --attach needs VS Code (code) on PATH. Zed/Sublime cannot attach." >&2
+  code_bin="$(dc_editor_bin code || true)"
+  if [[ -z "$code_bin" ]]; then
+    echo "dc-open --attach needs VS Code. Install it or add 'code' to PATH. Zed/Sublime cannot attach." >&2
     exit 2
   fi
   mapfile -t ids < <(dc_ids_for_workspace "$ws")
@@ -84,12 +85,13 @@ if [[ "$attach" -eq 1 ]]; then
   hex="$(dc_hex "$payload")"
   uri="vscode-remote://attached-container+${hex}${inner}"
   echo "Attaching VS Code: $name → $inner"
-  exec code --folder-uri "$uri"
+  exec "$code_bin" --folder-uri "$uri"
 fi
 
 if ! picked="$(dc_pick_editor "$editor")"; then
-  echo "No host editor on PATH. Install zed, VS Code (code), or Sublime (subl)." >&2
-  echo "Or set --editor / DC_EDITOR." >&2
+  echo "No host editor found. Install Zed, VS Code, or Sublime Text." >&2
+  echo "macOS: /Applications/Zed.app is enough (no PATH needed)." >&2
+  echo "Or set --editor / DC_EDITOR to zed|code|subl." >&2
   exit 1
 fi
 
@@ -101,20 +103,15 @@ case "$picked" in
     ;;
 esac
 
-if ! command -v "$picked" >/dev/null 2>&1; then
-  echo "Editor not on PATH: $picked" >&2
-  case "$picked" in
-    zed) echo "  https://zed.dev" >&2 ;;
-    code) echo "  https://code.visualstudio.com (install 'code' shell command)" >&2 ;;
-    subl) echo "  https://www.sublimetext.com (install 'subl' on PATH)" >&2 ;;
-  esac
+bin="$(dc_editor_bin "$picked")" || {
+  echo "Editor binary missing: $picked" >&2
   exit 1
-fi
+}
 
 if [[ ! -d "$ws" ]]; then
   echo "Workspace missing on disk: $ws" >&2
   exit 1
 fi
 
-echo "Opening $ws with $picked (host folder)"
-exec "$picked" "$ws"
+echo "Opening $ws with $picked ($bin)"
+exec "$bin" "$ws"

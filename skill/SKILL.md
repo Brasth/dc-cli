@@ -1,7 +1,7 @@
 ---
 name: "devcontainer-cli-global"
 description: "Host-global official @devcontainers/cli helpers: dc-tui (clickable if Go; this folder; --all fleet), dc-up, dc-exec, dc-down, dc-ls, dc-open (zed/code/subl; --attach VS Code only), dc-ps, dc-forward. Install: curl main/install.sh (latest release). No project .devcontainer edits."
-version: 6
+version: 7
 created: "2026-08-13"
 updated: "2026-08-14"
 ---
@@ -15,7 +15,7 @@ Use automatically for official @devcontainers/cli without editing project .devco
 4. Start: `dc-up` (project config). Only `dc-up --ports` if user accepts REPLACE via ~/.config/devcontainer/override.json. TUI `u` refuses folders with no `.devcontainer`.
 5. Exec: `dc-exec` / `dc-exec -- <cmd>`. List: `dc-ls --json` / `dc-ps`.
 6. Stop with `dc-down` (same label matcher as `dc-ls`). Default stop only; `--rm`; `--compose`; `--all --yes`.
-7. Open content: `dc-open` host folder (zed/code/subl). `dc-open --attach` is VS Code only. Bind-mount is the files.
+7. Open content: `dc-open` host folder (zed/code/subl on PATH **or** macOS .app). TUI **open** must not ExecProcess (that looked like a crash). `dc-open --attach` is VS Code only. Bind-mount is the files.
 8. Extra ports: `dc-forward` (socat), do not use override just for ports.
 
 ## Pitfalls

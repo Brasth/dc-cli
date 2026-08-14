@@ -183,19 +183,68 @@ dc_ls_table() {
   done
 }
 
-dc_pick_editor() {
-  local want="${1:-}"
-  if [[ -n "$want" ]]; then
-    printf '%s\n' "$want"
+# Print executable path for zed|code|subl. Checks PATH then macOS .app bundles.
+dc_editor_bin() {
+  local name="$1" bin
+  if command -v "$name" >/dev/null 2>&1; then
+    command -v "$name"
     return 0
   fi
-  if [[ -n "${DC_EDITOR:-}" ]]; then
-    printf '%s\n' "$DC_EDITOR"
-    return 0
+  case "$name" in
+    zed)
+      for bin in \
+        "/Applications/Zed.app/Contents/MacOS/cli" \
+        "$HOME/Applications/Zed.app/Contents/MacOS/cli" \
+        "/Applications/Zed.app/Contents/MacOS/zed"
+      do
+        if [[ -x "$bin" ]]; then
+          printf '%s\n' "$bin"
+          return 0
+        fi
+      done
+      ;;
+    code)
+      for bin in \
+        "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" \
+        "$HOME/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+      do
+        if [[ -x "$bin" ]]; then
+          printf '%s\n' "$bin"
+          return 0
+        fi
+      done
+      ;;
+    subl)
+      for bin in \
+        "/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl" \
+        "$HOME/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl"
+      do
+        if [[ -x "$bin" ]]; then
+          printf '%s\n' "$bin"
+          return 0
+        fi
+      done
+      ;;
+  esac
+  return 1
+}
+
+# Print editor name (zed|code|subl) that we can actually launch.
+dc_pick_editor() {
+  local want="${1:-}"
+  if [[ -z "$want" && -n "${DC_EDITOR:-}" ]]; then
+    want="$DC_EDITOR"
+  fi
+  if [[ -n "$want" ]]; then
+    if dc_editor_bin "$want" >/dev/null; then
+      printf '%s\n' "$want"
+      return 0
+    fi
+    return 1
   fi
   local e
   for e in zed code subl; do
-    if command -v "$e" >/dev/null 2>&1; then
+    if dc_editor_bin "$e" >/dev/null; then
       printf '%s\n' "$e"
       return 0
     fi
