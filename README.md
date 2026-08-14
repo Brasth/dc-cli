@@ -48,6 +48,11 @@ dc-exec --service NAME          # start that compose service if it is down, then
 dc-exec --service NAME -- cmd   # same, run a command (works without a TTY)
 dc-forward                      # if the host browser cannot reach the app port
 dc-down                         # stop the app + drop sidecars
+
+# out of disk (ENOSPC) — report, then safe reclaim
+dc-df                           # Docker + Colima disk report
+dc-prune                        # dry-run
+dc-prune --yes                  # cache + dangling images + nets + orphan sidecars
 ```
 
 **App vs other services**
@@ -82,6 +87,9 @@ Equal-width button grid. Compact header. Stack rows: **up** / **down**, hover, c
 | **logs** | `l` | `docker logs -f` on the app |
 | **fleet** | `f` | other workspaces |
 | **more** / **quit** | `?` / `q` | legend / exit |
+| **disk** | `d` | `dc-df` report (stays in TUI) |
+
+Header shows a compact disk line from `dc-df`. Reclaim stays CLI-only (`dc-prune --yes`).
 
 After **shell** / **logs**, the TUI comes back. A normal `exit` is not a crash.
 
@@ -106,8 +114,13 @@ After **shell** / **logs**, the TUI comes back. A normal `exit` is not a crash.
 | `dc-open` / `--attach` | host editor / VS Code attach |
 | `dc-forward` / `3000` / `--stop` | sidecar publish |
 | `dc-ps` | docker + labels |
+| `dc-df` / `--json` / `--volumes` | disk report (read-only) |
+| `dc-prune` / `--yes` | safe reclaim (cache, dangling, nets, orphan sidecars) |
+| `dc-prune --all --yes` | also unused tagged images |
+| `dc-prune --volume NAME --yes` | delete **one** named volume |
+| `dc-prune --colima-hint` | grow Colima VM disk guidance |
 
-There is **no** `dc` meta-binary.
+There is **no** `dc` meta-binary. **Never** `docker system prune -af --volumes` — use `dc-df` / `dc-prune`.
 
 ## Ports (Colima)
 
@@ -125,6 +138,26 @@ dc-forward --stop
 `dc-up` runs this after a successful start. `dc-down` removes the sidecars.
 
 `dc-up --ports` is **not** “add 3000”. It **replaces** the whole `devcontainer.json`.
+
+## Disk full
+
+When `dc-up` fails with **no space left** / ENOSPC:
+
+```bash
+dc-df                    # images / cache / volumes + Colima guest df
+dc-prune                 # dry-run
+dc-prune --yes           # safe set only
+dc-up                    # retry
+```
+
+| Flag | Risk |
+|---|---|
+| `dc-prune --yes` | Low — build cache, dangling images, unused nets, orphan `dc-forward` sidecars |
+| `dc-prune --all --yes` | Medium — unused **tagged** images; parked stacks rebuild on next `dc-up` |
+| `dc-prune --volume NAME --yes` | **High** — named volume data (DBs). One name only; never bulk |
+| `docker system prune -af --volumes` | **Do not** — not wrapped; destroys named volumes |
+
+If Colima guest `/` is still ~100% after prune, the VM disk cap is full: `dc-prune --colima-hint`. Prune does **not** grow the qemu/VZ image.
 
 ## Editors
 

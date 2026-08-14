@@ -89,7 +89,7 @@ elif [[ ! -f "$ROOT/bin/dc-up" ]]; then
 fi
 
 mkdir -p "$PREFIX"
-for f in dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open; do
+for f in dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune; do
   cp "$ROOT/bin/$f" "$PREFIX/$f"
   chmod +x "$PREFIX/$f"
 done

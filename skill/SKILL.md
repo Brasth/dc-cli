@@ -1,34 +1,35 @@
 ---
 name: "devcontainer-cli-global"
-description: "Host-global official @devcontainers/cli helpers. ALWAYS use dc-exec / dc-exec --service NAME — NEVER docker exec. dc-tui, dc-up (auto dc-forward), dc-down, dc-ls, dc-open, dc-forward. Install: curl main/install.sh. No project .devcontainer edits."
-version: 14
+description: "Host-global official @devcontainers/cli helpers. ALWAYS use dc-exec / dc-exec --service NAME — NEVER docker exec. Disk full: dc-df then dc-prune --yes — NEVER docker system prune -af --volumes. dc-tui, dc-up, dc-down, dc-ls, dc-open, dc-forward. Install: curl main/install.sh. No project .devcontainer edits."
+version: 15
 created: "2026-08-13"
 updated: "2026-08-14"
 ---
 ## When to Use
-Use automatically for official @devcontainers/cli without editing project .devcontainer files. Triggers: start/stop/exec a devcontainer, dc-tui, dc-up, dc-down, dc-open, extra ports, override.json.
+Use automatically for official @devcontainers/cli without editing project .devcontainer files. Triggers: start/stop/exec a devcontainer, dc-tui, dc-up, dc-down, dc-open, extra ports, override.json, Docker disk full / ENOSPC / no space left.
 
 ## Procedure
 1. Confirm `devcontainer` and Docker/Colima (`docker ps`).
 2. Never edit project `.devcontainer/devcontainer.json`.
-3. Interactive: `dc-tui` (current folder; padded clickable buttons if Go-built; hover; `?` more) or `dc-tui --all` (fleet). Labels: start/shell/open host/attach vscode/ports. After shell/logs the TUI resumes (exit 1 / restore-terminal is not a crash). open = host editor; attach = VS Code Remote in the container. ports = sidecar publish. Do not invent a `dc` alias. Install latest: `curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/main/install.sh | bash`.
-4. Start: `dc-up` (project config) then auto `dc-forward`. Only `dc-up --ports` if user accepts REPLACE via ~/.config/devcontainer/override.json. TUI `u` refuses folders with no `.devcontainer`. `DC_FORWARD=0` / `--no-forward` skips sidecars.
-5. Exec (mandatory): never `docker exec`. Always `dc-exec` from the project folder (the one with `.devcontainer`). App: `dc-exec -- cmd`. Other services: `dc-exec --list` then `dc-exec --service NAME -- cmd` / `--id`. A stopped service is started first. TUI **e** = app; click a stack row (including **down**). If `dc-exec` is missing: install via `curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/main/install.sh | bash` then retry. Do not invent container names.
-6. Stop with `dc-down` (same label matcher as `dc-ls`). Default stop only; `--rm`; `--compose`; `--all --yes`.
-7. Open content: `dc-open` host folder (zed/code/subl on PATH **or** macOS .app). TUI **open** must not ExecProcess (that looked like a crash). `dc-open --attach` is VS Code only. Bind-mount is the files.
-8. Extra ports: `dc-forward` (Docker sidecar on the compose network). Host socat to 172.x fails on Colima. TUI **ports** / `p`. Do not use override just for ports.
+3. Interactive: `dc-tui` (current folder; padded clickable buttons if Go-built; hover; `?` more) or `dc-tui --all` (fleet). Labels: start/shell/open host/attach vscode/ports. Header shows compact disk (`dc-df`). Key `d` = full `dc-df`. After shell/logs the TUI resumes. open = host editor; attach = VS Code Remote. ports = sidecar. Install: `curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/main/install.sh | bash`.
+4. Start: `dc-up` (project config) then auto `dc-forward`. Only `dc-up --ports` if user accepts REPLACE. On ENOSPC, `dc-up` prints `dc-df` / `dc-prune` hints — do not invent `docker system prune`.
+5. Exec (mandatory): never `docker exec`. Always `dc-exec` from the project folder. App: `dc-exec -- cmd`. Other services: `dc-exec --list` then `dc-exec --service NAME -- cmd` / `--id`. Stopped service is started first.
+6. Stop: `dc-down` / `--rm` / `--compose` / `--all --yes`.
+7. Open: `dc-open` host; `--attach` VS Code only.
+8. Ports: `dc-forward` sidecar (not host socat on Colima).
+9. Disk: `dc-df` (report) → `dc-prune` dry-run → `dc-prune --yes` (cache + dangling images + nets + orphan sidecars). Unused tagged images: `dc-prune --all --yes`. One named volume: `dc-prune --volume NAME --yes` only when user names it. Colima still full after prune: `dc-prune --colima-hint`.
 
 ## Pitfalls
 - `--override-config` / `dc-up --ports` replaces project config entirely.
 - `dc-down --all` is nuclear; requires `--yes`.
-- `appPort` is create-time; later ports need dc-forward (sidecar, not host socat).
-- Zed/Sublime cannot attach inside the container.
-- Colima must be running. Native Windows unsupported.
-- **Never** `docker exec NAME`. Agents must use `dc-exec` / `dc-exec --service NAME` so TTY, start-if-down, and the labeled app path stay correct.
-- Host ESLint / node_modules: run the same command via `dc-exec -- cmd`, not host npm and not `docker exec`.
+- **Never** `docker system prune -af --volumes` — deletes named DB / node_modules volumes.
+- **Never** `docker exec NAME` — use `dc-exec`.
+- Named volumes are listed by `dc-df --volumes` but not auto-deleted.
+- Colima disk cap is a VM size; prune frees inside the VM only.
+- Zed/Sublime cannot attach. Native Windows unsupported.
 
 ## Verification
-1. `dc-down --help`, `dc-up --help`, `dc-tui --help` work.
-2. `dc-down --all` without `--yes` exits 2.
-3. `dc-ls --json --all` with no containers prints `[]`.
-4. Default `dc-tui` header is this folder, not a global list.
+1. `dc-df --help`, `dc-prune --help`, `dc-up --help` work.
+2. `dc-prune` without `--yes` is dry-run (exit 0, no delete).
+3. `dc-prune --volume x` without `--yes` does not delete.
+4. `dc-ls --json --all` with no containers prints `[]`.

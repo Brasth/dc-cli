@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+# Report Docker (and Colima) disk usage. Never deletes.
+# Usage:
+#   dc-df
+#   dc-df --json
+#   dc-df --volumes
+set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  exit 1
+fi
+
+json=0
+show_volumes=0
+
+usage() {
+  cat <<'EOF'
+dc-df — Docker / Colima disk report (read-only)
+
+  dc-df              human summary
+  dc-df --json       machine-readable (agents / TUI)
+  dc-df --volumes    also list named volumes (dangerous; not auto-pruned)
+  dc-df --help
+
+Reclaim safe unused:
+  dc-prune           dry-run
+  dc-prune --yes     build cache + dangling images + unused nets + orphan sidecars
+  dc-prune --all --yes
+  dc-prune --volume NAME --yes
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --json) json=1 ;;
+    --volumes|-v) show_volumes=1 ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      echo "Unknown arg: $1" >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "docker not found" >&2
+  exit 1
+fi
+
+dc_df_rows() {
+  # TYPE TOTAL ACTIVE SIZE RECLAIMABLE (tab)
+  docker system df --format '{{.Type}}\t{{.TotalCount}}\t{{.Active}}\t{{.Size}}\t{{.Reclaimable}}' 2>/dev/null
+}
+
+dc_colima_info() {
+  # prints: profile\tstatus\tdisk_cap\tguest_root_line (or nothing)
+  if ! command -v colima >/dev/null 2>&1; then
+    return 0
+  fi
+  local profile status disk guest
+  profile="default"
+  status=""
+  disk=""
+  if colima list >/dev/null 2>&1; then
+    # PROFILE STATUS ARCH CPUS MEMORY DISK RUNTIME ADDRESS
+    while read -r p st _arch _c _m d _rest; do
+      [[ "$p" == "PROFILE" || -z "$p" ]] && continue
+      profile="$p"
+      status="$st"
+      disk="$d"
+      break
+    done < <(colima list 2>/dev/null)
+  fi
+  guest=""
+  if [[ "$status" == "Running" ]] || colima status >/dev/null 2>&1; then
+    guest="$(colima ssh -- df -h / 2>/dev/null | awk 'NR==2 {printf "%s used of %s (%s)", $3, $2, $5}')" || true
+  fi
+  printf '%s\t%s\t%s\t%s\n' "$profile" "${status:-unknown}" "${disk:-}" "${guest:-}"
+}
+
+dc_orphan_sidecar_ids() {
+  dc_orphan_forward_ids
+}
+
+dc_named_volumes() {
+  # name\tin_use(0|1)
+  local name inuse
+  while IFS= read -r name; do
+    [[ -n "$name" ]] || continue
+    inuse=0
+    if docker ps -aq --filter "volume=$name" 2>/dev/null | grep -q .; then
+      inuse=1
+    fi
+    printf '%s\t%s\n' "$name" "$inuse"
+  done < <(docker volume ls -q 2>/dev/null)
+}
+
+if [[ "$json" -eq 1 ]]; then
+  first=1
+  printf '{'
+  printf '"docker":['
+  while IFS=$'\t' read -r typ total active size reclaim; do
+    [[ -n "$typ" ]] || continue
+    [[ "$first" -eq 1 ]] || printf ','
+    first=0
+    printf '{"type":"%s","total":%s,"active":%s,"size":"%s","reclaimable":"%s"}' \
+      "$(dc_json_escape "$typ")" \
+      "$(dc_json_escape "$total")" \
+      "$(dc_json_escape "$active")" \
+      "$(dc_json_escape "$size")" \
+      "$(dc_json_escape "$reclaim")"
+  done < <(dc_df_rows)
+  printf ']'
+
+  # compact one-liner for TUI
+  compact=""
+  while IFS=$'\t' read -r typ total active size reclaim; do
+    case "$typ" in
+      Images) compact+="img ${size}" ;;
+      "Build Cache"|BuildCache) compact+="  cache ${size}" ;;
+      "Local Volumes") compact+="  vol ${size}" ;;
+    esac
+  done < <(dc_df_rows)
+  printf ',"compact":"%s"' "$(dc_json_escape "$compact")"
+
+  orphans=0
+  while IFS= read -r _; do
+    [[ -n "$_" ]] || continue
+    orphans=$((orphans + 1))
+  done < <(dc_orphan_sidecar_ids)
+  printf ',"orphan_sidecars":%s' "$orphans"
+
+  col="$(dc_colima_info | head -n1 || true)"
+  if [[ -n "$col" ]]; then
+    IFS=$'\t' read -r cprof cstat cdisk cguest <<<"$col"
+    printf ',"colima":{"profile":"%s","status":"%s","disk":"%s","guest_root":"%s"}' \
+      "$(dc_json_escape "$cprof")" \
+      "$(dc_json_escape "$cstat")" \
+      "$(dc_json_escape "$cdisk")" \
+      "$(dc_json_escape "$cguest")"
+  else
+    printf ',"colima":null'
+  fi
+
+  if [[ "$show_volumes" -eq 1 ]]; then
+    printf ',"volumes":['
+    vf=1
+    while IFS=$'\t' read -r vname vinuse; do
+      [[ -n "$vname" ]] || continue
+      [[ "$vf" -eq 1 ]] || printf ','
+      vf=0
+      printf '{"name":"%s","in_use":%s}' "$(dc_json_escape "$vname")" "$vinuse"
+    done < <(dc_named_volumes)
+    printf ']'
+  fi
+
+  printf '}\n'
+  exit 0
+fi
+
+# Human report
+printf '%-14s  %6s  %6s  %-12s  %s\n' "TYPE" "TOTAL" "ACTIVE" "SIZE" "RECLAIMABLE"
+while IFS=$'\t' read -r typ total active size reclaim; do
+  [[ -n "$typ" ]] || continue
+  printf '%-14s  %6s  %6s  %-12s  %s\n' "$typ" "$total" "$active" "$size" "$reclaim"
+done < <(dc_df_rows)
+
+echo
+orphans=0
+while IFS= read -r id; do
+  [[ -n "$id" ]] || continue
+  orphans=$((orphans + 1))
+done < <(dc_orphan_sidecar_ids)
+echo "Orphan dc-forward sidecars: $orphans"
+
+col="$(dc_colima_info | head -n1 || true)"
+if [[ -n "$col" ]]; then
+  IFS=$'\t' read -r cprof cstat cdisk cguest <<<"$col"
+  echo
+  echo "Colima  profile=$cprof  status=$cstat  disk_cap=${cdisk:-?}  guest_root=${cguest:-n/a}"
+  if [[ -n "$cdisk" && -n "$cguest" ]]; then
+    echo "  (prune frees space inside the VM; growing the disk is a Colima resize, not dc-prune)"
+  fi
+fi
+
+if [[ "$show_volumes" -eq 1 ]]; then
+  echo
+  echo "Named volumes (NOT removed by default dc-prune — data loss risk):"
+  printf '  %-40s  %s\n' "NAME" "IN_USE"
+  while IFS=$'\t' read -r vname vinuse; do
+    [[ -n "$vname" ]] || continue
+    # skip anonymous hash-only volumes in the short list? show named-looking ones first
+    if [[ "$vname" =~ ^[0-9a-f]{64}$ ]]; then
+      continue
+    fi
+    flag="no"
+    [[ "$vinuse" == "1" ]] && flag="yes"
+    printf '  %-40s  %s\n' "$vname" "$flag"
+  done < <(dc_named_volumes)
+  echo "  (anonymous hash volumes omitted; use docker volume ls for full list)"
+  echo "  delete one: dc-prune --volume NAME --yes"
+fi
+
+echo
+echo "Safe reclaim:  dc-prune            # dry-run"
+echo "               dc-prune --yes      # cache + dangling images + nets + orphan sidecars"
+echo "               dc-prune --all --yes  # also unused tagged images (parked stacks rebuild)"
+echo "               dc-prune --volume NAME --yes"

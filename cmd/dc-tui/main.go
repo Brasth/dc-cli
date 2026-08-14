@@ -54,11 +54,13 @@ type model struct {
 	more      bool
 	hover      string
 	hoverStack int // -1 = none
+	disk      string // compact line from dc-df --json
 }
 
 type reloadMsg struct {
 	rows  []container
 	stack []stackSvc
+	disk  string
 	err   error
 }
 
@@ -148,9 +150,15 @@ Buttons / keys
   stop   (s)  dc-down        stop, keep the container for next start
   rm     (x)  dc-down --rm   stop and delete the container
   logs   (l)  docker logs -f (leaves TUI; Ctrl-C back)
+  disk   (d)  dc-df report (stays in TUI)
   fleet  (f)  all labeled workspaces; click a row to open it
   more   (?)  this legend
   quit   (q)
+
+Disk reclaim is CLI-only (needs --yes):
+  dc-prune --yes
+  dc-prune --all --yes
+  dc-prune --volume NAME --yes
 
 Open vs attach: open = edit files on the Mac/Linux host.
 Attach = VS Code's terminal/debugger run inside Linux.
@@ -188,7 +196,16 @@ func (m model) reload() tea.Cmd {
 				_ = json.Unmarshal(sout, &stack)
 			}
 		}
-		return reloadMsg{rows: rows, stack: stack}
+		disk := ""
+		if dout, err := exec.Command("dc-df", "--json").Output(); err == nil {
+			var df struct {
+				Compact string `json:"compact"`
+			}
+			if json.Unmarshal(dout, &df) == nil {
+				disk = strings.TrimSpace(df.Compact)
+			}
+		}
+		return reloadMsg{rows: rows, stack: stack, disk: disk}
 	}
 }
 
@@ -225,6 +242,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = ""
 			m.rows = msg.rows
 			m.stack = msg.stack
+			if msg.disk != "" {
+				m.disk = msg.disk
+			}
 		}
 		m.hasConfig = hasDevcontainer(m.workspace)
 	case execDoneMsg:
@@ -265,6 +285,9 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 		return m, m.reload()
 	case "r":
 		return m, m.reload()
+	case "d":
+		// disk report stays in TUI (stayCmd)
+		return m.stayCmd("dc-df")
 	case "u", "e", "o", "a", "s", "x", "l", "p":
 		if m.fleet {
 			return m, nil
@@ -474,7 +497,11 @@ func (m model) layout() (string, []button, int) {
 			meta += mutedStyle.Render("  ") + ports
 		}
 		b.WriteString(meta + "\n")
-		b.WriteString(kv("editor", m.editor+"  open=host  attach=vscode") + "\n\n")
+		b.WriteString(kv("editor", m.editor+"  open=host  attach=vscode") + "\n")
+		if m.disk != "" {
+			b.WriteString(kv("disk", m.disk+"  d=df") + "\n")
+		}
+		b.WriteString("\n")
 	}
 
 	y0 := strings.Count(b.String(), "\n")
@@ -516,7 +543,7 @@ func (m model) layout() (string, []button, int) {
 		}
 	}
 
-	b.WriteString("\n" + hintStyle.Render("u start  e shell  p ports  ? more  q quit") + "\n")
+	b.WriteString("\n" + hintStyle.Render("u start  e shell  p ports  d disk  ? more  q quit") + "\n")
 	return b.String(), buttons, rowY0
 }
 
@@ -568,6 +595,7 @@ func morePanel(editor string) string {
 		"  rm       stop and delete the container",
 		"  logs     follow docker logs — Ctrl-C returns here",
 		"  fleet    list every labeled workspace",
+		"  disk     dc-df report (d key). Reclaim: dc-prune --yes (CLI)",
 		"",
 		mutedStyle.Render("open ≠ attach. Zed/Sublime = open only. Docs: https://github.com/Canvilled/dc-cli"),
 	}

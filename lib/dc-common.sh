@@ -538,3 +538,33 @@ dc_fwd_ids_for() {
   docker ps -aq --filter "label=${DC_FWD_LABEL}=${id}" 2>/dev/null || true
 }
 
+# Sidecars whose target container id is gone (or never existed).
+dc_orphan_forward_ids() {
+  local cid target st
+  if ! command -v docker >/dev/null 2>&1; then
+    return 0
+  fi
+  while IFS= read -r cid; do
+    [[ -n "$cid" ]] || continue
+    target="$(docker inspect -f "{{index .Config.Labels \"${DC_FWD_LABEL}\"}}" "$cid" 2>/dev/null || true)"
+    [[ -n "$target" && "$target" != "<no value>" ]] || continue
+    st="$(docker inspect -f '{{.State.Status}}' "$target" 2>/dev/null || echo missing)"
+    if [[ "$st" == "missing" ]]; then
+      printf '%s\n' "$cid"
+    fi
+  done < <(docker ps -aq --filter "label=${DC_FWD_LABEL}" 2>/dev/null)
+}
+
+# Image IDs used by this workspace's compose stack (or labeled app).
+dc_workspace_image_ids() {
+  local dir="${1:-.}" id
+  while IFS=$'\t' read -r id _rest; do
+    [[ -n "$id" ]] || continue
+    docker inspect -f '{{.Image}}' "$id" 2>/dev/null || true
+  done < <(dc_stack_rows "$dir")
+  while IFS= read -r id; do
+    [[ -n "$id" ]] || continue
+    docker inspect -f '{{.Image}}' "$id" 2>/dev/null || true
+  done < <(dc_ids_for_workspace "$dir")
+}
+

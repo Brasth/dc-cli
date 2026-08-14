@@ -1,0 +1,230 @@
+#!/usr/bin/env bash
+# Reclaim Docker disk. Default is dry-run. Destructive steps need --yes.
+# Usage:
+#   dc-prune
+#   dc-prune --yes
+#   dc-prune --all --yes
+#   dc-prune --volume NAME --yes
+#   dc-prune --workspace [dir] --yes
+set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  exit 1
+fi
+
+yes=0
+all=0
+workspace_mode=0
+workspace="."
+volume_name=""
+do_resize_hint=0
+
+usage() {
+  cat <<'EOF'
+dc-prune — reclaim unused Docker storage (safe by default)
+
+  dc-prune                         dry-run of the safe set
+  dc-prune --yes                   apply safe set
+  dc-prune --all --yes             also unused tagged images (not just dangling)
+  dc-prune --workspace [dir] --yes only images for THIS stack that are unused
+  dc-prune --volume NAME --yes     delete ONE named volume (data loss)
+  dc-prune --colima-hint           print Colima disk-resize guidance
+  dc-prune --help
+
+Safe set (default with --yes):
+  • docker builder prune
+  • docker image prune          (dangling only; no -a)
+  • docker network prune
+  • orphan dc-forward sidecars  (target container missing)
+
+NOT default:
+  • named volumes
+  • docker system prune -a --volumes
+  • exited labeled apps (resume with dc-exec / dc-up)
+
+See also: dc-df / dc-df --volumes
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --yes|-y) yes=1 ;;
+    --all) all=1 ;;
+    --workspace)
+      workspace_mode=1
+      if [[ $# -ge 2 && ! "$2" =~ ^- ]]; then
+        shift
+        workspace="$1"
+      fi
+      ;;
+    --volume)
+      shift
+      [[ $# -ge 1 ]] || { echo "--volume needs a name" >&2; exit 2; }
+      volume_name="$1"
+      ;;
+    --colima-hint) do_resize_hint=1 ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if [[ -d "$1" ]]; then
+        workspace_mode=1
+        workspace="$1"
+      else
+        echo "Unknown arg: $1" >&2
+        exit 2
+      fi
+      ;;
+  esac
+  shift
+done
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "docker not found" >&2
+  exit 1
+fi
+
+print_colima_hint() {
+  cat <<'EOF'
+Colima disk is a fixed VM image (see `colima list` DISK column).
+dc-prune only frees space *inside* that image.
+
+If `colima ssh -- df -h /` still shows ~100% after prune:
+
+  # stop first
+  colima stop
+  # grow (example: 60GiB). Requires a colima version that supports resize.
+  colima start --disk 60
+  # or edit ~/.colima/default/colima.yaml disk: 60 then colima start
+
+Do not run docker system prune -af --volumes — that deletes named DB volumes.
+EOF
+}
+
+if [[ "$do_resize_hint" -eq 1 ]]; then
+  print_colima_hint
+  exit 0
+fi
+
+# --- single volume delete (phase 3) ---
+if [[ -n "$volume_name" ]]; then
+  if ! docker volume inspect "$volume_name" >/dev/null 2>&1; then
+    echo "Volume not found: $volume_name" >&2
+    exit 1
+  fi
+  if docker ps -aq --filter "volume=$volume_name" 2>/dev/null | grep -q .; then
+    echo "Volume is mounted by a container. Stop/rm that stack first: $volume_name" >&2
+    exit 1
+  fi
+  if [[ "$yes" -ne 1 ]]; then
+    echo "Would delete volume: $volume_name"
+    echo "Data loss. Re-run with --yes to confirm."
+    exit 0
+  fi
+  echo "rm volume  $volume_name"
+  docker volume rm "$volume_name"
+  exit 0
+fi
+
+# --- dry-run / apply plan ---
+declare -a orphan_ids=()
+while IFS= read -r id; do
+  [[ -n "$id" ]] || continue
+  orphan_ids+=("$id")
+done < <(dc_orphan_forward_ids)
+
+echo "=== dc-prune plan ==="
+echo "  build cache     docker builder prune -f"
+if [[ "$all" -eq 1 ]]; then
+  echo "  images          docker image prune -a -f   (--all: unused tagged too)"
+elif [[ "$workspace_mode" -eq 1 ]]; then
+  echo "  images          unused images referenced only by this workspace (if any)"
+else
+  echo "  images          docker image prune -f      (dangling only)"
+fi
+echo "  networks        docker network prune -f"
+echo "  orphan sidecars ${#orphan_ids[@]}  (dc.forward.for target missing)"
+for id in "${orphan_ids[@]+"${orphan_ids[@]}"}"; do
+  name="$(docker inspect -f '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')"
+  echo "    - ${id:0:12}  ${name:-?}"
+done
+echo
+echo "NOT included: named volumes, exited labeled apps, system prune -af --volumes"
+if [[ "$yes" -ne 1 ]]; then
+  echo
+  echo "Dry-run only. Apply with: dc-prune --yes"
+  if [[ "$all" -eq 1 ]]; then
+    echo "(--all needs --yes too)"
+  fi
+  exit 0
+fi
+
+if [[ "$all" -eq 1 && "$yes" -ne 1 ]]; then
+  echo "--all requires --yes" >&2
+  exit 2
+fi
+
+echo "=== applying ==="
+echo "builder prune..."
+docker builder prune -f || true
+
+if [[ "$workspace_mode" -eq 1 ]]; then
+  # Phase 3: only remove dangling, then report images used by this stack (do not -a).
+  # True "only this workspace's unused images" is ambiguous across shared base images.
+  # We prune dangling globally (safe) and list stack images for the user.
+  echo "image prune (dangling)..."
+  docker image prune -f || true
+  echo "images used by this workspace stack (kept):"
+  while IFS= read -r img; do
+    [[ -n "$img" ]] || continue
+    docker image inspect --format '{{.Id}}  {{index .RepoTags 0}}  {{.Size}}' "$img" 2>/dev/null || true
+  done < <(dc_workspace_image_ids "$workspace" | awk 'NF && !seen[$0]++')
+  echo "(shared base images are never force-deleted by --workspace)"
+elif [[ "$all" -eq 1 ]]; then
+  echo "image prune -a (unused tagged images)..."
+  docker image prune -a -f || true
+else
+  echo "image prune (dangling)..."
+  docker image prune -f || true
+fi
+
+echo "network prune..."
+docker network prune -f || true
+
+if [[ ${#orphan_ids[@]} -gt 0 ]]; then
+  echo "removing orphan sidecars..."
+  for id in "${orphan_ids[@]}"; do
+    docker rm -f "$id" >/dev/null 2>&1 || true
+    echo "  removed ${id:0:12}"
+  done
+fi
+
+echo
+echo "=== after ==="
+docker system df
+echo
+if command -v colima >/dev/null 2>&1; then
+  guest="$(colima ssh -- df -h / 2>/dev/null | awk 'NR==2 {print $5 " used on guest / (" $3 " of " $2 ")"}' || true)"
+  if [[ -n "$guest" ]]; then
+    echo "Colima guest: $guest"
+    pct="${guest%%\%*}"
+    # if still very full, hint
+    if [[ "$pct" =~ ^[0-9]+$ ]] && [[ "$pct" -ge 90 ]]; then
+      echo
+      echo "Guest disk still high. Resize is Colima, not Docker:"
+      print_colima_hint
+    fi
+  fi
+fi
+echo "Done. Retry: dc-up"

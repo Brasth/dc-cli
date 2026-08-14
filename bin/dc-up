@@ -82,9 +82,21 @@ if [[ -n "$override" ]]; then
   args+=(--override-config "$override")
 fi
 
-devcontainer "${args[@]}"
-rc=$?
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+set +e
+devcontainer "${args[@]}" 2>&1 | tee "$tmp"
+rc=${PIPESTATUS[0]}
+set -e
 if [[ "$rc" -ne 0 ]]; then
+  if grep -qiE 'no space left|ENOSPC|disk full|not enough disk|out of disk' "$tmp" 2>/dev/null; then
+    echo >&2
+    echo "dc-up: Docker looks out of disk. Check and reclaim:" >&2
+    echo "  dc-df" >&2
+    echo "  dc-prune          # dry-run" >&2
+    echo "  dc-prune --yes    # safe: cache + dangling + orphan sidecars" >&2
+    echo "  dc-prune --colima-hint   # if Colima VM is full after prune" >&2
+  fi
   exit "$rc"
 fi
 
