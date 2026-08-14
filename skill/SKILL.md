@@ -1,7 +1,7 @@
 ---
 name: "devcontainer-cli-global"
 description: "Host-global official @devcontainers/cli helpers: dc-tui (clickable if Go; this folder; --all fleet), dc-up (auto dc-forward), dc-exec, dc-down, dc-ls, dc-open (zed/code/subl; --attach VS Code only), dc-ps, dc-forward (Colima sidecar). Install: curl main/install.sh (latest release). No project .devcontainer edits."
-version: 10
+version: 11
 created: "2026-08-13"
 updated: "2026-08-14"
 ---

@@ -52,7 +52,8 @@ type model struct {
 	err       string
 	quitting  bool
 	more      bool
-	hover     string
+	hover      string
+	hoverStack int // -1 = none
 }
 
 type reloadMsg struct {
@@ -67,17 +68,20 @@ type execDoneMsg struct {
 }
 
 var (
-	titleStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))
-	mutedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-	okStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
-	badStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
-	btnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Background(lipgloss.Color("4")).Padding(1, 2)
-	btnHover    = lipgloss.NewStyle().Foreground(lipgloss.Color("0")).Background(lipgloss.Color("12")).Bold(true).Padding(1, 2)
-	btnDanger   = lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Background(lipgloss.Color("1")).Padding(1, 2)
-	btnDangerH  = lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Background(lipgloss.Color("9")).Bold(true).Padding(1, 2)
-	hintStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-	errStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
-	headerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	titleStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("81"))
+	mutedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+	okStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("114"))
+	badStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("203"))
+	warnStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("215"))
+	btnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("236")).Background(lipgloss.Color("109")).Padding(0, 1).Align(lipgloss.Center)
+	btnHover    = lipgloss.NewStyle().Foreground(lipgloss.Color("234")).Background(lipgloss.Color("159")).Bold(true).Padding(0, 1).Align(lipgloss.Center)
+	btnDanger   = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Background(lipgloss.Color("167")).Padding(0, 1).Align(lipgloss.Center)
+	btnDangerH  = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Background(lipgloss.Color("203")).Bold(true).Padding(0, 1).Align(lipgloss.Center)
+	hintStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	errStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("203"))
+	headerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("108"))
+	labelStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("243")).Width(10)
+	rowHover    = lipgloss.NewStyle().Background(lipgloss.Color("237"))
 )
 
 func main() {
@@ -108,10 +112,11 @@ func main() {
 		os.Exit(1)
 	}
 	m := model{
-		workspace: ws,
-		fleet:     fleet,
-		hasConfig: hasDevcontainer(ws),
-		editor:    pickEditor(),
+		workspace:  ws,
+		fleet:      fleet,
+		hasConfig:  hasDevcontainer(ws),
+		editor:     pickEditor(),
+		hoverStack: -1,
 	}
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseAllMotion())
 	if _, err := p.Run(); err != nil {
@@ -235,6 +240,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Action {
 		case tea.MouseActionMotion:
 			m.hover = m.hitButton(msg.X, msg.Y)
+			m.hoverStack = m.hitStack(msg.X, msg.Y)
 			return m, nil
 		case tea.MouseActionPress:
 			if msg.Button == tea.MouseButtonLeft {
@@ -280,6 +286,21 @@ func (m model) hitButton(x, y int) string {
 		}
 	}
 	return ""
+}
+
+func (m model) hitStack(x, y int) int {
+	if m.fleet {
+		return -1
+	}
+	_, _, rowY0 := m.layout()
+	if rowY0 <= 0 {
+		return -1
+	}
+	i := y - rowY0
+	if i >= 0 && i < len(m.stack) {
+		return i
+	}
+	return -1
 }
 
 func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
@@ -413,29 +434,51 @@ func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 	})
 }
 
+func kv(k, v string) string {
+	return labelStyle.Render(k) + " " + v
+}
+
 func (m model) layout() (string, []button, int) {
 	var b strings.Builder
+	w := m.width
+	if w <= 0 {
+		w = 80
+	}
 	if m.fleet {
-		b.WriteString(titleStyle.Render("dc-tui  fleet") + "  " + mutedStyle.Render("every labeled container — click a row") + "\n\n")
+		b.WriteString(titleStyle.Render("dc-tui") + mutedStyle.Render("  fleet") + "  " + mutedStyle.Render("click a workspace") + "\n\n")
 	} else {
-		b.WriteString(titleStyle.Render("dc-tui") + "  " + headerStyle.Render(m.workspace) + "\n")
-		cfg := badStyle.Render("NO  (start disabled — add .devcontainer)")
+		base := filepath.Base(m.workspace)
+		b.WriteString(titleStyle.Render("dc-tui") + "  " + headerStyle.Render(base) + "\n")
+		b.WriteString(mutedStyle.Render(m.workspace) + "\n")
+		cfg := badStyle.Render("no .devcontainer")
 		if m.hasConfig {
-			cfg = okStyle.Render("YES")
+			cfg = okStyle.Render("ready")
 		}
-		status, id, ports, folder := "not running", "", "", m.workspace
+		status, id, ports := warnStyle.Render("stopped"), "", ""
 		if len(m.rows) > 0 {
-			status, id, ports, folder = m.rows[0].Status, shortID(m.rows[0].ID), m.rows[0].Ports, m.rows[0].LocalFolder
+			id, ports = shortID(m.rows[0].ID), m.rows[0].Ports
+			switch m.rows[0].Status {
+			case "running":
+				status = okStyle.Render("running")
+			case "exited":
+				status = badStyle.Render("exited")
+			default:
+				status = warnStyle.Render(m.rows[0].Status)
+			}
 		}
-		fmt.Fprintf(&b, "  this folder   %s\n", m.workspace)
-		fmt.Fprintf(&b, "  .devcontainer %s\n", cfg)
-		fmt.Fprintf(&b, "  container     %s  %s  %s\n", status, id, ports)
-		fmt.Fprintf(&b, "  docker label  %s\n", folder)
-		fmt.Fprintf(&b, "  host editor   %s  (open uses this; attach needs VS Code)\n\n", m.editor)
+		meta := status + mutedStyle.Render("  ") + cfg
+		if id != "" {
+			meta += mutedStyle.Render("  ") + mutedStyle.Render(id)
+		}
+		if ports != "" {
+			meta += mutedStyle.Render("  ") + ports
+		}
+		b.WriteString(meta + "\n")
+		b.WriteString(kv("editor", m.editor+"  open=host  attach=vscode") + "\n\n")
 	}
 
 	y0 := strings.Count(b.String(), "\n")
-	line, buttons := renderButtons(m.fleet, m.width, m.hover, y0)
+	line, buttons := renderButtons(m.fleet, w, m.hover, y0)
 	b.WriteString(line)
 	if !strings.HasSuffix(line, "\n") {
 		b.WriteString("\n")
@@ -452,29 +495,56 @@ func (m model) layout() (string, []button, int) {
 	rowY0 := -1
 	if m.fleet {
 		b.WriteString("\n")
+		b.WriteString(mutedStyle.Render("  status    workspace") + "\n")
 		rowY0 = strings.Count(b.String(), "\n")
 		if len(m.rows) == 0 {
-			b.WriteString(mutedStyle.Render("  (no labeled containers — start one with dc-up in a project)") + "\n")
+			b.WriteString(mutedStyle.Render("  (empty — dc-up in a project)") + "\n")
 		} else {
-			b.WriteString(mutedStyle.Render("  status    name                      folder") + "\n")
 			for _, r := range m.rows {
-				fmt.Fprintf(&b, "  %-8s  %-24s  %s  %s\n", r.Status, r.Name, r.LocalFolder, shortID(r.ID))
+				b.WriteString(formatFleetRow(r) + "\n")
 			}
 		}
 	} else if len(m.stack) > 0 {
-		b.WriteString("\n" + mutedStyle.Render("  stack — click a row to exec (e = app)") + "\n")
+		b.WriteString("\n" + mutedStyle.Render("  stack") + hintStyle.Render("   click a row · e is app") + "\n")
 		rowY0 = strings.Count(b.String(), "\n")
-		for _, s := range m.stack {
-			svc := s.Service
-			if svc == "" {
-				svc = "-"
+		for i, s := range m.stack {
+			line := formatStackRow(s)
+			if i == m.hoverStack {
+				line = rowHover.Width(w).Render(line)
 			}
-			fmt.Fprintf(&b, "  %-8s  %-16s  %-28s  %s\n", s.Status, svc, s.Name, shortID(s.ID))
+			b.WriteString(line + "\n")
 		}
 	}
 
-	b.WriteString("\n" + hintStyle.Render("click a padded button  ·  keys still work  ·  ? more  ·  q quit") + "\n")
+	b.WriteString("\n" + hintStyle.Render("u start  e shell  p ports  ? more  q quit") + "\n")
 	return b.String(), buttons, rowY0
+}
+
+func formatStackRow(s stackSvc) string {
+	svc := s.Service
+	if svc == "" {
+		svc = "-"
+	}
+	st := mutedStyle.Render(fmt.Sprintf("%-8s", s.Status))
+	switch s.Status {
+	case "running":
+		st = okStyle.Render(fmt.Sprintf("%-8s", "up"))
+	case "exited":
+		st = badStyle.Render(fmt.Sprintf("%-8s", "down"))
+	}
+	return "  " + st + "  " + fmt.Sprintf("%-16s", svc) + "  " + mutedStyle.Render(s.Name)
+}
+
+func formatFleetRow(r container) string {
+	st := mutedStyle.Render(fmt.Sprintf("%-8s", r.Status))
+	if r.Status == "running" {
+		st = okStyle.Render(fmt.Sprintf("%-8s", "up"))
+	}
+	folder := r.LocalFolder
+	if folder == "" {
+		folder = r.Name
+	}
+	return "  " + st + "  " + folder
 }
 
 func (m model) View() string {
@@ -504,85 +574,100 @@ func morePanel(editor string) string {
 	return strings.Join(lines, "\n")
 }
 
-func renderButtons(fleet bool, width int, hover string, y0 int) (string, []button) {
-	type spec struct {
-		key, label string
-		danger     bool
-	}
-	var specs []spec
+type btnSpec struct {
+	key, label string
+	danger     bool
+}
+
+func buttonSpecs(fleet bool) []btnSpec {
 	if fleet {
-		specs = []spec{
-			{"f", "this folder", false},
+		return []btnSpec{
+			{"f", "folder", false},
 			{"r", "reload", false},
 			{"?", "more", false},
 			{"q", "quit", false},
 		}
-	} else {
-		specs = []spec{
-			{"u", "start", false},
-			{"e", "shell", false},
-			{"o", "open host", false},
-			{"a", "attach vscode", false},
-			{"p", "ports", false},
-			{"s", "stop", false},
-			{"x", "rm", true},
-			{"l", "logs", false},
-			{"f", "fleet", false},
-			{"?", "more", false},
-			{"q", "quit", false},
-		}
 	}
+	return []btnSpec{
+		{"u", "start", false},
+		{"e", "shell", false},
+		{"o", "open", false},
+		{"a", "attach", false},
+		{"p", "ports", false},
+		{"s", "stop", false},
+		{"x", "rm", true},
+		{"l", "logs", false},
+		{"f", "fleet", false},
+		{"?", "more", false},
+		{"q", "quit", false},
+	}
+}
+
+func renderButtons(fleet bool, width int, hover string, y0 int) (string, []button) {
+	specs := buttonSpecs(fleet)
 	if width <= 0 {
 		width = 80
+	}
+	// Equal tiles. Longest label + horizontal pad (style Padding 0,1).
+	inner := 0
+	for _, s := range specs {
+		if n := len(s.label); n > inner {
+			inner = n
+		}
+	}
+	tileW := inner + 2
+	gap := 1
+	perRow := (width + gap) / (tileW + gap)
+	if perRow < 1 {
+		perRow = 1
+	}
+	// Workspace: 6 primary + 5 meta. Prefer 6-wide so rows stay even.
+	if !fleet && perRow > 6 {
+		perRow = 6
 	}
 	var lines []string
 	var buttons []button
 	var row []string
-	x, y := 0, y0
-	rowH := 0
+	x, y, col := 0, y0, 0
 	flush := func() {
 		if len(row) == 0 {
 			return
 		}
-		joined := lipgloss.JoinHorizontal(lipgloss.Top, row...)
-		lines = append(lines, joined)
+		lines = append(lines, lipgloss.JoinHorizontal(lipgloss.Top, row...))
 		row = nil
 		x = 0
-		y += rowH
-		rowH = 0
+		col = 0
+		y++
 	}
 	for _, s := range specs {
-		st := btnStyle
+		st := btnStyle.Width(tileW)
 		if s.danger {
-			st = btnDanger
+			st = btnDanger.Width(tileW)
 		}
 		if hover == s.key {
 			if s.danger {
-				st = btnDangerH
+				st = btnDangerH.Width(tileW)
 			} else {
-				st = btnHover
+				st = btnHover.Width(tileW)
 			}
 		}
 		cell := st.Render(s.label)
-		w := lipgloss.Width(cell)
 		h := lipgloss.Height(cell)
-		if x > 0 && x+w+1 > width {
+		if col >= perRow {
 			flush()
 		}
-		if x > 0 {
-			row = append(row, " ")
-			x++
+		if col > 0 {
+			row = append(row, strings.Repeat(" ", gap))
+			x += gap
 		}
 		buttons = append(buttons, button{
 			key: s.key, label: s.label,
-			x0: x, x1: x + w,
+			x0: x, x1: x + tileW,
 			y0: y, y1: y + h,
 		})
 		row = append(row, cell)
-		x += w
-		if h > rowH {
-			rowH = h
-		}
+		x += tileW
+		col++
 	}
 	flush()
 	return strings.Join(lines, "\n") + "\n", buttons
