@@ -52,20 +52,60 @@ dc_resolve_workspace() {
   printf '%s\n' "$abs"
 }
 
-# Candidate label values for a workspace: abs(cwd) and resolved (git root).
+# Logical + physical paths (macOS /Users -> /Volumes symlink).
+dc_path_forms() {
+  local dir="$1" log phys
+  if [[ ! -d "$dir" ]]; then
+    return 1
+  fi
+  log="$(cd "$dir" && pwd)"
+  phys="$(cd "$dir" && pwd -P)"
+  printf '%s\n' "$log"
+  if [[ "$phys" != "$log" ]]; then
+    printf '%s\n' "$phys"
+  fi
+}
+
+# Candidate label values: cwd + git root, each as logical and physical.
 dc_workspace_candidates() {
   local dir="${1:-.}"
-  local abs resolved
+  local resolved
   if [[ ! -d "$dir" ]]; then
     echo "Not a directory: $dir" >&2
     return 1
   fi
-  abs="$(cd "$dir" && pwd)"
-  resolved="$(dc_resolve_workspace "$abs")"
-  printf '%s\n' "$abs"
-  if [[ "$resolved" != "$abs" ]]; then
-    printf '%s\n' "$resolved"
+  dc_path_forms "$dir"
+  resolved="$(dc_resolve_workspace "$dir")"
+  dc_path_forms "$resolved" | awk 'NF && !seen[$0]++'
+}
+
+# Same project even when one path is a symlink (/Users -> /Volumes).
+dc_same_workspace() {
+  local a="$1" b="$2" pa pb
+  [[ -n "$a" && -n "$b" ]] || return 1
+  if [[ "$a" == "$b" ]]; then
+    return 0
   fi
+  [[ -d "$a" && -d "$b" ]] || return 1
+  pa="$(cd "$a" && pwd -P)"
+  pb="$(cd "$b" && pwd -P)"
+  [[ "$pa" == "$pb" ]]
+}
+
+# Exact folder string the official CLI stored on the labeled app.
+# Use this for `devcontainer exec --workspace-folder` — it matches labels
+# literally, so `.` / a symlink realpath will miss a running box.
+dc_cli_workspace_folder() {
+  local dir="${1:-.}" id folder
+  id="$(dc_ids_for_workspace "$dir" | head -n1)"
+  if [[ -n "$id" ]]; then
+    folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id" 2>/dev/null || true)"
+    if [[ -n "$folder" && "$folder" != "<no value>" ]]; then
+      printf '%s\n' "$folder"
+      return 0
+    fi
+  fi
+  (cd "$dir" && pwd)
 }
 
 dc_labeled_ids() {
@@ -171,7 +211,7 @@ dc_ids_for_workspace() {
     [[ -n "$id" ]] || continue
     folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id" 2>/dev/null || true)"
     for abs in "${cands[@]}"; do
-      if [[ "$folder" == "$abs" ]]; then
+      if dc_same_workspace "$folder" "$abs"; then
         printf '%s\n' "$id"
         break
       fi

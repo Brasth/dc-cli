@@ -4,6 +4,18 @@
 # --ports / --override REPLACE that file entirely (not a merge).
 set -euo pipefail
 
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  exit 1
+fi
+
 workspace="."
 override=""
 ports=0
@@ -57,7 +69,8 @@ if ! command -v devcontainer >/dev/null 2>&1; then
   exit 1
 fi
 
-ws="$(cd "$workspace" && pwd)"
+# Prefer the labeled folder if a box already exists (symlink / Users vs Volumes).
+ws="$(dc_cli_workspace_folder "$workspace")"
 args=(up --workspace-folder "$ws")
 
 if [[ -n "$override" ]]; then

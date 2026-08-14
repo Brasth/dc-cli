@@ -99,16 +99,28 @@ if [[ "$do_list" -eq 1 ]]; then
   exit 0
 fi
 
+docker_exec() {
+  local id="$1"
+  shift
+  local flags=(-i)
+  # -t only when both ends are a TTY. Agents / pipes die with
+  # "the input device is not a TTY" if we always pass -it.
+  if [[ -t 0 && -t 1 ]]; then
+    flags=(-it)
+  fi
+  exec docker exec "${flags[@]}" "$id" "$@"
+}
+
 docker_shell() {
   local id="$1"
   shift
   if [[ $# -gt 0 ]]; then
-    exec docker exec -it "$id" "$@"
+    docker_exec "$id" "$@"
   fi
   if docker exec "$id" bash -lc 'exit 0' >/dev/null 2>&1; then
-    exec docker exec -it "$id" bash
+    docker_exec "$id" bash
   fi
-  exec docker exec -it "$id" sh
+  docker_exec "$id" sh
 }
 
 if [[ -n "$explicit_id" ]]; then
@@ -134,7 +146,13 @@ if [[ -n "$service" ]]; then
 fi
 
 # Default: official CLI into the labeled app (features, remoteUser, cwd).
-if [[ ${#cmd[@]} -eq 0 ]]; then
-  exec devcontainer exec --workspace-folder "$workspace" bash
+# Must pass the exact label string — `.` / symlink realpath miss the box.
+ws="$(dc_cli_workspace_folder "$workspace")"
+app_id="$(dc_ids_for_workspace "$workspace" | head -n1)"
+if [[ -n "$app_id" ]]; then
+  dc_ensure_running "$app_id" || exit 1
 fi
-exec devcontainer exec --workspace-folder "$workspace" "${cmd[@]}"
+if [[ ${#cmd[@]} -eq 0 ]]; then
+  exec devcontainer exec --workspace-folder "$ws" bash
+fi
+exec devcontainer exec --workspace-folder "$ws" "${cmd[@]}"

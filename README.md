@@ -42,10 +42,10 @@ cd /path/to/your/project
 dc-tui                          # or the CLI below
 
 dc-up                           # start the labeled app, then publish ports
-dc-exec                         # bash in the app
+dc-exec                         # bash in the app (starts it if it is down)
 dc-exec --list                  # labeled app + other services in that compose project
 dc-exec --service NAME          # start that compose service if it is down, then bash
-dc-exec --service NAME -- cmd   # same, run a command
+dc-exec --service NAME -- cmd   # same, run a command (works without a TTY)
 dc-forward                      # if the host browser cannot reach the app port
 dc-down                         # stop the app + drop sidecars
 ```
