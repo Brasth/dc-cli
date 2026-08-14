@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Publish host ports into a running devcontainer.
-# Colima cannot reach 172.x from the Mac — use a sidecar on the Docker network
-# (same pattern as benoy-next-proxy), not host socat.
+# Colima cannot reach 172.x from the Mac — use a sidecar on the Docker network,
+# not host socat.
 set -euo pipefail
 
 _here="$(cd "$(dirname "$0")" && pwd)"

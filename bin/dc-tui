@@ -29,7 +29,7 @@ dc-tui — this folder's devcontainer (not a Docker zoo)
 Keys:
   u  start   dc-up              create/start this folder
   e  shell   dc-exec            bash in the labeled app
-                             dc-exec --list / --service db for siblings
+                             dc-exec --list / --service NAME for other services
   o  open    dc-open            host editor (zed/code/subl)
   a  attach  dc-open --attach   VS Code INTO the container (code only)
   p  ports   dc-forward         sidecar publish (localhost:3000)

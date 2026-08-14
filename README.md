@@ -10,7 +10,7 @@ this folder
    ├─ dc-tui          clickable board (default)
    ├─ dc-up           start the labeled app + publish ports
    ├─ dc-exec         shell in the app
-   ├─ dc-exec db      start (if needed) + shell in a sibling
+   ├─ dc-exec --service NAME   start (if needed) + shell in another service
    ├─ dc-forward      host localhost:3000 → app (Colima-safe)
    └─ dc-down         stop the app (sidecars go too)
 ```
@@ -35,27 +35,29 @@ Needs: bash 4+, Docker (Colima or Desktop). Go 1.22+ builds the clickable TUI; o
 
 ## Daily flow
 
+Run these from **your** project folder (the one with `.devcontainer`):
+
 ```bash
-cd ~/Xenia/brothermarcus
+cd /path/to/your/project
 dc-tui                          # or the CLI below
 
-dc-up                           # start app, then auto-forward :3000
-dc-exec                         # bash in the app  (pnpm, node)
-dc-exec --list                  # app + db + mailpit + wordpress + …
-dc-exec --service wordpress     # start wordpress if it is down, then bash
-dc-exec wordpress -- composer   # same, run a command
-dc-forward                      # if the browser still cannot hit :3000
-dc-down                         # stop app + drop sidecars
+dc-up                           # start the labeled app, then publish ports
+dc-exec                         # bash in the app
+dc-exec --list                  # labeled app + other services in that compose project
+dc-exec --service NAME          # start that compose service if it is down, then bash
+dc-exec --service NAME -- cmd   # same, run a command
+dc-forward                      # if the host browser cannot reach the app port
+dc-down                         # stop the app + drop sidecars
 ```
 
-**App vs sibling**
+**App vs other services**
 
 | Target | Command | How |
 |---|---|---|
 | labeled **app** | `dc-exec` | `devcontainer exec` (remoteUser, cwd, features) |
-| **db / mailpit / wordpress / …** | `dc-exec --service NAME` | `docker start` if exited, then `docker exec` |
+| any other compose **service** | `dc-exec --service NAME` | `docker start` if exited, then `docker exec` |
 
-Click a **stack row** in the TUI for the same sibling path. `e` / **shell** is always the app.
+`NAME` is whatever `docker compose` calls the service (`dc-exec --list`). Click a **stack row** in the TUI for the same path. `e` / **shell** is always the app.
 
 ## TUI
 
@@ -94,7 +96,7 @@ After **shell** / **logs**, the TUI comes back. A normal `exit` is not a crash.
 | `dc-up --ports` | **REPLACE** project config (not a merge) |
 | `dc-exec` | app shell |
 | `dc-exec --list` | stack table |
-| `dc-exec --service db` | sibling (starts if down) |
+| `dc-exec --service NAME` | other compose service (starts if down) |
 | `dc-exec --id NAME` | that container (starts if down) |
 | `dc-down` / `--rm` / `--compose` | stop / delete / whole compose project |
 | `dc-down --all --yes` | every labeled box |
@@ -109,7 +111,7 @@ There is **no** `dc` meta-binary.
 
 `dc-up` starts `.devcontainer/docker-compose.yml`. That file often has **no** `3000:3000`. The app listens **inside**; the Mac has nothing on `:3000`.
 
-`dc-forward` starts `alpine/socat` **on the Docker network** (same idea as `benoy-next-proxy`). Host `socat` → `172.x` does **not** work on Colima.
+`dc-forward` starts `alpine/socat` **on the Docker network**. Host `socat` → `172.x` does **not** work on Colima.
 
 ```bash
 dc-forward                 # detect app ports from compose `app.ports` + forwardPorts

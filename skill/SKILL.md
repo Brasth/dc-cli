@@ -1,7 +1,7 @@
 ---
 name: "devcontainer-cli-global"
 description: "Host-global official @devcontainers/cli helpers: dc-tui (clickable if Go; this folder; --all fleet), dc-up (auto dc-forward), dc-exec, dc-down, dc-ls, dc-open (zed/code/subl; --attach VS Code only), dc-ps, dc-forward (Colima sidecar). Install: curl main/install.sh (latest release). No project .devcontainer edits."
-version: 12
+version: 13
 created: "2026-08-13"
 updated: "2026-08-14"
 ---
@@ -13,7 +13,7 @@ Use automatically for official @devcontainers/cli without editing project .devco
 2. Never edit project `.devcontainer/devcontainer.json`.
 3. Interactive: `dc-tui` (current folder; padded clickable buttons if Go-built; hover; `?` more) or `dc-tui --all` (fleet). Labels: start/shell/open host/attach vscode/ports. After shell/logs the TUI resumes (exit 1 / restore-terminal is not a crash). open = host editor; attach = VS Code Remote in the container. ports = sidecar publish. Do not invent a `dc` alias. Install latest: `curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/main/install.sh | bash`.
 4. Start: `dc-up` (project config) then auto `dc-forward`. Only `dc-up --ports` if user accepts REPLACE via ~/.config/devcontainer/override.json. TUI `u` refuses folders with no `.devcontainer`. `DC_FORWARD=0` / `--no-forward` skips sidecars.
-5. Exec: `dc-exec` = labeled **app** (devcontainer exec). Siblings: `dc-exec --list`, `dc-exec --service wordpress` / `--id`. Stopped siblings are `docker start` then exec (composer, mysql, …). TUI **e** = app; click a stack row (including **down**). List: `dc-ls --json` / `dc-ps`.
+5. Exec: `dc-exec` = labeled **app** (devcontainer exec). Other services: `dc-exec --list`, `dc-exec --service NAME` / `--id`. A stopped service is `docker start` then exec. TUI **e** = app; click a stack row (including **down**). List: `dc-ls --json` / `dc-ps`.
 6. Stop with `dc-down` (same label matcher as `dc-ls`). Default stop only; `--rm`; `--compose`; `--all --yes`.
 7. Open content: `dc-open` host folder (zed/code/subl on PATH **or** macOS .app). TUI **open** must not ExecProcess (that looked like a crash). `dc-open --attach` is VS Code only. Bind-mount is the files.
 8. Extra ports: `dc-forward` (Docker sidecar on the compose network). Host socat to 172.x fails on Colima. TUI **ports** / `p`. Do not use override just for ports.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Exec into the workspace app container, or a compose sibling (db, mailpit, …).
+# Exec into the workspace app container, or another compose service.
 # Usage:
 #   dc-exec                         # bash in the labeled app (devcontainer exec)
 #   dc-exec -- ls -la
@@ -34,16 +34,16 @@ dc-exec — shell into the app container, or another service in the same compose
 
   dc-exec [workspace]                 bash in the labeled app (devcontainer exec)
   dc-exec [workspace] -- cmd...
-  dc-exec --service db [workspace]    docker exec into compose service "db"
-  dc-exec db                          same, if ./db is not a directory
+  dc-exec --service NAME [workspace]  docker exec into that compose service
+  dc-exec NAME                        same, if ./NAME is not a directory
   dc-exec --id NAME_OR_ID [-- cmd]
-  dc-exec --list [workspace]          show stack (app + db + mailpit + …)
+  dc-exec --list [workspace]          show the compose stack
   dc-exec --list --json [workspace]
   dc-exec --help
 
-Siblings share com.docker.compose.project with the labeled app.
+Other services share com.docker.compose.project with the labeled app.
 Sidecars from dc-forward are omitted. Default shell is bash, then sh.
-Stopped siblings are docker-started first (so you can exec wordpress / db).
+A stopped service is docker-started first, then exec.
 EOF
 }
 

@@ -357,7 +357,7 @@ dc_container_workspace_path() {
 DC_FWD_LABEL="dc.forward.for"
 DC_FWD_IMAGE="${DC_FWD_IMAGE:-alpine/socat}"
 
-# Print network|ip for a container. Prefer propeller_dev (shared Xenia net), else first with an IP.
+# Print network|ip for a container. Prefer $DC_FWD_NET if set, else first with an IP.
 dc_container_net_ip() {
   local id="$1" blob first="" prefer="" tok net ip
   blob="$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}|{{$v.IPAddress}} {{end}}' "$id" 2>/dev/null || true)"
@@ -367,7 +367,7 @@ dc_container_net_ip() {
     ip="${tok#*|}"
     [[ -n "$ip" ]] || continue
     [[ -n "$first" ]] || first="${net}|${ip}"
-    if [[ "$net" == "propeller_dev" ]]; then
+    if [[ -n "${DC_FWD_NET:-}" && "$net" == "${DC_FWD_NET}" ]]; then
       prefer="${net}|${ip}"
     fi
   done
