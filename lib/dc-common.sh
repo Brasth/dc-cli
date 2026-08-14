@@ -429,6 +429,84 @@ dc_published_host_ports() {
     awk 'NF && $0 != "<no value>"'
 }
 
+# Host ports mentioned in an error log ("Bind for 0.0.0.0:9001 failed").
+dc_ports_from_log() {
+  local file="$1"
+  [[ -f "$file" ]] || return 0
+  # Prefer explicit Bind for ... :PORT; also "port 9001 is already"
+  grep -Eo 'Bind for [^:]+:[0-9]+|port [0-9]+ is already|0\.0\.0\.0:[0-9]+' "$file" 2>/dev/null |
+    grep -Eo '[0-9]{2,5}' |
+    awk 'NF && !seen[$0]++'
+}
+
+# True if log looks like a host port collision.
+dc_log_is_port_conflict() {
+  local file="$1"
+  [[ -f "$file" ]] || return 1
+  grep -qiE 'port is already allocated|address already in use|bind for .* failed: port' "$file" 2>/dev/null
+}
+
+# Containers publishing host port $1 (running). TSV: id name compose folder ports
+dc_holders_of_host_port() {
+  local port="$1" id name ports compose folder
+  [[ -n "$port" ]] || return 0
+  while IFS= read -r id; do
+    [[ -n "$id" ]] || continue
+    ports="$(docker ps --filter "id=$id" --format '{{.Ports}}' 2>/dev/null || true)"
+    # Match :9001-> or 0.0.0.0:9001 or [::]:9001
+    if ! printf '%s' "$ports" | grep -Eq "(^|[,[])(:|::)?${port}->|0\.0\.0\.0:${port}|\\[::\\]:${port}"; then
+      # also HostConfig PortBindings for edge cases
+      if ! docker inspect -f '{{range $p,$b := .HostConfig.PortBindings}}{{range $b}}{{.HostPort}} {{end}}{{end}}' "$id" 2>/dev/null |
+        grep -Eq "(^| )${port}( |$)"; then
+        continue
+      fi
+    fi
+    name="$(docker inspect -f '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')"
+    compose="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_COMPOSE}\"}}" "$id" 2>/dev/null || true)"
+    folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id" 2>/dev/null || true)"
+    [[ "$folder" == "<no value>" ]] && folder=""
+    [[ "$compose" == "<no value>" ]] && compose=""
+    printf '%s\t%s\t%s\t%s\t%s\n' "$id" "$name" "$compose" "$folder" "$ports"
+  done < <(docker ps -q 2>/dev/null)
+}
+
+# Unique holder lines for any of the given ports (stdin or args).
+# Prints TSV via dc_holders_of_host_port, de-duped by id.
+dc_holders_of_ports() {
+  local p id
+  declare -A seen=()
+  for p in "$@"; do
+    [[ -n "$p" ]] || continue
+    while IFS=$'\t' read -r id name compose folder ports; do
+      [[ -n "$id" ]] || continue
+      [[ -n "${seen[$id]:-}" ]] && continue
+      seen[$id]=1
+      printf '%s\t%s\t%s\t%s\t%s\n' "$id" "$name" "$compose" "$folder" "$ports"
+    done < <(dc_holders_of_host_port "$p")
+  done
+}
+
+# Stop a container that is blocking a host port. Prefer compose project stop
+# when labeled; else docker stop this container only.
+dc_stop_port_holder() {
+  local id="$1" name compose folder
+  name="$(docker inspect -f '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')"
+  compose="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_COMPOSE}\"}}" "$id" 2>/dev/null || true)"
+  folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id" 2>/dev/null || true)"
+  [[ "$compose" == "<no value>" ]] && compose=""
+  [[ "$folder" == "<no value>" ]] && folder=""
+  if [[ -n "$folder" && -d "$folder" ]] && command -v dc-down >/dev/null 2>&1; then
+    echo "stop holder via dc-down  $folder  ($name)"
+    dc-down "$folder" || docker stop "$id" >/dev/null
+  elif [[ -n "$compose" ]]; then
+    echo "stop holder compose  $compose  ($name)"
+    docker compose -p "$compose" stop >/dev/null 2>&1 || docker stop "$id" >/dev/null
+  else
+    echo "stop holder  $name  ${id:0:12}"
+    docker stop "$id" >/dev/null
+  fi
+}
+
 # Wanted HOST ports from compose + .devcontainer (no project edits).
 dc_wanted_host_ports() {
   local ws="$1"

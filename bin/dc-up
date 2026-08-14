@@ -20,6 +20,8 @@ workspace="."
 override=""
 ports=0
 no_forward=0
+take_ports=0
+yes=0
 
 usage() {
   cat <<'EOF'
@@ -29,10 +31,16 @@ dc-up — start a workspace with official @devcontainers/cli
   dc-up --ports [workspace]      REPLACE config with ~/.config/devcontainer/override.json
   dc-up --override FILE [dir]    REPLACE config with FILE
   dc-up --no-forward             skip sidecar port publish after up
+  dc-up --take-ports             if host ports clash, stop holders and retry (non-interactive)
+  dc-up --yes                    same as --take-ports for agents / CI
   dc-up --help
 
 After a successful up, dc-up runs dc-forward (sidecar) so localhost:3000
 works on Colima. DC_FORWARD=0 also skips that.
+
+If compose fails with "port is already allocated", dc-up lists the container
+holding that host port. On a TTY it asks whether to stop the holder and
+retry. Use --take-ports / --yes to skip the prompt (or answer n to abort).
 
 --ports / --override do NOT merge. Image, features, and mounts from the
 project file are dropped. Prefer dc-forward for extra ports.
@@ -46,6 +54,11 @@ while [[ $# -gt 0 ]]; do
       override="${HOME}/.config/devcontainer/override.json"
       ;;
     --no-forward) no_forward=1 ;;
+    --take-ports) take_ports=1 ;;
+    --yes|-y)
+      yes=1
+      take_ports=1
+      ;;
     --override)
       shift
       [[ $# -ge 1 ]] || { echo "--override needs a file" >&2; exit 2; }
@@ -82,13 +95,18 @@ if [[ -n "$override" ]]; then
   args+=(--override-config "$override")
 fi
 
-tmp="$(mktemp)"
-trap 'rm -f "$tmp"' EXIT
-set +e
-devcontainer "${args[@]}" 2>&1 | tee "$tmp"
-rc=${PIPESTATUS[0]}
-set -e
-if [[ "$rc" -ne 0 ]]; then
+run_up() {
+  local tmp="$1"
+  : >"$tmp"
+  set +e
+  devcontainer "${args[@]}" 2>&1 | tee "$tmp"
+  local rc=${PIPESTATUS[0]}
+  set -e
+  return "$rc"
+}
+
+handle_enospc() {
+  local tmp="$1"
   if grep -qiE 'no space left|ENOSPC|disk full|not enough disk|out of disk' "$tmp" 2>/dev/null; then
     echo >&2
     echo "dc-up: Docker looks out of disk. Check and reclaim:" >&2
@@ -97,7 +115,124 @@ if [[ "$rc" -ne 0 ]]; then
     echo "  dc-prune --yes    # safe: cache + dangling + orphan sidecars" >&2
     echo "  dc-prune --colima-hint   # if Colima VM is full after prune" >&2
   fi
-  exit "$rc"
+}
+
+# Show holders; optionally stop them. Returns 0 if user/agent chose to free ports.
+resolve_port_conflict() {
+  local tmp="$1"
+  local -a ports_hit=()
+  local -a holder_ids=()
+  local p id name compose folder hports ans
+  local line
+
+  mapfile -t ports_hit < <(dc_ports_from_log "$tmp")
+  if [[ ${#ports_hit[@]} -eq 0 ]]; then
+    # fallback: any digits near "already allocated"
+    mapfile -t ports_hit < <(grep -Eo '[0-9]{2,5}' "$tmp" 2>/dev/null | awk 'NF && !seen[$0]++' | head -n 5)
+  fi
+
+  echo >&2
+  echo "dc-up: host port conflict (port already allocated)." >&2
+  if [[ ${#ports_hit[@]} -gt 0 ]]; then
+    echo "  ports: ${ports_hit[*]}" >&2
+  fi
+  echo "  holders:" >&2
+
+  declare -A seen_id=()
+  for p in "${ports_hit[@]+"${ports_hit[@]}"}"; do
+    while IFS=$'\t' read -r id name compose folder hports; do
+      [[ -n "$id" ]] || continue
+      [[ -n "${seen_id[$id]:-}" ]] && continue
+      seen_id[$id]=1
+      holder_ids+=("$id")
+      printf '    %s  %s' "${id:0:12}" "$name" >&2
+      [[ -n "$compose" ]] && printf '  compose=%s' "$compose" >&2
+      [[ -n "$folder" ]] && printf '  folder=%s' "$folder" >&2
+      printf '\n      %s\n' "$hports" >&2
+    done < <(dc_holders_of_host_port "$p")
+  done
+
+  if [[ ${#holder_ids[@]} -eq 0 ]]; then
+    echo "    (no running container matched — another process or stale publish?)" >&2
+    echo "  try: lsof -nP -iTCP:${ports_hit[0]:-PORT} -sTCP:LISTEN" >&2
+    return 1
+  fi
+
+  # Do not stop containers that belong to *this* workspace (partial up).
+  local -a foreign=()
+  for id in "${holder_ids[@]}"; do
+    folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id" 2>/dev/null || true)"
+    compose="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_COMPOSE}\"}}" "$id" 2>/dev/null || true)"
+    [[ "$folder" == "<no value>" ]] && folder=""
+    [[ "$compose" == "<no value>" ]] && compose=""
+    if [[ -n "$folder" ]] && dc_same_workspace "$folder" "$ws"; then
+      echo "  skip self  ${id:0:12}  (same workspace)" >&2
+      continue
+    fi
+    foreign+=("$id")
+  done
+
+  if [[ ${#foreign[@]} -eq 0 ]]; then
+    echo "  only this workspace holds the ports — fix compose host ports in the project." >&2
+    return 1
+  fi
+
+  ans="n"
+  if [[ "$take_ports" -eq 1 || "$yes" -eq 1 || "${DC_UP_TAKE_PORTS:-}" == "1" ]]; then
+    ans="y"
+    echo "  --take-ports / --yes: stopping holders and retrying..." >&2
+  elif [[ -t 0 && -t 1 ]]; then
+    echo >&2
+    printf 'Stop the holder(s) above and retry dc-up for this folder? [y/N] ' >&2
+    read -r ans || ans="n"
+  else
+    echo >&2
+    echo "  non-interactive: re-run with  dc-up --take-ports   to stop holders and retry." >&2
+    echo "  or stop manually:  dc-down <other-workspace>   /   docker stop <name>" >&2
+    return 1
+  fi
+
+  case "$ans" in
+    y|Y|yes|YES) ;;
+    *)
+      echo "  aborted (ports left as-is)." >&2
+      return 1
+      ;;
+  esac
+
+  for id in "${foreign[@]}"; do
+    dc_stop_port_holder "$id" || true
+  done
+  return 0
+}
+
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+
+rc=0
+run_up "$tmp" || rc=$?
+
+if [[ "$rc" -ne 0 ]]; then
+  handle_enospc "$tmp"
+  if dc_log_is_port_conflict "$tmp"; then
+    if resolve_port_conflict "$tmp"; then
+      echo >&2
+      echo "dc-up: retrying after freeing ports..." >&2
+      rc=0
+      run_up "$tmp" || rc=$?
+      if [[ "$rc" -ne 0 ]]; then
+        handle_enospc "$tmp"
+        if dc_log_is_port_conflict "$tmp"; then
+          echo "dc-up: still blocked after stopping holders. Check compose host ports." >&2
+        fi
+        exit "$rc"
+      fi
+    else
+      exit "$rc"
+    fi
+  else
+    exit "$rc"
+  fi
 fi
 
 if [[ "$no_forward" -eq 1 || "${DC_FORWARD:-1}" == "0" ]]; then

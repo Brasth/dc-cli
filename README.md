@@ -42,6 +42,7 @@ cd /path/to/your/project
 dc-tui                          # or the CLI below
 
 dc-up                           # start the labeled app, then publish ports
+dc-up --take-ports              # if host ports clash, stop holders and retry
 dc-exec                         # bash in the app (starts it if it is down)
 dc-exec --list                  # labeled app + other services in that compose project
 dc-exec --service NAME          # start that compose service if it is down, then bash
@@ -104,6 +105,7 @@ After **shell** / **logs**, the TUI comes back. A normal `exit` is not a crash.
 | `dc-up [dir]` | project config, then `dc-forward` |
 | `dc-up --no-forward` | skip sidecars (`DC_FORWARD=0`) |
 | `dc-up --ports` | **REPLACE** project config (not a merge) |
+| `dc-up --take-ports` / `--yes` | on host port clash: stop holders, retry once |
 | `dc-exec` | app shell |
 | `dc-exec --list` | stack table |
 | `dc-exec --service NAME` | other compose service (starts if down) |
@@ -158,6 +160,27 @@ dc-up                    # retry
 | `docker system prune -af --volumes` | **Do not** — not wrapped; destroys named volumes |
 
 If Colima guest `/` is still ~100% after prune, the VM disk cap is full: `dc-prune --colima-hint`. Prune does **not** grow the qemu/VZ image.
+
+## Host port conflict
+
+Two projects can publish the same host port (e.g. both `wordpress-mitm` on `9001`). Compose then fails with **port is already allocated**.
+
+```bash
+dc-up
+# dc-up: host port conflict
+#   ports: 9001
+#   holders:
+#     d11b00f0880b  other-project-wordpress-mitm-1  compose=other  ...
+# Stop the holder(s) above and retry dc-up for this folder? [y/N]
+```
+
+| Mode | Behavior |
+|---|---|
+| TTY (interactive) | lists holder → ask **y/N** → stop foreign holders → retry once |
+| `dc-up --take-ports` / `--yes` / `DC_UP_TAKE_PORTS=1` | same without prompt (agents / CI) |
+| non-TTY without flag | lists holder + how to re-run; does **not** stop |
+
+Stops **other** workspaces only (same-folder containers are skipped). Prefer stopping a sibling stack over editing project compose ports.
 
 ## Editors
 
