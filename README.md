@@ -1,4 +1,4 @@
-# dc-cli
+# DC-CLI
 
 Host-global helpers around official [`@devcontainers/cli`](https://github.com/devcontainers/cli). **No VS Code required. Does not edit** project `.devcontainer/devcontainer.json`.
 
@@ -60,6 +60,8 @@ dc-down                         # stop the app + drop sidecars
 `NAME` is whatever `docker compose` calls the service (`dc-exec --list`). Click a **stack row** in the TUI for the same path. `e` / **shell** is always the app.
 
 ## TUI
+
+<img width="756" height="248" alt="Screenshot 2026-08-14 at 06 59 02" src="https://github.com/user-attachments/assets/ea1032e7-0a24-49ff-a9d1-94d5f271a46b" />
 
 ```
 dc-tui              # this folder (cwd, then git root)
