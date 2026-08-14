@@ -21,6 +21,14 @@ type container struct {
 	Ports       string `json:"ports"`
 }
 
+type stackSvc struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Status  string `json:"status"`
+	Service string `json:"service"`
+	Image   string `json:"image"`
+}
+
 type button struct {
 	key   string
 	label string
@@ -37,6 +45,7 @@ type model struct {
 	hasConfig bool
 	editor    string
 	rows      []container
+	stack     []stackSvc
 	buttons   []button
 	rowY0     int
 	width     int
@@ -47,8 +56,9 @@ type model struct {
 }
 
 type reloadMsg struct {
-	rows []container
-	err  error
+	rows  []container
+	stack []stackSvc
+	err   error
 }
 
 type execDoneMsg struct {
@@ -123,7 +133,8 @@ In the TUI, click more (or press ?) for the full legend.
 
 Buttons / keys
   start  (u)  dc-up          create/start this folder + auto-forward ports
-  shell  (e)  dc-exec        bash inside the container (leaves TUI)
+  shell  (e)  dc-exec        bash in the labeled app (leaves TUI)
+                             click a stack row (db / mailpit / …) for siblings
   open   (o)  dc-open        host editor on the bind-mount (zed/code/subl)
   attach (a)  dc-open --attach
                              VS Code Remote INTO the running container
@@ -166,7 +177,13 @@ func (m model) reload() tea.Cmd {
 		if err := json.Unmarshal(out, &rows); err != nil {
 			return reloadMsg{err: err}
 		}
-		return reloadMsg{rows: rows}
+		var stack []stackSvc
+		if !fleet {
+			if sout, err := exec.Command("dc-exec", "--list", "--json", ws).Output(); err == nil {
+				_ = json.Unmarshal(sout, &stack)
+			}
+		}
+		return reloadMsg{rows: rows, stack: stack}
 	}
 }
 
@@ -198,9 +215,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.err = msg.err.Error()
 			m.rows = nil
+			m.stack = nil
 		} else {
 			m.err = ""
 			m.rows = msg.rows
+			m.stack = msg.stack
 		}
 		m.hasConfig = hasDevcontainer(m.workspace)
 	case execDoneMsg:
@@ -289,13 +308,30 @@ func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
-	if m.fleet && m.rowY0 > 0 {
+	if m.rowY0 > 0 {
 		i := y - m.rowY0
-		if i >= 0 && i < len(m.rows) {
-			return m.openRow(i)
+		if m.fleet {
+			if i >= 0 && i < len(m.rows) {
+				return m.openRow(i)
+			}
+		} else if i >= 0 && i < len(m.stack) {
+			return m.execStack(i)
 		}
 	}
 	return m, nil
+}
+
+func (m model) execStack(i int) (tea.Model, tea.Cmd) {
+	s := m.stack[i]
+	if s.Status != "running" {
+		m.err = s.Service + " is " + s.Status
+		return m, nil
+	}
+	cmd := exec.Command("dc-exec", "--id", s.ID)
+	cmd.Stdin = os.Stdin
+	return m, tea.ExecProcess(cmd, func(err error) tea.Msg {
+		return execDoneMsg{action: "exec-" + s.Service, err: err}
+	})
 }
 
 func (m model) openRow(i int) (tea.Model, tea.Cmd) {
@@ -425,10 +461,15 @@ func (m model) layout() (string, []button, int) {
 				fmt.Fprintf(&b, "  %-8s  %-24s  %s  %s\n", r.Status, r.Name, r.LocalFolder, shortID(r.ID))
 			}
 		}
-	} else if len(m.rows) > 1 {
-		b.WriteString("\n" + mutedStyle.Render("  extra matches for this folder:") + "\n")
-		for _, r := range m.rows[1:] {
-			fmt.Fprintf(&b, "  %-8s  %s  %s\n", r.Status, r.LocalFolder, shortID(r.ID))
+	} else if len(m.stack) > 0 {
+		b.WriteString("\n" + mutedStyle.Render("  stack — click a row to exec (e = app)") + "\n")
+		rowY0 = strings.Count(b.String(), "\n")
+		for _, s := range m.stack {
+			svc := s.Service
+			if svc == "" {
+				svc = "-"
+			}
+			fmt.Fprintf(&b, "  %-8s  %-16s  %-28s  %s\n", s.Status, svc, s.Name, shortID(s.ID))
 		}
 	}
 
@@ -448,7 +489,8 @@ func morePanel(editor string) string {
 	lines := []string{
 		titleStyle.Render("more — what each action does"),
 		"  start    create/start this folder (needs .devcontainer) then dc-forward",
-		"  shell    bash inside the container — TUI closes while it runs",
+		"  shell    bash in the labeled app — TUI closes while it runs",
+		"  stack    click db / mailpit / wordpress to docker exec that box",
 		"  open     host editor on the bind-mount  now: " + editor,
 		"  attach   VS Code Remote INTO the container (code only, must be running)",
 		"  ports    sidecar publish compose/forwardPorts (Colima: not host socat)",

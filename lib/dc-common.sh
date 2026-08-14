@@ -4,6 +4,7 @@
 
 DC_LABEL_FOLDER="devcontainer.local_folder"
 DC_LABEL_COMPOSE="com.docker.compose.project"
+DC_LABEL_SERVICE="com.docker.compose.service"
 
 dc_json_escape() {
   local s="$1"
@@ -84,6 +85,53 @@ dc_inspect_row() {
   compose="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_COMPOSE}\"}}" "$id" 2>/dev/null || true)"
   ports="$(docker ps -a --filter "id=$id" --format '{{.Ports}}' 2>/dev/null || true)"
   printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$id" "$name" "$status" "$folder" "$compose" "$ports"
+}
+
+dc_compose_project_for() {
+  local id="$1"
+  docker inspect -f "{{index .Config.Labels \"${DC_LABEL_COMPOSE}\"}}" "$id" 2>/dev/null || true
+}
+
+# TSV: id<TAB>name<TAB>status<TAB>service<TAB>image  (compose siblings; skip our sidecars)
+dc_stack_rows() {
+  local dir="${1:-.}" id proj cid name status service image fwd
+  mapfile -t ids < <(dc_ids_for_workspace "$dir")
+  id=""
+  for cid in "${ids[@]+"${ids[@]}"}"; do
+    [[ -n "$cid" ]] || continue
+    id="$cid"
+    break
+  done
+  [[ -n "$id" ]] || return 0
+  proj="$(dc_compose_project_for "$id")"
+  [[ -n "$proj" ]] || return 0
+  while IFS= read -r cid; do
+    [[ -n "$cid" ]] || continue
+    fwd="$(docker inspect -f '{{index .Config.Labels "dc.forward.for"}}' "$cid" 2>/dev/null || true)"
+    [[ -z "$fwd" || "$fwd" == "<no value>" ]] || continue
+    name="$(docker inspect -f '{{.Name}}' "$cid" | sed 's#^/##')"
+    status="$(docker inspect -f '{{.State.Status}}' "$cid")"
+    service="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_SERVICE}\"}}" "$cid" 2>/dev/null || true)"
+    image="$(docker inspect -f '{{.Config.Image}}' "$cid" 2>/dev/null || true)"
+    printf '%s\t%s\t%s\t%s\t%s\n' "$cid" "$name" "$status" "$service" "$image"
+  done < <(docker ps -aq --filter "label=${DC_LABEL_COMPOSE}=${proj}" 2>/dev/null)
+}
+
+dc_stack_json() {
+  local dir="${1:-.}" id name status service image first=1
+  printf '['
+  while IFS=$'\t' read -r id name status service image; do
+    [[ -n "$id" ]] || continue
+    [[ "$first" -eq 1 ]] || printf ','
+    first=0
+    printf '{"id":"%s","name":"%s","status":"%s","service":"%s","image":"%s"}' \
+      "$(dc_json_escape "$id")" \
+      "$(dc_json_escape "$name")" \
+      "$(dc_json_escape "$status")" \
+      "$(dc_json_escape "$service")" \
+      "$(dc_json_escape "$image")"
+  done < <(dc_stack_rows "$dir")
+  printf ']\n'
 }
 
 dc_ids_for_workspace() {

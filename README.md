@@ -79,7 +79,9 @@ Does **not** create a harness home just to drop a skill. Restart the agent after
 | `dc-up [dir]` | `devcontainer up` using the **project** config, then **`dc-forward`** |
 | `dc-up --ports` | **REPLACE** project config with `~/.config/devcontainer/override.json` |
 | `dc-up --no-forward` | skip sidecar publish (`DC_FORWARD=0` too) |
-| `dc-exec` / `dc-exec -- cmd` | exec in the workspace container |
+| `dc-exec` / `dc-exec -- cmd` | bash in the **labeled app** |
+| `dc-exec --list` | compose siblings (db, mailpit, wordpress, …) |
+| `dc-exec --service db` | `docker exec` into that sibling |
 | `dc-down` | **stop** the labeled container (keep it for next `dc-up`) |
 | `dc-down --rm` | stop + remove |
 | `dc-down --compose` | stop/down the compose project if labeled |
@@ -111,7 +113,7 @@ Click a **padded** button (they wrap + highlight on hover), or press `?` / **mor
 | Button | Key | What it does |
 |---|---|---|
 | **start** | `u` | `dc-up` then auto **`dc-forward`**. Needs `.devcontainer`. Leaves TUI for pull logs. |
-| **shell** | `e` | `dc-exec` — bash **inside** the container. Leaves TUI. |
+| **shell** | `e` | `dc-exec` — bash in the **labeled app**. Leaves TUI. Click a **stack row** (db / mailpit / …) for siblings. |
 | **open host** | `o` | `dc-open` — host editor on the **bind-mount** (Zed / VS Code / Sublime). |
 | **attach vscode** | `a` | `dc-open --attach` — VS Code **Remote into** the running container. `code` only. |
 | **ports** | `p` | `dc-forward` — sidecar so **host** `localhost:3000` reaches the app (Colima). |

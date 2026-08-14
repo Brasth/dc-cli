@@ -1,23 +1,148 @@
 #!/usr/bin/env bash
-# Exec into the official @devcontainers/cli workspace container.
+# Exec into the workspace app container, or a compose sibling (db, mailpit, …).
 # Usage:
-#   dc-exec                 # interactive bash in .
-#   dc-exec -- ls -la       # run a command
-#   dc-exec /path/to/ws -- npm test
+#   dc-exec                         # bash in the labeled app (devcontainer exec)
+#   dc-exec -- ls -la
+#   dc-exec --service db            # docker exec into compose service
+#   dc-exec db                      # same if ./db is not a directory
+#   dc-exec --id NAME_OR_ID
+#   dc-exec --list [workspace]
 set -euo pipefail
 
-workspace="."
-if [[ $# -gt 0 && "$1" != "--" && "$1" != -* ]]; then
-  if [[ -d "$1" ]]; then
-    workspace="$1"
-    shift
-  fi
-fi
-if [[ "${1:-}" == "--" ]]; then
-  shift
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  exit 1
 fi
 
-if [[ $# -eq 0 ]]; then
+workspace="."
+service=""
+explicit_id=""
+do_list=0
+json=0
+cmd=()
+
+usage() {
+  cat <<'EOF'
+dc-exec — shell into the app container, or another service in the same compose stack
+
+  dc-exec [workspace]                 bash in the labeled app (devcontainer exec)
+  dc-exec [workspace] -- cmd...
+  dc-exec --service db [workspace]    docker exec into compose service "db"
+  dc-exec db                          same, if ./db is not a directory
+  dc-exec --id NAME_OR_ID [-- cmd]
+  dc-exec --list [workspace]          show stack (app + db + mailpit + …)
+  dc-exec --list --json [workspace]
+  dc-exec --help
+
+Siblings share com.docker.compose.project with the labeled app.
+Sidecars from dc-forward are omitted. Default shell is bash, then sh.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --service|-s)
+      shift
+      [[ $# -ge 1 ]] || { echo "--service needs a name" >&2; exit 2; }
+      service="$1"
+      ;;
+    --id)
+      shift
+      [[ $# -ge 1 ]] || { echo "--id needs a container" >&2; exit 2; }
+      explicit_id="$1"
+      ;;
+    --list) do_list=1 ;;
+    --json) json=1 ;;
+    -h|--help) usage; exit 0 ;;
+    --)
+      shift
+      cmd+=("$@")
+      break
+      ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if [[ -d "$1" ]]; then
+        workspace="$1"
+      elif [[ -z "$service" && -z "$explicit_id" ]]; then
+        service="$1"
+      else
+        echo "Unknown arg: $1" >&2
+        exit 2
+      fi
+      ;;
+  esac
+  shift
+done
+
+if [[ "$do_list" -eq 1 ]]; then
+  if [[ "$json" -eq 1 ]]; then
+    dc_stack_json "$workspace"
+    exit 0
+  fi
+  printf '%-12s  %-10s  %-28s  %s\n' "STATUS" "SERVICE" "NAME" "ID"
+  while IFS=$'\t' read -r id name status svc image; do
+    [[ -n "$id" ]] || continue
+    printf '%-12s  %-10s  %-28s  %s\n' "$status" "${svc:--}" "$name" "${id:0:12}"
+  done < <(dc_stack_rows "$workspace")
+  exit 0
+fi
+
+docker_shell() {
+  local id="$1"
+  shift
+  if [[ $# -gt 0 ]]; then
+    exec docker exec -it "$id" "$@"
+  fi
+  if docker exec "$id" bash -lc 'exit 0' >/dev/null 2>&1; then
+    exec docker exec -it "$id" bash
+  fi
+  exec docker exec -it "$id" sh
+}
+
+if [[ -n "$explicit_id" ]]; then
+  if ! docker inspect "$explicit_id" >/dev/null 2>&1; then
+    echo "Container not found: $explicit_id" >&2
+    exit 1
+  fi
+  st="$(docker inspect -f '{{.State.Status}}' "$explicit_id")"
+  if [[ "$st" != "running" ]]; then
+    echo "Container $explicit_id is $st" >&2
+    exit 1
+  fi
+  docker_shell "$explicit_id" "${cmd[@]+"${cmd[@]}"}"
+fi
+
+if [[ -n "$service" ]]; then
+  found=""
+  while IFS=$'\t' read -r id name status svc image; do
+    [[ -n "$id" ]] || continue
+    if [[ "$svc" == "$service" || "$name" == "$service" || "$id" == "$service"* ]]; then
+      found="$id"
+      if [[ "$status" != "running" ]]; then
+        echo "Service $service ($name) is $status" >&2
+        exit 1
+      fi
+      echo "exec  $svc  $name  ${id:0:12}"
+      docker_shell "$id" "${cmd[@]+"${cmd[@]}"}"
+    fi
+  done < <(dc_stack_rows "$workspace")
+  echo "No compose service \"$service\" in this workspace stack. Try: dc-exec --list" >&2
+  exit 1
+fi
+
+# Default: official CLI into the labeled app (features, remoteUser, cwd).
+if [[ ${#cmd[@]} -eq 0 ]]; then
   exec devcontainer exec --workspace-folder "$workspace" bash
 fi
-exec devcontainer exec --workspace-folder "$workspace" "$@"
+exec devcontainer exec --workspace-folder "$workspace" "${cmd[@]}"
