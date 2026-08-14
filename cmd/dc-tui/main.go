@@ -110,12 +110,13 @@ const helpText = `dc-tui — this folder's devcontainer (click buttons or keys)
 In the TUI, click more (or press ?) for the full legend.
 
 Buttons / keys
-  start  (u)  dc-up          create/start this folder's container
+  start  (u)  dc-up          create/start this folder + auto-forward ports
   shell  (e)  dc-exec        bash inside the container (leaves TUI)
   open   (o)  dc-open        host editor on the bind-mount (zed/code/subl)
   attach (a)  dc-open --attach
                              VS Code Remote INTO the running container
                              (code only; needs a running box)
+  ports  (p)  dc-forward     sidecar publish (Colima-safe; localhost:3000)
   stop   (s)  dc-down        stop, keep the container for next start
   rm     (x)  dc-down --rm   stop and delete the container
   logs   (l)  docker logs -f (leaves TUI; Ctrl-C back)
@@ -195,7 +196,7 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 		return m, m.reload()
 	case "r":
 		return m, m.reload()
-	case "u", "e", "o", "a", "s", "x", "l":
+	case "u", "e", "o", "a", "s", "x", "l", "p":
 		if m.fleet {
 			return m, nil
 		}
@@ -259,6 +260,30 @@ func (m model) openRow(i int) (tea.Model, tea.Cmd) {
 	return m, m.reload()
 }
 
+func (m model) stayCmd(name string, args ...string) (tea.Model, tea.Cmd) {
+	c := exec.Command(name, args...)
+	out, err := c.CombinedOutput()
+	msg := strings.TrimSpace(string(out))
+	if err != nil {
+		if msg == "" {
+			msg = err.Error()
+		}
+		m.err = msg
+		return m, nil
+	}
+	if msg != "" {
+		// keep last few lines so ports status fits
+		lines := strings.Split(msg, "\n")
+		if len(lines) > 6 {
+			lines = lines[len(lines)-6:]
+		}
+		m.err = strings.Join(lines, " · ")
+	} else {
+		m.err = ""
+	}
+	return m, nil
+}
+
 func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 	ws := m.workspace
 	var cmd *exec.Cmd
@@ -273,18 +298,9 @@ func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 		cmd = exec.Command("dc-exec", ws)
 	case "o":
 		// Spawn; do not tear down the TUI (ExecProcess looks like a crash).
-		c := exec.Command("dc-open", ws)
-		out, err := c.CombinedOutput()
-		if err != nil {
-			msg := strings.TrimSpace(string(out))
-			if msg == "" {
-				msg = err.Error()
-			}
-			m.err = msg
-			return m, nil
-		}
-		m.err = ""
-		return m, nil
+		return m.stayCmd("dc-open", ws)
+	case "p":
+		return m.stayCmd("dc-forward", ws)
 	case "a":
 		cmd = exec.Command("dc-open", "--attach", ws)
 	case "s":
@@ -379,10 +395,11 @@ func (m model) View() string {
 func morePanel(editor string) string {
 	lines := []string{
 		titleStyle.Render("more — what each action does"),
-		"  start    create/start this folder (needs .devcontainer)",
+		"  start    create/start this folder (needs .devcontainer) then dc-forward",
 		"  shell    bash inside the container — TUI closes while it runs",
 		"  open     host editor on the bind-mount  now: " + editor,
 		"  attach   VS Code Remote INTO the container (code only, must be running)",
+		"  ports    sidecar publish compose/forwardPorts (Colima: not host socat)",
 		"  stop     docker stop — keep the container for next start",
 		"  rm       stop and delete the container",
 		"  logs     follow docker logs — Ctrl-C returns here",
@@ -412,6 +429,7 @@ func renderButtons(fleet bool) (string, []button) {
 			{"e", "shell", false},
 			{"o", "open host", false},
 			{"a", "attach vscode", false},
+			{"p", "ports", false},
 			{"s", "stop", false},
 			{"x", "rm", true},
 			{"l", "logs", false},

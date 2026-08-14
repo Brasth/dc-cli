@@ -7,6 +7,7 @@ set -euo pipefail
 workspace="."
 override=""
 ports=0
+no_forward=0
 
 usage() {
   cat <<'EOF'
@@ -15,7 +16,11 @@ dc-up — start a workspace with official @devcontainers/cli
   dc-up [workspace]              use project .devcontainer (safe default)
   dc-up --ports [workspace]      REPLACE config with ~/.config/devcontainer/override.json
   dc-up --override FILE [dir]    REPLACE config with FILE
+  dc-up --no-forward             skip sidecar port publish after up
   dc-up --help
+
+After a successful up, dc-up runs dc-forward (sidecar) so localhost:3000
+works on Colima. DC_FORWARD=0 also skips that.
 
 --ports / --override do NOT merge. Image, features, and mounts from the
 project file are dropped. Prefer dc-forward for extra ports.
@@ -28,6 +33,7 @@ while [[ $# -gt 0 ]]; do
       ports=1
       override="${HOME}/.config/devcontainer/override.json"
       ;;
+    --no-forward) no_forward=1 ;;
     --override)
       shift
       [[ $# -ge 1 ]] || { echo "--override needs a file" >&2; exit 2; }
@@ -63,4 +69,24 @@ if [[ -n "$override" ]]; then
   args+=(--override-config "$override")
 fi
 
-exec devcontainer "${args[@]}"
+devcontainer "${args[@]}"
+rc=$?
+if [[ "$rc" -ne 0 ]]; then
+  exit "$rc"
+fi
+
+if [[ "$no_forward" -eq 1 || "${DC_FORWARD:-1}" == "0" ]]; then
+  echo "dc-up: skipped port forward (DC_FORWARD=0 / --no-forward)"
+  exit 0
+fi
+
+fwd="$(command -v dc-forward 2>/dev/null || true)"
+if [[ -z "$fwd" && -x "$(dirname "$0")/dc-forward" ]]; then
+  fwd="$(dirname "$0")/dc-forward"
+fi
+if [[ -n "$fwd" ]]; then
+  echo "dc-up: publishing unpublished ports (dc-forward)..."
+  "$fwd" "$ws" || true
+else
+  echo "dc-up: dc-forward not on PATH; host browser may not reach the app" >&2
+fi

@@ -278,3 +278,147 @@ dc_container_workspace_path() {
   printf '/workspaces/%s\n' "$(basename "$host")"
 }
 
+DC_FWD_LABEL="dc.forward.for"
+DC_FWD_IMAGE="${DC_FWD_IMAGE:-alpine/socat}"
+
+# Print network|ip for a container. Prefer propeller_dev (shared Xenia net), else first with an IP.
+dc_container_net_ip() {
+  local id="$1" blob first="" prefer="" tok net ip
+  blob="$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}|{{$v.IPAddress}} {{end}}' "$id" 2>/dev/null || true)"
+  for tok in $blob; do
+    [[ "$tok" == *"|"* ]] || continue
+    net="${tok%%|*}"
+    ip="${tok#*|}"
+    [[ -n "$ip" ]] || continue
+    [[ -n "$first" ]] || first="${net}|${ip}"
+    if [[ "$net" == "propeller_dev" ]]; then
+      prefer="${net}|${ip}"
+    fi
+  done
+  if [[ -n "$prefer" ]]; then
+    printf '%s\n' "$prefer"
+    return 0
+  fi
+  if [[ -n "$first" ]]; then
+    printf '%s\n' "$first"
+    return 0
+  fi
+  return 1
+}
+
+# Host ports already published on this container (not our sidecars).
+dc_published_host_ports() {
+  local id="$1"
+  docker inspect -f '{{range $p,$c := .NetworkSettings.Ports}}{{range $c}}{{.HostPort}}\n{{end}}{{end}}' "$id" 2>/dev/null |
+    awk 'NF && $0 != "<no value>"'
+}
+
+# Wanted HOST ports from compose + .devcontainer (no project edits).
+dc_wanted_host_ports() {
+  local ws="$1"
+  if ! command -v python3 >/dev/null 2>&1; then
+    printf '%s\n' 3000 5173 8080 4000 5000 8000 9229
+    return 0
+  fi
+  python3 - "$ws" <<'PY'
+import json, os, re, sys
+ws = sys.argv[1]
+found = []
+
+def add(p):
+    try:
+        n = int(str(p).split(":")[0])
+    except ValueError:
+        return
+    if 1 <= n <= 65535 and n not in found:
+        found.append(n)
+
+def walk(node):
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k in ("forwardPorts", "appPort", "ports") and not isinstance(v, dict):
+                if isinstance(v, list):
+                    for item in v:
+                        if isinstance(item, dict):
+                            add(item.get("hostPort") or item.get("published") or item.get("containerPort") or item.get("target"))
+                        else:
+                            add(item)
+                else:
+                    add(v)
+            else:
+                walk(v)
+    elif isinstance(node, list):
+        for x in node:
+            walk(x)
+
+svc_ok = re.compile(r"^(app|web|next|frontend|ui|devcontainer)\s*:\s*$")
+port_line = re.compile(r"[-:]\s*[\"']?(\d{2,5})(?::\d{2,5})?[\"']?\s*$")
+for root, dirs, files in os.walk(ws):
+    dirs[:] = [d for d in dirs if d not in (".git", "node_modules", ".pnpm-store", "dist", "build", ".next")]
+    if root.count(os.sep) - ws.count(os.sep) > 3:
+        dirs[:] = []
+        continue
+    for name in files:
+        path = os.path.join(root, name)
+        low = name.lower()
+        if low.endswith((".yml", ".yaml")) and ("compose" in low or name.startswith("docker-compose")):
+            try:
+                text = open(path, encoding="utf-8", errors="ignore").read()
+            except OSError:
+                continue
+            in_app = False
+            in_ports = False
+            app_indent = 0
+            for line in text.splitlines():
+                if not line.strip() or line.lstrip().startswith("#"):
+                    continue
+                indent = len(line) - len(line.lstrip())
+                if svc_ok.match(line.strip()):
+                    in_app = True
+                    app_indent = indent
+                    in_ports = False
+                    continue
+                if in_app and indent <= app_indent and not line.strip().startswith("-"):
+                    in_app = False
+                    in_ports = False
+                if in_app and re.match(r"\s*ports\s*:", line):
+                    in_ports = True
+                    continue
+                if in_app and in_ports:
+                    if re.match(r"\s*-\s", line):
+                        m = port_line.search(line)
+                        if m:
+                            add(m.group(1))
+                    else:
+                        in_ports = False
+        if name == "devcontainer.json" or path.endswith(".devcontainer.json"):
+            try:
+                raw = open(path, encoding="utf-8", errors="ignore").read()
+            except OSError:
+                continue
+            raw = re.sub(r"//.*?$", "", raw, flags=re.M)
+            raw = re.sub(r"/\*.*?\*/", "", raw, flags=re.S)
+            try:
+                walk(json.loads(raw))
+            except json.JSONDecodeError:
+                for m in re.finditer(r"\"(?:forwardPorts|appPort)\"\s*:\s*(\[[^\]]*\]|\d+)", raw):
+                    for n in re.findall(r"\d{2,5}", m.group(1)):
+                        add(n)
+
+if not found:
+    found = [3000]
+for n in found:
+    print(n)
+PY
+}
+
+dc_fwd_name() {
+  local id="$1" host="$2"
+  printf 'dc-fwd-%s-%s\n' "${id:0:12}" "$host"
+}
+
+dc_fwd_ids_for() {
+  local id="$1"
+  docker ps -aq --filter "label=${DC_FWD_LABEL}=${id}" 2>/dev/null || true
+}
+

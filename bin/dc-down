@@ -125,6 +125,21 @@ stop_one() {
     return
   fi
 
+  # Drop our sidecars first so host :3000 is free.
+  fwd="$(command -v dc-forward 2>/dev/null || true)"
+  if [[ -z "$fwd" && -x "$_here/dc-forward" ]]; then
+    fwd="$_here/dc-forward"
+  fi
+  if [[ -n "$fwd" ]]; then
+    "$fwd" --stop --id "$id" >/dev/null 2>&1 || true
+  else
+    local fid
+    while IFS= read -r fid; do
+      [[ -n "$fid" ]] || continue
+      docker rm -f "$fid" >/dev/null 2>&1 || true
+    done < <(docker ps -aq --filter "label=dc.forward.for=${id}" 2>/dev/null)
+  fi
+
   if [[ "$status" == "running" ]]; then
     docker stop "$id" >/dev/null
     echo "$id  $name  folder=${folder:-}  stopped"

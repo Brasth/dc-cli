@@ -76,8 +76,9 @@ Does **not** create a harness home just to drop a skill. Restart the agent after
 |---|---|
 | `dc-tui [dir]` | TUI for **this folder** (cwd, then git root) |
 | `dc-tui --all` | Fleet of labeled containers; Enter drills into that folder |
-| `dc-up [dir]` | `devcontainer up` using the **project** config (safe default) |
+| `dc-up [dir]` | `devcontainer up` using the **project** config, then **`dc-forward`** |
 | `dc-up --ports` | **REPLACE** project config with `~/.config/devcontainer/override.json` |
+| `dc-up --no-forward` | skip sidecar publish (`DC_FORWARD=0` too) |
 | `dc-exec` / `dc-exec -- cmd` | exec in the workspace container |
 | `dc-down` | **stop** the labeled container (keep it for next `dc-up`) |
 | `dc-down --rm` | stop + remove |
@@ -87,7 +88,9 @@ Does **not** create a harness home just to drop a skill. Restart the agent after
 | `dc-open [dir]` | open host folder in zed / code / subl |
 | `dc-open --attach` | VS Code attach into the running container |
 | `dc-ps` | list docker + labeled containers |
-| `dc-forward 9000` | extra host→container port via `socat` |
+| `dc-forward [dir]` | sidecar-publish unpublished app ports (Colima-safe) |
+| `dc-forward 3000` | same, explicit host port |
+| `dc-forward --stop` | remove our sidecars |
 
 There is **no** `dc` meta-binary. Scripts keep calling `dc-up` / `dc-down`.
 
@@ -107,11 +110,12 @@ Click a button, or press `?` / **more** for the on-screen legend.
 
 | Button | Key | What it does |
 |---|---|---|
-| **start** | `u` | `dc-up` — create/start this folder. Needs `.devcontainer`. Leaves TUI so you see pull logs. |
+| **start** | `u` | `dc-up` then auto **`dc-forward`**. Needs `.devcontainer`. Leaves TUI for pull logs. |
 | **shell** | `e` | `dc-exec` — bash **inside** the container. Leaves TUI. |
 | **open host** | `o` | `dc-open` — host editor on the **bind-mount** (Zed / VS Code / Sublime). |
 | **attach vscode** | `a` | `dc-open --attach` — VS Code **Remote into** the running container. `code` only. |
-| **stop** | `s` | `dc-down` — stop, keep the container. |
+| **ports** | `p` | `dc-forward` — sidecar so **host** `localhost:3000` reaches the app (Colima). |
+| **stop** | `s` | `dc-down` — stop, keep the container. Sidecars removed. |
 | **rm** | `x` | `dc-down --rm` — stop and delete. |
 | **logs** | `l` | `docker logs -f`. Ctrl-C returns to the TUI. |
 | **fleet** | `f` | Every labeled workspace. Click a row to open that folder. |
@@ -138,7 +142,16 @@ Bind-mount **is** the project content. Pick editor with `--editor`, `DC_EDITOR`,
 
 `--override-config` **replaces** the project `devcontainer.json`. Image, features, and mounts from the project file are dropped.
 
-Prefer `dc-forward` if you only need another port.
+Prefer `dc-forward` if you only need another port. That starts an `alpine/socat` sidecar on the **Docker network** (same trick as `benoy-next-proxy`). Host `socat` to `172.x` does **not** work on Colima.
+
+```bash
+dc-forward                 # detect 3000/5173/… from compose + forwardPorts
+dc-forward 3000            # just that port
+dc-forward --status
+dc-forward --stop
+```
+
+`dc-up` runs this after a successful start. `dc-down` removes the sidecars.
 
 ## `dc-down`
 

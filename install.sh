@@ -204,7 +204,7 @@ doctor() {
     echo "  devcontainer  MISSING  rerun: bash install.sh --with-cli"
   fi
   if command -v socat >/dev/null 2>&1; then
-    echo "  socat         OK  (dc-forward)"
+    echo "  socat         OK  (optional; dc-forward uses a Docker sidecar)"
   else
     echo "  socat         optional  dc-forward only — brew/apt install socat"
   fi

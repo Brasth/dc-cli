@@ -1,76 +1,231 @@
 #!/usr/bin/env bash
-# Forward extra host ports into a running container.
-# Usage:
-#   dc-forward [container] hostPort [containerPort]
-#   dc-forward [container] hostPort:containerPort ...
-#
-# If container is omitted, uses the most recently started Docker container.
-# Prefers docker publish-style mapping; falls back to socat on the host
-# if you later want host:port -> container IP:port without recreating.
-
+# Publish host ports into a running devcontainer.
+# Colima cannot reach 172.x from the Mac — use a sidecar on the Docker network
+# (same pattern as benoy-next-proxy), not host socat.
 set -euo pipefail
 
-usage() {
-  echo "Usage: dc-forward [container] HOST_PORT[:CONTAINER_PORT] ..." >&2
-  exit 2
-}
-
-[[ $# -ge 1 ]] || usage
-
-container=""
-if docker inspect "$1" >/dev/null 2>&1; then
-  container="$1"
-  shift
-elif [[ "$1" != *:* && "$1" =~ ^[0-9]+$ ]]; then
-  :
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
 else
-  # first arg looks like a name that isn't running
-  if [[ "$1" != *:* && ! "$1" =~ ^[0-9]+$ ]]; then
-    echo "Container not found: $1" >&2
-    exit 1
-  fi
-fi
-
-if [[ -z "$container" ]]; then
-  container="$(docker ps -q --latest || true)"
-  if [[ -z "$container" ]]; then
-    echo "No running container found." >&2
-    exit 1
-  fi
-fi
-
-[[ $# -ge 1 ]] || usage
-
-ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$container")"
-if [[ -z "$ip" ]]; then
-  echo "Could not resolve container IP for $container" >&2
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
   exit 1
 fi
 
-if ! command -v socat >/dev/null 2>&1; then
-  echo "socat is required for extra forwards." >&2
-  echo "  macOS:  brew install socat" >&2
-  echo "  Debian: sudo apt-get install -y socat" >&2
-  echo "  WSL:    sudo apt-get install -y socat  (not native Windows)" >&2
-  exit 1
-fi
+mode="auto"
+workspace="."
+explicit_id=""
+do_stop=0
+do_status=0
+# leftover positional port specs
+ports=()
 
-pids=()
-cleanup() {
-  for pid in "${pids[@]:-}"; do
-    kill "$pid" 2>/dev/null || true
-  done
+usage() {
+  cat <<'EOF'
+dc-forward — publish host ports into a running container (sidecar)
+
+  dc-forward [workspace]                 detect compose / forwardPorts, sidecar them
+  dc-forward [workspace] 3000 5173       those host ports (same port inside)
+  dc-forward 3000:3000                   explicit HOST:CONTAINER
+  dc-forward --id NAME_OR_ID 3000
+  dc-forward --status [workspace]
+  dc-forward --stop [workspace]
+  dc-forward --help
+
+Does not edit project .devcontainer. Does not replace config (unlike dc-up --ports).
+
+Colima / Docker Desktop: starts alpine/socat on the container network
+  -p HOST:HOST → TCP:containerIP:CONTAINER
+Host socat to 172.x does not work on Colima.
+
+Skip a port if the app container already published it.
+Skip dc-up auto-forward with DC_FORWARD=0.
+EOF
 }
-trap cleanup EXIT INT TERM
 
-for spec in "$@"; do
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --auto) mode="auto" ;;
+    --stop) do_stop=1; mode="stop" ;;
+    --status) do_status=1; mode="status" ;;
+    --id)
+      shift
+      [[ $# -ge 1 ]] || { echo "--id needs a container" >&2; exit 2; }
+      explicit_id="$1"
+      ;;
+    -h|--help) usage; exit 0 ;;
+    --)
+      shift
+      ports+=("$@")
+      break
+      ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if [[ "$1" == *:* || "$1" =~ ^[0-9]+$ ]]; then
+        ports+=("$1")
+        mode="ports"
+      elif [[ -d "$1" ]]; then
+        workspace="$1"
+      elif docker inspect "$1" >/dev/null 2>&1; then
+        explicit_id="$1"
+      else
+        echo "Unknown arg (not a dir, port, or container): $1" >&2
+        exit 2
+      fi
+      ;;
+  esac
+  shift
+done
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "docker not found" >&2
+  exit 1
+fi
+
+ids=()
+if [[ -n "$explicit_id" ]]; then
+  ids=("$explicit_id")
+else
+  mapfile -t ids < <(dc_ids_for_workspace "$workspace")
+fi
+
+cleaned=()
+for id in "${ids[@]+"${ids[@]}"}"; do
+  [[ -n "${id:-}" ]] && cleaned+=("$id")
+done
+if [[ ${#cleaned[@]} -eq 0 ]]; then
+  echo "No matching running/labeled container. Start with dc-up first." >&2
+  exit 1
+fi
+id="${cleaned[0]}"
+status="$(docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo missing)"
+if [[ "$status" != "running" && "$do_stop" -ne 1 ]]; then
+  echo "Container $id is $status — start it before forwarding." >&2
+  exit 1
+fi
+
+if [[ "$do_status" -eq 1 ]]; then
+  echo "target  $id  $(docker inspect -f '{{.Name}}' "$id" | sed 's#^/##')"
+  mapfile -t fids < <(dc_fwd_ids_for "$id")
+  if [[ ${#fids[@]} -eq 0 || -z "${fids[0]:-}" ]]; then
+    echo "sidecars  (none)"
+    exit 0
+  fi
+  for fid in "${fids[@]}"; do
+    docker ps -a --filter "id=$fid" --format 'sidecar  {{.Names}}\t{{.Status}}\t{{.Ports}}'
+  done
+  exit 0
+fi
+
+if [[ "$do_stop" -eq 1 ]]; then
+  mapfile -t fids < <(dc_fwd_ids_for "$id")
+  if [[ ${#fids[@]} -eq 0 || -z "${fids[0]:-}" ]]; then
+    echo "No sidecars for $id"
+    exit 0
+  fi
+  for fid in "${fids[@]}"; do
+    name="$(docker inspect -f '{{.Name}}' "$fid" 2>/dev/null | sed 's#^/##')"
+    docker rm -f "$fid" >/dev/null
+    echo "removed  $name"
+  done
+  exit 0
+fi
+
+net_ip="$(dc_container_net_ip "$id")"
+if [[ -z "$net_ip" || "$net_ip" != *"|"* ]]; then
+  echo "Could not resolve Docker network/IP for $id" >&2
+  exit 1
+fi
+net="${net_ip%%|*}"
+ip="${net_ip#*|}"
+if [[ -z "$net" || -z "$ip" ]]; then
+  echo "Could not resolve Docker network/IP for $id" >&2
+  exit 1
+fi
+
+wanted=()
+if [[ ${#ports[@]} -gt 0 ]]; then
+  wanted=("${ports[@]}")
+else
+  ws="$(dc_resolve_workspace "$workspace")"
+  mapfile -t wanted < <(dc_wanted_host_ports "$ws")
+fi
+
+if [[ ${#wanted[@]} -eq 0 ]]; then
+  echo "No ports to forward."
+  exit 0
+fi
+
+mapfile -t already < <(dc_published_host_ports "$id")
+
+started=0
+skipped=0
+failed=0
+for spec in "${wanted[@]}"; do
+  [[ -n "$spec" ]] || continue
   host="${spec%%:*}"
   cont="${spec##*:}"
   [[ "$spec" == *:* ]] || cont="$host"
-  echo "Forwarding localhost:${host} -> ${ip}:${cont} ($container)"
-  socat "TCP-LISTEN:${host},fork,reuseaddr" "TCP:${ip}:${cont}" &
-  pids+=("$!")
+  if ! [[ "$host" =~ ^[0-9]+$ && "$cont" =~ ^[0-9]+$ ]]; then
+    echo "skip  bad spec $spec" >&2
+    skipped=$((skipped + 1))
+    continue
+  fi
+  skip=0
+  for p in "${already[@]+"${already[@]}"}"; do
+    if [[ "$p" == "$host" ]]; then
+      echo "skip  :$host already published on the app container"
+      skip=1
+      break
+    fi
+  done
+  if [[ "$skip" -eq 0 ]]; then
+    other="$(docker ps --format '{{.Names}} {{.Ports}}' | awk -v p=":${host}->" 'index($0,p){print $1; exit}')"
+    if [[ -n "$other" ]]; then
+      echo "skip  :$host already on host via $other"
+      skip=1
+    fi
+  fi
+  [[ "$skip" -eq 1 ]] && { skipped=$((skipped + 1)); continue; }
+
+  name="$(dc_fwd_name "$id" "$host")"
+  if docker inspect "$name" >/dev/null 2>&1; then
+    st="$(docker inspect -f '{{.State.Status}}' "$name")"
+    if [[ "$st" == "running" ]]; then
+      echo "ok     :$host already via $name"
+      skipped=$((skipped + 1))
+      continue
+    fi
+    docker rm -f "$name" >/dev/null || true
+  fi
+
+  if ! docker run -d --rm \
+    --name "$name" \
+    --network "$net" \
+    --label "${DC_FWD_LABEL}=${id}" \
+    --label "dc.forward.host=${host}" \
+    -p "${host}:${host}" \
+    "$DC_FWD_IMAGE" \
+    "TCP-LISTEN:${host},fork,reuseaddr" "TCP:${ip}:${cont}" >/dev/null
+  then
+    echo "fail   :$host  (is something else bound on the host?)" >&2
+    failed=$((failed + 1))
+    continue
+  fi
+  echo "fwd    localhost:${host} -> ${ip}:${cont}  ($name  net=$net)"
+  started=$((started + 1))
 done
 
-echo "Ctrl-C to stop."
-wait
+echo "done   started=$started skipped=$skipped failed=$failed"
+if [[ "$failed" -gt 0 && "$started" -eq 0 ]]; then
+  exit 1
+fi
+exit 0

@@ -31,6 +31,7 @@ Keys:
   e  shell   dc-exec            bash inside the container
   o  open    dc-open            host editor (zed/code/subl)
   a  attach  dc-open --attach   VS Code INTO the container (code only)
+  p  ports   dc-forward         sidecar publish (localhost:3000)
   s  stop    dc-down            stop, keep container
   x  rm      dc-down --rm       stop and delete
   l  logs    docker logs -f
@@ -92,6 +93,7 @@ choose_action() {
       e|E) echo "[e] shell" ;;
       o|O) echo "[o] open host" ;;
       a|A) echo "[a] attach vscode" ;;
+      p|P) echo "[p] ports" ;;
       s|S) echo "[s] stop" ;;
       x|X) echo "[x] rm" ;;
       l|L) echo "[l] logs" ;;
@@ -157,7 +159,7 @@ print("\t".join([
     local pick key
     pick="$(choose_action "workspace $ws" \
       "[u] start" "[e] shell" "[o] open host" "[a] attach vscode" \
-      "[s] stop" "[x] rm" "[l] logs" "[f] fleet" "[q] quit")" || return 1
+      "[p] ports" "[s] stop" "[x] rm" "[l] logs" "[f] fleet" "[q] quit")" || return 1
     key="$(action_key "$pick")"
     case "$key" in
       u)
@@ -167,6 +169,10 @@ print("\t".join([
         fi
         echo "→ dc-up $ws"
         dc-up "$ws" || true
+        ;;
+      p)
+        echo "→ dc-forward $ws"
+        dc-forward "$ws" || true
         ;;
       e)
         echo "→ dc-exec $ws"
