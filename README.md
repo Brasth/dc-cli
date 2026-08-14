@@ -95,6 +95,8 @@ There is **no** `dc` meta-binary. Scripts keep calling `dc-up` / `dc-down`.
 
 Default is the **current folder**, not every Docker container. With Go, install builds a **clickable** Bubble Tea TUI (mouse + keys). Without Go, you get the bash menu.
 
+<img width="756" height="248" alt="Screenshot 2026-08-14 at 06 59 02" src="https://github.com/user-attachments/assets/cfd7abef-eddb-41e2-b93b-2f9b2d69c414" />
+
 ```
 dc-tui              # this workspace
 dc-tui ~/src/app
