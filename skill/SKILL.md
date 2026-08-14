@@ -1,7 +1,7 @@
 ---
 name: "devcontainer-cli-global"
 description: "Host-global official @devcontainers/cli helpers: dc-tui (clickable if Go; this folder; --all fleet), dc-up (auto dc-forward), dc-exec, dc-down, dc-ls, dc-open (zed/code/subl; --attach VS Code only), dc-ps, dc-forward (Colima sidecar). Install: curl main/install.sh (latest release). No project .devcontainer edits."
-version: 8
+version: 9
 created: "2026-08-13"
 updated: "2026-08-14"
 ---
@@ -11,7 +11,7 @@ Use automatically for official @devcontainers/cli without editing project .devco
 ## Procedure
 1. Confirm `devcontainer` and Docker/Colima (`docker ps`).
 2. Never edit project `.devcontainer/devcontainer.json`.
-3. Interactive: `dc-tui` (current folder; click buttons if Go-built; `?` more) or `dc-tui --all` (fleet). Labels: start/shell/open host/attach vscode/ports. open = host editor; attach = VS Code Remote in the container. ports = sidecar publish. Do not invent a `dc` alias. Install latest: `curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/main/install.sh | bash`.
+3. Interactive: `dc-tui` (current folder; padded clickable buttons if Go-built; hover; `?` more) or `dc-tui --all` (fleet). Labels: start/shell/open host/attach vscode/ports. After shell/logs the TUI resumes (exit 1 / restore-terminal is not a crash). open = host editor; attach = VS Code Remote in the container. ports = sidecar publish. Do not invent a `dc` alias. Install latest: `curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/main/install.sh | bash`.
 4. Start: `dc-up` (project config) then auto `dc-forward`. Only `dc-up --ports` if user accepts REPLACE via ~/.config/devcontainer/override.json. TUI `u` refuses folders with no `.devcontainer`. `DC_FORWARD=0` / `--no-forward` skips sidecars.
 5. Exec: `dc-exec` / `dc-exec -- <cmd>`. List: `dc-ls --json` / `dc-ps`.
 6. Stop with `dc-down` (same label matcher as `dc-ls`). Default stop only; `--rm`; `--compose`; `--all --yes`.

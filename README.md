@@ -106,7 +106,7 @@ dc-tui ~/src/app
 dc-tui --all        # fleet
 ```
 
-Click a button, or press `?` / **more** for the on-screen legend.
+Click a **padded** button (they wrap + highlight on hover), or press `?` / **more**. After **shell** / **logs**, the TUI comes back — a normal `exit` is not a crash.
 
 | Button | Key | What it does |
 |---|---|---|

@@ -26,7 +26,8 @@ type button struct {
 	label string
 	x0    int
 	x1    int
-	y     int
+	y0    int
+	y1    int
 }
 
 type model struct {
@@ -42,6 +43,7 @@ type model struct {
 	err       string
 	quitting  bool
 	more      bool
+	hover     string
 }
 
 type reloadMsg struct {
@@ -49,13 +51,20 @@ type reloadMsg struct {
 	err  error
 }
 
+type execDoneMsg struct {
+	action string
+	err    error
+}
+
 var (
 	titleStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))
 	mutedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	okStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
 	badStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
-	btnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Background(lipgloss.Color("4")).Padding(0, 1)
-	btnDanger   = lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Background(lipgloss.Color("1")).Padding(0, 1)
+	btnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Background(lipgloss.Color("4")).Padding(1, 2)
+	btnHover    = lipgloss.NewStyle().Foreground(lipgloss.Color("0")).Background(lipgloss.Color("12")).Bold(true).Padding(1, 2)
+	btnDanger   = lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Background(lipgloss.Color("1")).Padding(1, 2)
+	btnDangerH  = lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Background(lipgloss.Color("9")).Bold(true).Padding(1, 2)
 	hintStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	errStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
 	headerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
@@ -94,10 +103,13 @@ func main() {
 		hasConfig: hasDevcontainer(ws),
 		editor:    pickEditor(),
 	}
-	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseAllMotion())
 	if _, err := p.Run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		_ = exec.Command("stty", "sane").Run()
+		if !benignExecErr(err) {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	}
 }
 
@@ -158,6 +170,26 @@ func (m model) reload() tea.Cmd {
 	}
 }
 
+func benignExecErr(err error) bool {
+	if err == nil {
+		return true
+	}
+	s := strings.ToLower(err.Error())
+	// Interactive shells often exit 1 / 130 / 143; Bubble Tea also reports
+	// "could not restore terminal" when stty races after exec.
+	switch {
+	case strings.Contains(s, "exit status 1"),
+		strings.Contains(s, "exit status 130"),
+		strings.Contains(s, "exit status 143"),
+		strings.Contains(s, "interrupt"),
+		strings.Contains(s, "could not restore terminal"),
+		strings.Contains(s, "the input device is not a tty"),
+		strings.Contains(s, "signal: hangup"):
+		return true
+	}
+	return false
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -171,13 +203,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.rows = msg.rows
 		}
 		m.hasConfig = hasDevcontainer(m.workspace)
+	case execDoneMsg:
+		if msg.err != nil && !benignExecErr(msg.err) {
+			m.err = msg.err.Error()
+		} else {
+			m.err = ""
+		}
+		return m, m.reload()
 	case tea.KeyMsg:
 		return m.handleKey(msg.String())
 	case tea.MouseMsg:
-		if msg.Action != tea.MouseActionPress || msg.Button != tea.MouseButtonLeft {
+		switch msg.Action {
+		case tea.MouseActionMotion:
+			m.hover = m.hitButton(msg.X, msg.Y)
 			return m, nil
+		case tea.MouseActionPress:
+			if msg.Button == tea.MouseButtonLeft {
+				return m.handleClick(msg.X, msg.Y)
+			}
 		}
-		return m.handleClick(msg.X, msg.Y)
 	}
 	return m, nil
 }
@@ -209,12 +253,22 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m model) hitButton(x, y int) string {
+	_, buttons, _ := m.layout()
+	for _, b := range buttons {
+		if y >= b.y0 && y < b.y1 && x >= b.x0 && x < b.x1 {
+			return b.key
+		}
+	}
+	return ""
+}
+
 func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
 	_, buttons, rowY0 := m.layout()
 	m.buttons = buttons
 	m.rowY0 = rowY0
 	for _, b := range buttons {
-		if y == b.y && x >= b.x0 && x < b.x1 {
+		if y >= b.y0 && y < b.y1 && x >= b.x0 && x < b.x1 {
 			switch b.key {
 			case "q":
 				m.quitting = true
@@ -281,7 +335,7 @@ func (m model) stayCmd(name string, args ...string) (tea.Model, tea.Cmd) {
 	} else {
 		m.err = ""
 	}
-	return m, nil
+	return m, m.reload()
 }
 
 func (m model) runAction(key string) (tea.Model, tea.Cmd) {
@@ -302,11 +356,11 @@ func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 	case "p":
 		return m.stayCmd("dc-forward", ws)
 	case "a":
-		cmd = exec.Command("dc-open", "--attach", ws)
+		return m.stayCmd("dc-open", "--attach", ws)
 	case "s":
-		cmd = exec.Command("dc-down", ws)
+		return m.stayCmd("dc-down", ws)
 	case "x":
-		cmd = exec.Command("dc-down", "--rm", ws)
+		return m.stayCmd("dc-down", "--rm", ws)
 	case "l":
 		if len(m.rows) == 0 || m.rows[0].ID == "" {
 			m.err = "No container to log."
@@ -317,11 +371,9 @@ func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	cmd.Stdin = os.Stdin
+	action := key
 	return m, tea.ExecProcess(cmd, func(err error) tea.Msg {
-		if err != nil {
-			return reloadMsg{err: err}
-		}
-		return m.reload()()
+		return execDoneMsg{action: action, err: err}
 	})
 }
 
@@ -346,12 +398,12 @@ func (m model) layout() (string, []button, int) {
 		fmt.Fprintf(&b, "  host editor   %s  (open uses this; attach needs VS Code)\n\n", m.editor)
 	}
 
-	line, buttons := renderButtons(m.fleet)
-	y := strings.Count(b.String(), "\n")
-	for i := range buttons {
-		buttons[i].y = y
+	y0 := strings.Count(b.String(), "\n")
+	line, buttons := renderButtons(m.fleet, m.width, m.hover, y0)
+	b.WriteString(line)
+	if !strings.HasSuffix(line, "\n") {
+		b.WriteString("\n")
 	}
-	b.WriteString(line + "\n")
 
 	if m.err != "" {
 		b.WriteString("\n" + errStyle.Render(m.err) + "\n")
@@ -380,7 +432,7 @@ func (m model) layout() (string, []button, int) {
 		}
 	}
 
-	b.WriteString("\n" + hintStyle.Render("click a button  ·  ? more  ·  q quit") + "\n")
+	b.WriteString("\n" + hintStyle.Render("click a padded button  ·  keys still work  ·  ? more  ·  q quit") + "\n")
 	return b.String(), buttons, rowY0
 }
 
@@ -410,7 +462,7 @@ func morePanel(editor string) string {
 	return strings.Join(lines, "\n")
 }
 
-func renderButtons(fleet bool) (string, []button) {
+func renderButtons(fleet bool, width int, hover string, y0 int) (string, []button) {
 	type spec struct {
 		key, label string
 		danger     bool
@@ -438,21 +490,60 @@ func renderButtons(fleet bool) (string, []button) {
 			{"q", "quit", false},
 		}
 	}
-	var parts []string
+	if width <= 0 {
+		width = 80
+	}
+	var lines []string
 	var buttons []button
-	x := 0
+	var row []string
+	x, y := 0, y0
+	rowH := 0
+	flush := func() {
+		if len(row) == 0 {
+			return
+		}
+		joined := lipgloss.JoinHorizontal(lipgloss.Top, row...)
+		lines = append(lines, joined)
+		row = nil
+		x = 0
+		y += rowH
+		rowH = 0
+	}
 	for _, s := range specs {
 		st := btnStyle
 		if s.danger {
 			st = btnDanger
 		}
+		if hover == s.key {
+			if s.danger {
+				st = btnDangerH
+			} else {
+				st = btnHover
+			}
+		}
 		cell := st.Render(s.label)
 		w := lipgloss.Width(cell)
-		buttons = append(buttons, button{key: s.key, label: s.label, x0: x, x1: x + w})
-		parts = append(parts, cell)
-		x += w + 1
+		h := lipgloss.Height(cell)
+		if x > 0 && x+w+1 > width {
+			flush()
+		}
+		if x > 0 {
+			row = append(row, " ")
+			x++
+		}
+		buttons = append(buttons, button{
+			key: s.key, label: s.label,
+			x0: x, x1: x + w,
+			y0: y, y1: y + h,
+		})
+		row = append(row, cell)
+		x += w
+		if h > rowH {
+			rowH = h
+		}
 	}
-	return strings.Join(parts, " "), buttons
+	flush()
+	return strings.Join(lines, "\n") + "\n", buttons
 }
 
 func shortID(id string) string {
