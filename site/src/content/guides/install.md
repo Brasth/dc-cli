@@ -1,12 +1,12 @@
 ---
 title: "Install dc-cli"
-description: "Install dc-cli with one curl or Homebrew. Release kits include the clickable TUI. Optional official CLI and agent skill."
+description: "Install dc-cli with one curl (--with-cli) or Homebrew. Release kits include the clickable TUI. Clone with no flags is wrappers only."
 h1: "One curl. Then source your shell."
 updated: 2026-08-15
 howto: true
 steps:
   - name: Run the installer
-    text: curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash
+    text: curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
   - name: Reload the shell
     text: source ~/.zshrc or ~/.bashrc so ~/bin is on PATH.
   - name: Confirm
@@ -18,7 +18,7 @@ Needs bash 4+ and Docker (Colima or Desktop). Release kits and Homebrew include 
 Safer than piping curl: clone the repo, then `bash install.sh`. Each person needs their own Docker/Colima.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 source ~/.zshrc   # or ~/.bashrc
 ```
 
@@ -39,7 +39,7 @@ brew install dc-cli
 | `--full` | `--with-cli` + `--with-skill` |
 | `--ref v0.4.3` / `main` | pin a tag or use HEAD |
 
-Default install does **not** put `devcontainer` on PATH. Add `--with-cli` if you do not already have official `@devcontainers/cli`.
+The advertised curl passes `--with-cli` so `devcontainer` is on PATH (`npm i -g` if missing; needs Node 18+). Clone or `bash install.sh` with no flags stays wrappers only.
 
 ## Skill
 

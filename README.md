@@ -20,10 +20,10 @@ this folder
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Always tracks the **latest GitHub release** (prebuilt clickable TUI). Safer: clone, then `bash install.sh`.
+Always tracks the **latest GitHub release** (prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
 
 macOS/Linux via Homebrew (same kit, no Go required):
 

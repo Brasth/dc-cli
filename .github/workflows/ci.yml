@@ -52,8 +52,11 @@ jobs:
           PREFIX="$RUNNER_TEMP/dc-bin" bash install.sh --prefix "$RUNNER_TEMP/dc-bin" >/dev/null
           ws="$RUNNER_TEMP/attach-ws"
           mkdir -p "$ws"
+          empty="$RUNNER_TEMP/no-editors"
+          mkdir -p "$empty/.config/devcontainer"
+          cp lib/dc-common.sh "$empty/.config/devcontainer/dc-common.sh"
           set +e
-          out="$(PATH="/usr/bin:/bin" HOME="$RUNNER_TEMP/no-editors" \
+          out="$(PATH="/usr/bin:/bin" HOME="$empty" \
             "$RUNNER_TEMP/dc-bin/dc-open" --attach "$ws" 2>&1)"
           rc=$?
           set -e
@@ -66,7 +69,7 @@ jobs:
           printf '#!/bin/sh\n' >"$zb/zed"
           chmod +x "$zb/zed"
           set +e
-          out="$(PATH="$zb:/usr/bin:/bin" HOME="$RUNNER_TEMP/no-editors" \
+          out="$(PATH="$zb:/usr/bin:/bin" HOME="$empty" \
             "$RUNNER_TEMP/dc-bin/dc-open" --attach "$ws" 2>&1)"
           rc=$?
           set -e
@@ -99,4 +102,13 @@ jobs:
           cp "$kit/lib/dc-common.sh" "$brew/lib/"
           HOME="$RUNNER_TEMP/empty-home" "$brew/bin/dc-up" --help
           HOME="$RUNNER_TEMP/empty-home" "$brew/bin/dc-ls" --json --all | grep -qx '\[\]'
-          grep -Fqx 'curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash' README.md
+          grep -Fqx 'curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli' README.md
+      - name: dc-up missing CLI prints advertised curl
+        run: |
+          line='curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli'
+          set +e
+          out="$(PATH="/usr/bin:/bin" HOME="$RUNNER_TEMP/no-cli" ./bin/dc-up /tmp 2>&1)"
+          rc=$?
+          set -e
+          test "$rc" -eq 1
+          printf '%s\n' "$out" | grep -Fqx "  $line"

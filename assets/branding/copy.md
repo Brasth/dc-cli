@@ -11,7 +11,7 @@ Copy install
 
 Install (must match README exactly):
 ```
-curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
 After:

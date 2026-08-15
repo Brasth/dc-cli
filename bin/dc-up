@@ -78,7 +78,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 if ! command -v devcontainer >/dev/null 2>&1; then
-  echo "devcontainer CLI not found. npm install -g @devcontainers/cli" >&2
+  echo "devcontainer CLI not found. Advertised install:" >&2
+  echo "  curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli" >&2
+  echo "or: npm i -g @devcontainers/cli" >&2
+  echo "or: bash install.sh --with-cli" >&2
   exit 1
 fi
 

@@ -8,6 +8,7 @@ WITH_CLI=0
 WITH_SKILL=0
 REF=""
 REPO="${DC_REPO:-Brasth/dc-cli}"
+ADVERTISED_CURL='curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli'
 
 usage() {
   cat <<'EOF'
@@ -211,7 +212,9 @@ if [[ "$WITH_CLI" -eq 1 ]]; then
     echo "devcontainer already on PATH"
   else
     if ! command -v npm >/dev/null 2>&1; then
-      echo "npm not found. Install Node 18+ then rerun: bash install.sh --with-cli" >&2
+      echo "npm not found. Install Node 18+ then rerun:" >&2
+      echo "  ${ADVERTISED_CURL}" >&2
+      echo "or: bash install.sh --with-cli" >&2
       exit 1
     fi
     npm install -g @devcontainers/cli
@@ -260,7 +263,7 @@ doctor() {
   if command -v devcontainer >/dev/null 2>&1; then
     echo "  devcontainer  OK  $(command -v devcontainer)"
   else
-    echo "  devcontainer  MISSING  rerun: bash install.sh --with-cli"
+    echo "  devcontainer  MISSING  ${ADVERTISED_CURL}"
   fi
   if command -v socat >/dev/null 2>&1; then
     echo "  socat         OK  (optional; dc-forward uses a Docker sidecar)"
@@ -291,7 +294,9 @@ echo "  dc-up --help"
 echo "  dc-tui --help     # this folder"
 echo "  dc-tui --all      # fleet"
 if ! command -v devcontainer >/dev/null 2>&1; then
-  echo "Official CLI not installed. Need it: bash install.sh --with-cli"
+  echo "Official CLI not installed. Need it:"
+  echo "  ${ADVERTISED_CURL}"
+  echo "or: bash install.sh --with-cli"
 fi
 echo "Stop/remove: dc-down (upstream CLI has no down)."
 echo "dc-up --ports REPLACES project devcontainer.json (not a merge)."

@@ -45,6 +45,8 @@ class DcCli < Formula
     <<~EOS
       Needs Docker (Colima or Desktop). Official CLI is separate:
         npm i -g @devcontainers/cli
+      Curl users should pass --with-cli:
+        curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 
       Port override example (dc-up --ports):
         #{pkgshare}/override.json
