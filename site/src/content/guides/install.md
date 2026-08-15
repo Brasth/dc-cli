@@ -1,6 +1,6 @@
 ---
 title: "Install dc-cli"
-description: "Install dc-cli with one curl. Tracks the latest GitHub release. Optional official CLI and agent skill."
+description: "Install dc-cli with one curl or Homebrew. Release kits include the clickable TUI. Optional official CLI and agent skill."
 h1: "One curl. Then source your shell."
 updated: 2026-08-15
 howto: true
@@ -13,13 +13,20 @@ steps:
     text: dc-tui --help or dc-up --help should print usage.
 ---
 
-Needs bash 4+ and Docker (Colima or Desktop). Go 1.22+ builds the clickable TUI; otherwise you get the bash menu.
+Needs bash 4+ and Docker (Colima or Desktop). Release kits and Homebrew include the clickable TUI. A source install builds it when Go is on PATH; otherwise you get the bash menu.
 
-Safer than piping curl: clone the repo, then `bash install.sh`.
+Safer than piping curl: clone the repo, then `bash install.sh`. Each person needs their own Docker/Colima.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash
 source ~/.zshrc   # or ~/.bashrc
+```
+
+Or Homebrew (same kit, no Go):
+
+```bash
+brew tap Brasth/dc-cli
+brew install dc-cli
 ```
 
 ## Flags

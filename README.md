@@ -23,7 +23,16 @@ this folder
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash
 ```
 
-Always tracks the **latest GitHub release**. Safer: clone, then `bash install.sh`.
+Always tracks the **latest GitHub release** (prebuilt clickable TUI). Safer: clone, then `bash install.sh`.
+
+macOS/Linux via Homebrew (same kit, no Go required):
+
+```bash
+brew tap Brasth/dc-cli
+brew install dc-cli
+```
+
+Each person needs their **own** Docker/Colima. Do not share one engine — fleet, prune, and `--take-ports` see the whole daemon.
 
 | Flag | What you get |
 |---|---|
@@ -33,7 +42,7 @@ Always tracks the **latest GitHub release**. Safer: clone, then `bash install.sh
 | `--full` | `--with-cli` + `--with-skill` |
 | `--ref v0.4.3` / `main` | pin a tag or use HEAD |
 
-Needs: bash 4+, Docker (Colima or Desktop). Go 1.22+ builds the clickable TUI; otherwise you get the bash menu. `source ~/.zshrc` or `~/.bashrc` after install.
+Needs: bash 4+, Docker (Colima or Desktop). Release/brew installs include the clickable TUI. A source install builds it when Go is on PATH; otherwise you get the bash menu. `source ~/.zshrc` or `~/.bashrc` after a curl install (Homebrew already has PATH).
 
 ## Daily flow
 
