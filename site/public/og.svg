@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img">
+  <rect width="1200" height="630" fill="#070806"/>
+  <rect x="48" y="48" width="1104" height="534" rx="6" fill="none" stroke="#f4f1ea" stroke-opacity="0.12" stroke-width="1"/>
+  <rect x="72" y="72" width="64" height="64" rx="14" fill="none" stroke="#f4f1ea" stroke-width="2"/>
+  <rect x="84" y="84" width="40" height="40" rx="8" fill="none" stroke="#f4f1ea" stroke-width="1.75"/>
+  <rect x="112" y="80" width="8" height="8" rx="1.5" fill="#e8a838"/>
+  <text x="156" y="114" fill="#f4f1ea" font-family="Menlo, ui-monospace, monospace" font-size="28">dc-cli</text>
+  <text x="72" y="280" fill="#e8a838" font-family="Menlo, ui-monospace, monospace" font-size="18" letter-spacing="4">HOST FRAME / GUEST BOX</text>
+  <text x="72" y="360" fill="#f4f1ea" font-family="Menlo, ui-monospace, monospace" font-size="56">The missing verbs</text>
+  <text x="72" y="428" fill="#f4f1ea" font-family="Menlo, ui-monospace, monospace" font-size="56">for devcontainers.</text>
+  <text x="72" y="530" fill="#8a8680" font-family="Menlo, ui-monospace, monospace" font-size="22">dc.brasth.com</text>
+  <text x="820" y="530" fill="#8a8680" font-family="Menlo, ui-monospace, monospace" font-size="22" text-anchor="end">MIT · Brasth</text>
+</svg>

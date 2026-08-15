@@ -4,6 +4,7 @@ import '../styles/global.css';
 interface Props {
   title?: string;
   description?: string;
+  noindex?: boolean;
 }
 
 const title = Astro.props.title ?? 'dc-cli — host-global Dev Containers helpers';
@@ -11,6 +12,36 @@ const description =
   Astro.props.description ??
   'Start, exec, stop, ports, and disk for official @devcontainers/cli. No VS Code required. Does not edit project .devcontainer.';
 const canonical = 'https://dc.brasth.com/';
+const ogImage = 'https://dc.brasth.com/og.png';
+const noindex = Astro.props.noindex ?? false;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'dc-cli',
+  applicationCategory: 'DeveloperApplication',
+  operatingSystem: 'macOS, Linux',
+  license: 'https://opensource.org/licenses/MIT',
+  url: canonical,
+  downloadUrl: 'https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh',
+  codeRepository: 'https://github.com/Brasth/dc-cli',
+  description,
+  author: {
+    '@type': 'Person',
+    name: 'Huy Nguyen',
+    url: 'https://github.com/Canvilled',
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: 'Brasth',
+    url: 'https://github.com/Brasth',
+  },
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'USD',
+  },
+};
 ---
 
 <!doctype html>
@@ -18,14 +49,38 @@ const canonical = 'https://dc.brasth.com/';
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="canonical" href={canonical} />
+    <title>{title}</title>
     <meta name="description" content={description} />
+    <meta name="theme-color" content="#070806" />
+    <meta name="author" content="Brasth" />
+    {noindex ? (
+      <meta name="robots" content="noindex, nofollow" />
+    ) : (
+      <meta name="robots" content="index, follow" />
+    )}
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/og.png" />
+
+    <meta property="og:site_name" content="dc-cli" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <meta property="og:type" content="website" />
-    <title>{title}</title>
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="dc-cli — the missing verbs for devcontainers" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content="dc-cli — the missing verbs for devcontainers" />
+
+    {!noindex && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
   </head>
   <body class="bg-page text-ink antialiased">
     <div class="cols" aria-hidden="true"></div>
