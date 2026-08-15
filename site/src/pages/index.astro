@@ -2,19 +2,25 @@
 import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
 import Hero from '../components/Hero.astro';
+import Board from '../components/Board.astro';
 import Marquee from '../components/Marquee.astro';
 import Bento from '../components/Bento.astro';
+import Manifesto from '../components/Manifesto.astro';
 import Commands from '../components/Commands.astro';
 import Install from '../components/Install.astro';
 import Footer from '../components/Footer.astro';
+import Glow from '../components/Glow.astro';
 ---
 
 <Layout>
-  <main id="top" class="overflow-x-hidden w-full max-w-full">
+  <Glow />
+  <main id="top" class="relative z-10 overflow-x-hidden w-full max-w-full">
     <Nav />
     <Hero />
+    <Board />
     <Marquee />
     <Bento />
+    <Manifesto />
     <Commands />
     <Install />
     <Footer />

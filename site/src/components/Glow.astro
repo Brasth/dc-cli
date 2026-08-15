@@ -1,0 +1,27 @@
+<div id="phosphor" class="phosphor" aria-hidden="true"></div>
+
+<script>
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const el = document.getElementById('phosphor');
+  if (!reduce && el && window.matchMedia('(pointer: fine)').matches) {
+    let x = 0;
+    let y = 0;
+    let tx = 0;
+    let ty = 0;
+    window.addEventListener(
+      'pointermove',
+      (event) => {
+        tx = event.clientX;
+        ty = event.clientY;
+      },
+      { passive: true },
+    );
+    const tick = () => {
+      x += (tx - x) * 0.12;
+      y += (ty - y) * 0.12;
+      el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+</script>

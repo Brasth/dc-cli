@@ -1,0 +1,46 @@
+---
+const line = 'Never docker exec. Never docker system prune. Never edit their .devcontainer.';
+const words = line.split(' ');
+---
+
+<section class="px-4 py-12 md:px-6 md:py-16">
+  <div class="mx-auto w-full max-w-6xl">
+    <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">rules of the host</p>
+    <p
+      id="manifesto"
+      class="mt-4 max-w-5xl font-mono text-[clamp(1.6rem,4vw,3.4rem)] leading-[1.15] tracking-[-0.04em]"
+    >
+      {
+        words.map((word) => (
+          <span class="manifesto-word">{word} </span>
+        ))
+      }
+    </p>
+  </div>
+</section>
+
+<script>
+  import gsap from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const words = document.querySelectorAll('#manifesto .manifesto-word');
+  if (!reduce && words.length) {
+    gsap.registerPlugin(ScrollTrigger);
+    gsap.fromTo(
+      words,
+      { opacity: 0.12 },
+      {
+        opacity: 1,
+        stagger: 0.08,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: '#manifesto',
+          start: 'top 80%',
+          end: 'top 28%',
+          scrub: true,
+        },
+      },
+    );
+  }
+</script>

@@ -13,6 +13,7 @@ import Logo from './Logo.astro';
       <span class="hidden text-mute sm:inline">~/project</span>
     </a>
     <div class="flex items-center gap-1">
+      <span id="nav-clock" class="hidden px-3 font-mono text-[11px] tabular-nums text-mute sm:inline">00:00:00</span>
       <a
         href="https://github.com/Brasth/dc-cli"
         class="inline-flex min-h-10 items-center px-3 font-mono text-xs text-mute transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-ink"
@@ -28,3 +29,15 @@ import Logo from './Logo.astro';
     </div>
   </nav>
 </header>
+
+<script>
+  const clock = document.getElementById('nav-clock');
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const tick = () => {
+    if (!clock) return;
+    const d = new Date();
+    clock.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  };
+  tick();
+  window.setInterval(tick, 1000);
+</script>

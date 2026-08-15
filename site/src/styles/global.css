@@ -108,10 +108,92 @@ li {
   animation: marquee 28s linear infinite;
 }
 
+.phosphor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 34rem;
+  height: 34rem;
+  margin: -17rem 0 0 -17rem;
+  pointer-events: none;
+  background: radial-gradient(circle, rgb(232 168 56 / 0.16), transparent 62%);
+  will-change: transform;
+}
+
+.board-shell {
+  padding: 6px;
+  background: rgb(244 241 234 / 0.03);
+  box-shadow: 0 0 0 1px rgb(244 241 234 / 0.1);
+}
+
+.board-frame {
+  background: #1c1c1c;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 30px 80px rgb(0 0 0 / 0.45);
+}
+
+.board-btn {
+  min-height: 2rem;
+  padding: 0 0.7rem;
+  border: 0;
+  background: #7eb8a8;
+  color: #1a1a1a;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition-property: transform, background-color, color;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.board-btn:hover,
+.board-btn.is-on {
+  background: #b8fff0;
+}
+
+.board-btn.is-danger {
+  background: #d36b6b;
+  color: #fff;
+}
+
+.board-btn.is-danger:hover,
+.board-btn.is-danger.is-on {
+  background: #ff8a8a;
+}
+
+.board-btn:active {
+  transform: scale(0.96);
+}
+
+.board-row {
+  cursor: pointer;
+  transition-property: background-color;
+  transition-duration: 180ms;
+}
+
+.board-row:hover {
+  background: rgb(255 255 255 / 0.05);
+}
+
+.board-log {
+  background: #141414;
+}
+
+.manifesto-word {
+  display: inline;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cursor-block,
   .marquee-track {
     animation: none;
+  }
+
+  .phosphor {
+    display: none;
   }
 
   *,

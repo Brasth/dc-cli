@@ -22,9 +22,7 @@ const install = 'curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main
         Tracks the latest GitHub release. Safer: clone, then
         <span class="font-mono text-ink/80"> bash install.sh</span>.
       </p>
-      <pre
-        class="mt-8 overflow-x-auto font-mono text-sm leading-relaxed text-ink md:text-base"
-      ><span class="text-amber">$</span> <code id="install-cmd">{install}</code><span class="cursor-block" aria-hidden="true"></span></pre>
+      <pre class="mt-8 overflow-x-auto font-mono text-sm leading-relaxed text-ink md:text-base"><span class="text-amber">$</span> <code id="install-cmd" data-cmd={install}></code><span class="cursor-block" aria-hidden="true"></span></pre>
       <p id="copy-status" class="mt-3 min-h-5 font-mono text-[11px] text-amber" aria-live="polite"></p>
       <p class="font-mono text-xs text-mute">source ~/.zshrc <span class="text-ink/30">or</span> ~/.bashrc</p>
     </div>
@@ -32,24 +30,33 @@ const install = 'curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main
 </section>
 
 <script>
-  const cmd = document.getElementById('install-cmd')?.textContent ?? '';
+  const code = document.getElementById('install-cmd');
   const button = document.getElementById('copy-install');
   const status = document.getElementById('copy-status');
+  const full = code?.dataset.cmd ?? '';
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (code) {
+    if (reduce) {
+      code.textContent = full;
+    } else {
+      let i = 0;
+      const tick = () => {
+        i += 1;
+        code.textContent = full.slice(0, i);
+        if (i < full.length) window.setTimeout(tick, 16);
+      };
+      window.setTimeout(tick, 280);
+    }
+  }
 
   async function copy() {
-    if (!cmd || !button || !status) return;
+    if (!full || !button || !status) return;
     try {
-      await navigator.clipboard.writeText(cmd);
-      status.textContent = 'copied';
+      await navigator.clipboard.writeText(full);
+      status.textContent = 'copied — now source your shell';
     } catch {
-      const range = document.createRange();
-      const node = document.getElementById('install-cmd');
-      if (!node) return;
-      range.selectNodeContents(node);
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-      status.textContent = 'select and copy';
+      status.textContent = 'select the line and copy';
     }
   }
 

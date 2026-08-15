@@ -1,0 +1,138 @@
+---
+const fields = [
+  { k: 'this folder', v: '~/src/app', tone: '' },
+  { k: '.devcontainer', v: 'YES', tone: 'ok' },
+  { k: 'container', v: 'running  203467d30435', tone: 'ok' },
+  { k: 'docker label', v: 'devcontainer.local_folder', tone: '' },
+  { k: 'host editor', v: '(none)  open uses this; attach needs VS Code', tone: '' },
+];
+
+const buttons = [
+  { key: 'u', label: 'start', cmd: 'dc-up', run: 'start labeled app + publish ports', danger: false },
+  { key: 'e', label: 'shell', cmd: 'dc-exec', run: 'exec into the app (never docker exec)', danger: false },
+  { key: 'o', label: 'open host', cmd: 'dc-open', run: 'open bind-mount in the host editor', danger: false },
+  { key: 'a', label: 'attach vscode', cmd: 'dc-open --attach', run: 'VS Code Remote into the app', danger: false },
+  { key: 's', label: 'stop', cmd: 'dc-down', run: 'stop full compose stack', danger: false },
+  { key: 'x', label: 'rm', cmd: 'dc-down --rm', run: 'compose down — remove the stack', danger: true },
+  { key: 'l', label: 'logs', cmd: 'docker logs -f', run: 'follow app logs, then return', danger: false },
+  { key: 'f', label: 'fleet', cmd: 'dc-tui --all', run: 'other labeled workspaces', danger: false },
+  { key: '?', label: 'more', cmd: 'legend', run: 'key legend', danger: false },
+  { key: 'q', label: 'quit', cmd: 'q', run: 'exit board', danger: false },
+];
+
+const stack = [
+  { name: 'app-1', svc: 'app', status: 'up', img: 'node:22' },
+  { name: 'db-1', svc: 'db', status: 'up', img: 'postgres:16' },
+  { name: 'mitm-1', svc: 'mitm', status: 'exited', img: 'alpine/socat' },
+];
+---
+
+<section id="board" class="px-4 pb-10 md:px-6 md:pb-12" aria-label="dc-tui board">
+  <div class="board-shell mx-auto w-full max-w-6xl">
+    <div class="board-frame">
+      <header class="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4">
+        <p class="font-mono text-sm font-semibold text-[#6ec8e0]">dc-tui</p>
+        <p class="font-mono text-[11px] text-mute" id="board-disk">
+          disk  docker 42% <span class="text-ink/25">·</span> colima 61%
+        </p>
+      </header>
+
+      <dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 px-4 font-mono text-[12px] leading-5">
+        {
+          fields.map((f) => (
+            <>
+              <dt class="text-mute">{f.k}</dt>
+              <dd class:list={[f.tone === 'ok' ? 'text-[#8ecf7a]' : 'text-ink/85']}>{f.v}</dd>
+            </>
+          ))
+        }
+      </dl>
+
+      <div class="mt-4 flex flex-wrap gap-1.5 px-4" role="toolbar" aria-label="dc-tui actions">
+        {
+          buttons.map((b) => (
+            <button
+              type="button"
+              class:list={['board-btn', b.danger && 'is-danger']}
+              data-key={b.key}
+              data-cmd={b.cmd}
+              data-run={b.run}
+            >
+              {b.label}
+            </button>
+          ))
+        }
+      </div>
+      <p class="px-4 pt-2 font-mono text-[11px] text-mute" id="board-hint">
+        click a button <span class="text-ink/25">·</span> keys u e o a s x l f <span class="text-ink/25">·</span> q quit
+      </p>
+
+      <ul class="mt-4 border-t border-white/5" id="board-stack">
+        {
+          stack.map((row) => (
+            <li
+              class="board-row grid grid-cols-[1fr_auto] items-baseline gap-3 px-4 py-2 font-mono text-[12px] md:grid-cols-[7rem_5rem_5rem_1fr]"
+              data-svc={row.svc}
+            >
+              <span class="text-ink">{row.name}</span>
+              <span class="text-mute">{row.svc}</span>
+              <span class:list={[row.status === 'up' ? 'text-[#8ecf7a]' : 'text-[#d36b6b]']}>
+                {row.status}
+              </span>
+              <span class="hidden text-mute md:inline">{row.img}</span>
+            </li>
+          ))
+        }
+      </ul>
+
+      <pre class="board-log max-h-28 overflow-y-auto border-t border-white/5 px-4 py-3 font-mono text-[11px] leading-5 text-[#8ecf7a]" id="board-log" aria-live="polite">$ ready — this folder · click start or press u</pre>
+    </div>
+  </div>
+</section>
+
+<script>
+  const hint = document.getElementById('board-hint');
+  const log = document.getElementById('board-log');
+  const buttons = [...document.querySelectorAll<HTMLButtonElement>('.board-btn')];
+  const rows = [...document.querySelectorAll<HTMLElement>('.board-row')];
+
+  function write(line: string) {
+    if (!log) return;
+    const prev = log.textContent ?? '';
+    const next = `${prev}\n$ ${line}`.split('\n').slice(-6).join('\n');
+    log.textContent = next;
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function fire(btn: HTMLButtonElement) {
+    const cmd = btn.dataset.cmd ?? '';
+    const run = btn.dataset.run ?? '';
+    btn.classList.add('is-on');
+    window.setTimeout(() => btn.classList.remove('is-on'), 180);
+    if (hint) hint.textContent = `${cmd}  —  ${run}`;
+    write(`${cmd}  # ${run}`);
+  }
+
+  for (const btn of buttons) {
+    btn.addEventListener('pointerenter', () => {
+      if (hint) hint.textContent = `${btn.dataset.cmd}  —  ${btn.dataset.run}`;
+    });
+    btn.addEventListener('click', () => fire(btn));
+  }
+
+  for (const row of rows) {
+    row.addEventListener('click', () => {
+      write(`dc-exec --service ${row.dataset.svc}  # start if down, then shell`);
+      if (hint) hint.textContent = `stack  —  exec ${row.dataset.svc}`;
+    });
+  }
+
+  window.addEventListener('keydown', (event) => {
+    const target = event.target as HTMLElement | null;
+    if (target && /^(INPUT|TEXTAREA|BUTTON)$/.test(target.tagName)) return;
+    const btn = buttons.find((b) => b.dataset.key === event.key);
+    if (!btn) return;
+    event.preventDefault();
+    fire(btn);
+  });
+</script>
