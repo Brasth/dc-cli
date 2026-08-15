@@ -34,6 +34,14 @@ source ~/.zshrc   # or ~/.bashrc
 
 Default install does **not** put `devcontainer` on PATH. Add `--with-cli` if you do not already have official `@devcontainers/cli`.
 
+## Skill
+
+`--with-skill` copies the `devcontainer-cli-global` skill into agent homes you **already** have. It does not install Claude / Codex / Cursor for you. Restart the agent after.
+
+`--full` is `--with-cli` + `--with-skill`.
+
+Homes and the exact copy list live in the [README Skill](https://github.com/Brasth/dc-cli#skill) section.
+
 Confirm: `dc-tui --help` or `dc-up --help` should print usage.
 
 ## Daily start
