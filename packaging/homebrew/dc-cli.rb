@@ -5,28 +5,28 @@
 class DcCli < Formula
   desc "Host-global helpers around @devcontainers/cli"
   homepage "https://dc.brasth.com"
-  version "0.6.0"
+  version "0.7.0"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.6.0/dc-cli-0.6.0-darwin-arm64.tar.gz"
-      sha256 "0053862c050965a28e3eb0fe8042d440e352a2350fd42b39737ee9b7e60ef467"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.7.0/dc-cli-0.7.0-darwin-arm64.tar.gz"
+      sha256 "b6f50e5685fe98848ce7c0b5e623efdf9854487fbeade05e52e6f5fe0cc4b690"
     end
     on_intel do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.6.0/dc-cli-0.6.0-darwin-amd64.tar.gz"
-      sha256 "5d4710ba48cb57a0eb0791049154d18c880d1a42abef358d18b12d02db69eceb"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.7.0/dc-cli-0.7.0-darwin-amd64.tar.gz"
+      sha256 "f243e654d347e11544d25b78f4288d695335a23b16c95d5edd999cb386269bcd"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.6.0/dc-cli-0.6.0-linux-arm64.tar.gz"
-      sha256 "73a86183d87c17999c7c1b0289f9de295e885266a5978bde4ad8a978a30903f1"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.7.0/dc-cli-0.7.0-linux-arm64.tar.gz"
+      sha256 "e069ce5a4d8287e98656228506e0a83da380dea4590d902f5dd59fceefef4ecb"
     end
     on_intel do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.6.0/dc-cli-0.6.0-linux-amd64.tar.gz"
-      sha256 "3080ab09709b1881dfe212fe399e8a9a71f211c442c118e32e96a2efa9dc6380"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.7.0/dc-cli-0.7.0-linux-amd64.tar.gz"
+      sha256 "6fdecc725bda6c5f1d9fb3bd5faedce803d5e538b89c1dc41ad90a6d9fe8fb29"
     end
   end
 
