@@ -69,8 +69,8 @@ Each user still needs their own Docker/Colima. Labels stay `devcontainer.local_f
 - [x] Product-shape decision recorded (distribute CLI; GUI parked)
 - [x] Pack script + `release.yml` + install.sh prefers kit/prebuilt TUI
 - [x] Formula template at `packaging/homebrew/dc-cli.rb` (`bin/` + `lib/`, not libexec)
-- [ ] Release artifacts exist for a new `v*` tag
-- [ ] `Brasth/homebrew-dc-cli` created and SHA-filled
+- [x] Release artifacts exist for a new `v*` tag (`v0.6.0`)
+- [x] `Brasth/homebrew-dc-cli` created and SHA-filled
 - [x] Curl installer still works (source + kit)
 
 ## Success Criteria

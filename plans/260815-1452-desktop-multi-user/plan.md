@@ -49,8 +49,8 @@ dc-cli is a per-login wrapper over local `docker` + `@devcontainers/cli`. No dae
 - [x] User picks one of the three product shapes (A: distribute)
 - [x] Multi-user = N local installs, not one shared session
 - [x] Shared remote control explicitly out of scope
-- [ ] First `v*` tag publishes 4 tarballs
-- [ ] `Brasth/homebrew-dc-cli` exists and installs
+- [x] First `v*` tag publishes 4 tarballs (`v0.6.0`)
+- [x] `Brasth/homebrew-dc-cli` exists and installs
 
 ## Research
 
