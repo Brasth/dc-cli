@@ -55,14 +55,25 @@ TUI `a` stays `dc-open --attach`. Help / more must not say “Zed cannot attach.
 - [x] TUI help + more panel do not say Zed cannot attach
 - [x] No new Go deps, no site route, no desktop
 
+## Reports
+
+| Pass | Report | Result |
+|------|--------|--------|
+| QA | [reports/260815-attach-zed-qa.md](./reports/260815-attach-zed-qa.md) | 29/29 PASS; Mac cannot hide Zed.app |
+| Review | [reports/260815-attach-zed-review.md](./reports/260815-attach-zed-review.md) | **9/10, ship-clean yes** |
+
 ## Next steps
 
-- Ship. Review: [reports/260815-attach-zed-review.md](./reports/260815-attach-zed-review.md) — **9/10, ship-clean yes**.
-- Let CI confirm Linux no-editor exit 2.
-- Out of scope stays out: no release tag / Homebrew, no TUI leftover, no SEO plan dirt.
+None for this plan. Plan **done**.
+
+CI Linux no-editor exit 2 is the remaining proof (this Mac cannot hide Zed.app). Not a new phase.
 
 ## Out of scope
 
 - Release tag / Homebrew (separate)
 - TUI leftover (confirm-click, reload while leaving)
 - Leftover SEO / github-pages plan files
+
+## Close
+
+Shipped 2026-08-15. `dc-open --attach` and TUI `a` now teach Zed first-party steps (print, exit 0) when `code` is missing; VS Code URI path unchanged; no-editor still exit 2 + Sublime-only cannot. QA 29/29; review 9/10 ship-clean. No new phases. Out of scope stays out (release/Homebrew, TUI leftover, leftover SEO / github-pages plans).
