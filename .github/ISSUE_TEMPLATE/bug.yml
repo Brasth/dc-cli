@@ -1,0 +1,53 @@
+name: Bug
+description: Something in dc-cli broke.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Guides first if this is install, ports, or disk: https://dc.brasth.com/guide/
+        Do not paste secrets, `.env`, tokens, or full `docker inspect`.
+  - type: textarea
+    id: what
+    attributes:
+      label: What broke
+      description: One or two sentences.
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Command
+      placeholder: dc-up --take-ports
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - macOS
+        - Linux
+        - WSL2
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Docker backend
+      options:
+        - Colima
+        - Docker Desktop
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output
+      description: Paste `dc-up` / `dc-df` / the error. Redact secrets.
+      render: shell
+    validations:
+      required: true

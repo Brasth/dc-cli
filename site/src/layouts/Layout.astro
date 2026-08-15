@@ -4,25 +4,30 @@ import '../styles/global.css';
 interface Props {
   title?: string;
   description?: string;
+  path?: string;
   noindex?: boolean;
+  schema?: Record<string, unknown>[];
 }
 
 const title = Astro.props.title ?? 'dc-cli — host-global Dev Containers helpers';
 const description =
   Astro.props.description ??
   'Start, exec, stop, ports, and disk for official @devcontainers/cli. No VS Code required. Does not edit project .devcontainer.';
-const canonical = 'https://dc.brasth.com/';
-const ogImage = 'https://dc.brasth.com/og.png';
 const noindex = Astro.props.noindex ?? false;
+const site = 'https://dc.brasth.com';
+const rawPath = Astro.props.path ?? Astro.url.pathname;
+const path = rawPath.endsWith('/') ? rawPath : `${rawPath}/`;
+const canonical = new URL(path, site).href;
+const ogImage = `${site}/og.png`;
+const isHome = path === '/';
 
-const jsonLd = {
-  '@context': 'https://schema.org',
+const softwareApplication = {
   '@type': 'SoftwareApplication',
   name: 'dc-cli',
   applicationCategory: 'DeveloperApplication',
   operatingSystem: 'macOS, Linux',
   license: 'https://opensource.org/licenses/MIT',
-  url: canonical,
+  url: `${site}/`,
   downloadUrl: 'https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh',
   codeRepository: 'https://github.com/Brasth/dc-cli',
   description,
@@ -42,6 +47,16 @@ const jsonLd = {
     priceCurrency: 'USD',
   },
 };
+
+const extras = Astro.props.schema ?? [];
+const graph = [...(isHome ? [softwareApplication] : []), ...extras];
+const jsonLd =
+  graph.length > 0
+    ? {
+        '@context': 'https://schema.org',
+        '@graph': graph,
+      }
+    : null;
 ---
 
 <!doctype html>
@@ -80,7 +95,7 @@ const jsonLd = {
     <meta name="twitter:image" content={ogImage} />
     <meta name="twitter:image:alt" content="dc-cli — the missing verbs for devcontainers" />
 
-    {!noindex && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
   </head>
   <body class="bg-page text-ink antialiased">
     <div class="cols" aria-hidden="true"></div>

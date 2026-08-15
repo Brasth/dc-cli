@@ -1,0 +1,23 @@
+---
+import Layout from './Layout.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import Glow from '../components/Glow.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+  path?: string;
+  noindex?: boolean;
+  schema?: Record<string, unknown>[];
+}
+---
+
+<Layout {...Astro.props}>
+  <Glow />
+  <main class="relative z-10 overflow-x-hidden w-full max-w-full">
+    <Nav />
+    <slot />
+    <Footer />
+  </main>
+</Layout>

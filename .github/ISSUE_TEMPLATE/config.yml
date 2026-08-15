@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Read the guides
+    url: https://dc.brasth.com/guide/
+    about: Install, TUI keys, Colima ports, and disk full.
+  - name: Command reference
+    url: https://github.com/Brasth/dc-cli#commands-all-of-them
+    about: Full flag tables live in the README.

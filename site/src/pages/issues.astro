@@ -1,0 +1,63 @@
+---
+import Page from '../layouts/Page.astro';
+import { breadcrumbs } from '../lib/schema';
+
+const bug = 'https://github.com/Brasth/dc-cli/issues/new?template=bug.yml';
+const question = 'https://github.com/Brasth/dc-cli/issues/new?template=question.yml';
+const list = 'https://github.com/Brasth/dc-cli/issues';
+
+const schema = [
+  breadcrumbs([
+    { name: 'dc-cli', path: '/' },
+    { name: 'Issues', path: '/issues/' },
+  ]),
+  {
+    '@type': 'WebPage',
+    name: 'Report a dc-cli issue',
+    description: 'File a bug or question on GitHub. Include the command, OS, and Docker backend.',
+    url: 'https://dc.brasth.com/issues/',
+  },
+];
+---
+
+<Page
+  title="Report a dc-cli issue"
+  description="File a dc-cli bug or question on GitHub. Include the command, OS, and Colima vs Docker Desktop. No secrets."
+  path="/issues/"
+  schema={schema}
+>
+  <section class="px-4 pb-16 pt-20 md:px-6 md:pb-20 md:pt-24">
+    <div class="mx-auto w-full max-w-3xl">
+      <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">issues / github</p>
+      <h1 class="mt-3 font-mono text-4xl leading-[0.95] tracking-tight md:text-5xl">
+        Report a break. Not a ticket form.
+      </h1>
+      <p class="mt-5 max-w-xl text-sm text-mute">
+        GitHub is the tracker. This page only aims you. Read
+        <a class="text-ink/80 hover:text-ink" href="/guide/">the guides</a>
+        first if it is install, ports, or disk.
+      </p>
+      <div class="mt-10 grid gap-px bg-ink/10 sm:grid-cols-2">
+        <a class="bg-page p-6 hover:bg-core" href={bug}>
+          <p class="font-mono text-[11px] text-amber">template / bug</p>
+          <h2 class="mt-3 font-mono text-2xl tracking-tight">It broke</h2>
+          <p class="mt-3 text-sm text-mute">Command, OS, Colima vs Desktop, paste the error. No `.env`.</p>
+        </a>
+        <a class="bg-page p-6 hover:bg-core" href={question}>
+          <p class="font-mono text-[11px] text-amber">template / question</p>
+          <h2 class="mt-3 font-mono text-2xl tracking-tight">I am stuck</h2>
+          <p class="mt-3 text-sm text-mute">What you ran. What you expected. What you already tried.</p>
+        </a>
+      </div>
+      <ul class="mt-10 space-y-2 font-mono text-xs text-mute">
+        <li><span class="text-amber">▸</span> paste `dc-df` or the `dc-up` holder list when relevant</li>
+        <li><span class="text-amber">▸</span> never paste tokens, `.env`, or `docker inspect` dumps</li>
+        <li>
+          <span class="text-amber">▸</span>
+          open list:
+          <a class="text-ink/80 hover:text-ink" href={list}>github.com/Brasth/dc-cli/issues</a>
+        </li>
+      </ul>
+    </div>
+  </section>
+</Page>

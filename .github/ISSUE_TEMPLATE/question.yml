@@ -1,0 +1,29 @@
+name: Question
+description: You are stuck and the guides did not cover it.
+title: "[question] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check https://dc.brasth.com/guide/ first.
+        Do not paste secrets, `.env`, tokens, or full `docker inspect`.
+  - type: textarea
+    id: asked
+    attributes:
+      label: What are you trying to do
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What you already ran
+      description: Commands and what happened.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true

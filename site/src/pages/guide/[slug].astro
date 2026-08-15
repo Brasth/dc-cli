@@ -1,0 +1,162 @@
+---
+import { getCollection, render } from 'astro:content';
+import Page from '../../layouts/Page.astro';
+import { breadcrumbs, faqPage, howTo } from '../../lib/schema';
+
+export async function getStaticPaths() {
+  const guides = await getCollection('guides');
+  return guides.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const path = `/guide/${entry.id}/`;
+const pageTitle = /dc-cli/i.test(entry.data.title)
+  ? entry.data.title
+  : `${entry.data.title} — dc-cli`;
+const crumbs = breadcrumbs([
+  { name: 'dc-cli', path: '/' },
+  { name: 'Guides', path: '/guide/' },
+  { name: entry.data.title, path },
+]);
+const schema = [
+  crumbs,
+  ...(entry.data.howto && entry.data.steps ? [howTo(entry.data.title, entry.data.steps)] : []),
+  ...(entry.data.faq?.length ? [faqPage(entry.data.faq)] : []),
+];
+
+const siblings = [
+  { id: 'install', label: 'install' },
+  { id: 'tui', label: 'tui' },
+  { id: 'ports', label: 'ports' },
+  { id: 'disk', label: 'disk' },
+];
+---
+
+<Page title={pageTitle} description={entry.data.description} path={path} schema={schema}>
+  <article class="px-4 pb-16 pt-20 md:px-6 md:pb-20 md:pt-24">
+    <div class="mx-auto w-full max-w-3xl">
+      <nav class="font-mono text-[11px] text-mute" aria-label="Breadcrumb">
+        <a class="hover:text-ink" href="/">dc-cli</a>
+        <span class="px-2 text-ink/20">/</span>
+        <a class="hover:text-ink" href="/guide/">guide</a>
+        <span class="px-2 text-ink/20">/</span>
+        <span class="text-ink">{entry.id}</span>
+      </nav>
+      <p class="mt-6 font-mono text-[11px] tracking-[0.18em] text-amber uppercase">
+        guide / {entry.id}
+        <span class="text-mute">
+          · {entry.data.updated.toISOString().slice(0, 10)}
+        </span>
+      </p>
+      <h1 class="mt-3 font-mono text-4xl leading-[0.95] tracking-tight md:text-5xl">
+        {entry.data.h1}
+      </h1>
+      <div class="guide-prose mt-10">
+        <Content />
+      </div>
+      {
+        entry.data.faq?.length ? (
+          <section class="mt-14 border-t border-ink/10 pt-10">
+            <h2 class="font-mono text-xl tracking-tight">FAQ</h2>
+            <dl class="mt-6 space-y-6">
+              {entry.data.faq.map((item) => (
+                <div>
+                  <dt class="font-mono text-sm text-ink">{item.q}</dt>
+                  <dd class="mt-2 text-sm text-mute">{item.a}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ) : null
+      }
+      <p class="mt-12 font-mono text-xs text-mute">
+        Broke something?
+        <a class="text-amber hover:text-ink" href="/issues/">report it</a>
+      </p>
+      <nav class="mt-8 flex flex-wrap gap-4 border-t border-ink/10 pt-6 font-mono text-xs" aria-label="Other guides">
+        {
+          siblings.map((item) =>
+            item.id === entry.id ? (
+              <span class="text-ink">{item.label}</span>
+            ) : (
+              <a class="text-mute hover:text-ink" href={`/guide/${item.id}/`}>
+                {item.label}
+              </a>
+            ),
+          )
+        }
+      </nav>
+    </div>
+  </article>
+</Page>
+
+<style>
+  .guide-prose :global(h2) {
+    margin-top: 2.5rem;
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    letter-spacing: -0.03em;
+  }
+  .guide-prose :global(p),
+  .guide-prose :global(li) {
+    color: color-mix(in srgb, var(--color-ink) 78%, transparent);
+    font-size: 0.95rem;
+    line-height: 1.65;
+  }
+  .guide-prose :global(p + p) {
+    margin-top: 1rem;
+  }
+  .guide-prose :global(ul),
+  .guide-prose :global(ol) {
+    margin: 1rem 0;
+    padding-left: 1.2rem;
+  }
+  .guide-prose :global(a) {
+    color: var(--color-amber);
+  }
+  .guide-prose :global(a:hover) {
+    color: var(--color-ink);
+  }
+  .guide-prose :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+    color: var(--color-ink);
+  }
+  .guide-prose :global(pre) {
+    margin: 1.25rem 0;
+    overflow-x: auto;
+    border: 1px solid color-mix(in srgb, var(--color-ink) 15%, transparent);
+    background: var(--color-core);
+    padding: 1rem 1.1rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+  .guide-prose :global(pre code) {
+    font-size: inherit;
+  }
+  .guide-prose :global(table) {
+    width: 100%;
+    margin: 1.25rem 0;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .guide-prose :global(th),
+  .guide-prose :global(td) {
+    border-bottom: 1px solid color-mix(in srgb, var(--color-ink) 12%, transparent);
+    padding: 0.55rem 0.4rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  .guide-prose :global(th) {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-mute);
+  }
+</style>

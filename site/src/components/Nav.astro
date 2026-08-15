@@ -7,7 +7,7 @@ import Logo from './Logo.astro';
     class="mx-auto flex h-12 w-full max-w-6xl items-center justify-between gap-4 px-4 md:px-6"
     aria-label="Primary"
   >
-    <a href="#top" class="flex min-h-10 items-center gap-2 font-mono text-sm text-ink">
+    <a href="/" class="flex min-h-10 items-center gap-2 font-mono text-sm text-ink">
       <Logo class="h-5 w-5" />
       <span>dc-cli</span>
       <span class="hidden text-mute sm:inline">~/project</span>
@@ -15,13 +15,19 @@ import Logo from './Logo.astro';
     <div class="flex items-center gap-1">
       <span id="nav-clock" class="hidden px-3 font-mono text-[11px] tabular-nums text-mute sm:inline">00:00:00</span>
       <a
+        href="/guide/"
+        class="inline-flex min-h-10 items-center px-3 font-mono text-xs text-mute transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-ink"
+      >
+        guide
+      </a>
+      <a
         href="https://github.com/Brasth/dc-cli"
         class="inline-flex min-h-10 items-center px-3 font-mono text-xs text-mute transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-ink"
       >
         github
       </a>
       <a
-        href="#install"
+        href="/#install"
         class="inline-flex min-h-10 items-center bg-amber px-3 font-mono text-xs text-page transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96]"
       >
         $ install

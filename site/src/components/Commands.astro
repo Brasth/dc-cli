@@ -12,9 +12,14 @@ const rows = [
 
 <section class="px-4 py-12 md:px-6 md:py-16">
   <div class="mx-auto grid w-full max-w-6xl gap-8 md:grid-cols-12 md:items-start">
-    <h2 class="font-mono text-2xl leading-tight tracking-tight md:col-span-4 md:text-3xl">
-      Official CLI has up and exec. This adds the rest.
-    </h2>
+    <div class="md:col-span-4">
+      <h2 class="font-mono text-2xl leading-tight tracking-tight md:text-3xl">
+        Official CLI has up and exec. This adds the rest.
+      </h2>
+      <a href="/guide/" class="mt-4 inline-flex min-h-10 items-center font-mono text-xs text-amber hover:text-ink">
+        task guides →
+      </a>
+    </div>
     <ol class="border-t border-ink/10 md:col-span-8">
       {
         rows.map((row) => (
