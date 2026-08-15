@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="dc-cli">
+  <rect width="64" height="64" rx="16" fill="#050505"/>
+  <rect x="5" y="5" width="54" height="54" rx="14" stroke="#F4F1EA" stroke-width="2"/>
+  <rect x="16" y="16" width="32" height="32" rx="8" stroke="#F4F1EA" stroke-width="1.75"/>
+  <rect x="40" y="12" width="7" height="7" rx="1.5" fill="#E8A838"/>
+</svg>

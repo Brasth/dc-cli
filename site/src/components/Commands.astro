@@ -1,0 +1,29 @@
+---
+const rows = [
+  { cmd: 'dc-tui', does: 'Clickable board for this folder. --all for the fleet.' },
+  { cmd: 'dc-up', does: 'Start the labeled app, then publish ports.' },
+  { cmd: 'dc-exec', does: 'Shell in the app. --service NAME for siblings.' },
+  { cmd: 'dc-down', does: 'Stop the full compose stack. --app for the labeled app only.' },
+  { cmd: 'dc-forward', does: 'Sidecar publish. Required on Colima.' },
+  { cmd: 'dc-df', does: 'Docker + Colima disk report. Read-only.' },
+  { cmd: 'dc-prune', does: 'Safe reclaim. Dry-run without --yes.' },
+];
+---
+
+<section class="px-4 py-24 md:px-8 md:py-40">
+  <div class="mx-auto w-full max-w-6xl">
+    <h2 class="max-w-3xl text-4xl leading-tight tracking-tight md:text-6xl">
+      The official CLI has up and exec. This adds the rest.
+    </h2>
+    <ol class="mt-16 divide-y divide-ink/10 border-y border-ink/10">
+      {
+        rows.map((row) => (
+          <li class="grid grid-cols-1 items-baseline gap-2 py-6 md:grid-cols-12 md:gap-8">
+            <code class="font-mono text-sm text-amber md:col-span-3">{row.cmd}</code>
+            <p class="text-base text-ink/85 md:col-span-9">{row.does}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>

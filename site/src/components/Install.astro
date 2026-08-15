@@ -1,0 +1,61 @@
+---
+const install = 'curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/main/install.sh | bash';
+---
+
+<section id="install" class="px-4 py-24 md:px-8 md:py-40">
+  <div class="mx-auto w-full max-w-6xl">
+    <div class="rounded-[2rem] border border-ink/10 bg-ink/5 p-1.5">
+      <div class="rounded-[calc(2rem-0.375rem)] bg-core px-6 py-12 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] md:px-14 md:py-20">
+        <h2 class="max-w-4xl text-4xl leading-tight tracking-tight md:text-6xl">
+          One curl. Then source your shell.
+        </h2>
+        <p class="mt-6 max-w-xl text-mute">
+          Tracks the latest GitHub release. Safer: clone, then
+          <span class="font-mono text-ink/80"> bash install.sh</span>.
+        </p>
+
+        <div class="mt-10 flex flex-col gap-4 md:flex-row md:items-stretch">
+          <pre
+            class="min-w-0 flex-1 overflow-x-auto rounded-[1.25rem] border border-ink/10 bg-page px-5 py-4 font-mono text-sm leading-relaxed text-ink"
+          ><code id="install-cmd">{install}</code></pre>
+          <button
+            id="copy-install"
+            type="button"
+            class="inline-flex shrink-0 items-center justify-center rounded-full bg-ink px-6 py-4 text-sm font-medium text-page transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96]"
+          >
+            Copy install
+          </button>
+        </div>
+        <p id="copy-status" class="mt-4 min-h-6 font-mono text-xs text-amber" aria-live="polite"></p>
+        <p class="mt-2 font-mono text-sm text-mute">source ~/.zshrc or ~/.bashrc</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const cmd = document.getElementById('install-cmd')?.textContent ?? '';
+  const button = document.getElementById('copy-install');
+  const status = document.getElementById('copy-status');
+
+  async function copy() {
+    if (!cmd || !button || !status) return;
+    try {
+      await navigator.clipboard.writeText(cmd);
+      status.textContent = 'Copied';
+    } catch {
+      const range = document.createRange();
+      const node = document.getElementById('install-cmd');
+      if (!node) return;
+      range.selectNodeContents(node);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      status.textContent = 'Select and copy';
+    }
+  }
+
+  button?.addEventListener('click', () => {
+    void copy();
+  });
+</script>

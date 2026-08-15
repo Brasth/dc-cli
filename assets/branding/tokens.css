@@ -1,0 +1,90 @@
+/* === PRIMITIVES === */
+:root {
+  --color-black-950: #050505;
+  --color-black-900: #111111;
+  --color-cream-50: #f4f1ea;
+  --color-cream-300: #c8c0b2;
+  --color-steel-500: #8a8680;
+  --color-steel-700: #3a3834;
+  --color-amber-400: #e8a838;
+  --color-amber-500: #d4921f;
+  --color-danger-500: #c45c4a;
+
+  --font-display: "Geist", "Satoshi", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-display: clamp(3rem, 5vw, 5.5rem);
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-24: 6rem;
+  --space-32: 8rem;
+  --space-40: 10rem;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 2rem;
+  --radius-full: 9999px;
+
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --duration-fast: 180ms;
+  --duration-slow: 700ms;
+}
+
+/* === SEMANTIC === */
+:root {
+  --color-bg: var(--color-black-950);
+  --color-fg: var(--color-cream-50);
+  --color-muted: var(--color-steel-500);
+  --color-line: var(--color-steel-700);
+  --color-accent: var(--color-amber-400);
+  --color-accent-hover: var(--color-amber-500);
+  --color-danger: var(--color-danger-500);
+
+  --font-heading: var(--font-display);
+  --font-body: var(--font-display);
+  --font-code: var(--font-mono);
+
+  --spacing-section: var(--space-32);
+  --spacing-section-lg: var(--space-40);
+}
+
+/* === COMPONENTS === */
+:root {
+  --nav-bg: rgb(5 5 5 / 0.72);
+  --nav-radius: var(--radius-full);
+
+  --button-bg: var(--color-cream-50);
+  --button-fg: var(--color-black-950);
+  --button-radius: var(--radius-full);
+  --button-pad-x: var(--space-6);
+  --button-pad-y: var(--space-3);
+  --button-press: 0.96;
+
+  --button-secondary-bg: transparent;
+  --button-secondary-fg: var(--color-cream-50);
+  --button-secondary-line: rgb(244 241 234 / 0.14);
+
+  --card-shell-bg: rgb(255 255 255 / 0.04);
+  --card-shell-line: rgb(244 241 234 / 0.1);
+  --card-shell-pad: 0.375rem;
+  --card-shell-radius: var(--radius-xl);
+  --card-core-bg: #0c0c0c;
+  --card-core-radius: calc(var(--card-shell-radius) - var(--card-shell-pad));
+  --card-pad: var(--space-8);
+
+  --install-bg: #0c0c0c;
+  --install-fg: var(--color-cream-50);
+  --install-accent: var(--color-accent);
+}

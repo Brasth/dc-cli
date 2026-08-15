@@ -2,3 +2,6 @@
 *.swp
 /dc-tui
 /cmd/dc-tui/dc-tui
+site/node_modules
+site/dist
+site/.astro

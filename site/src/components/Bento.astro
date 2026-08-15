@@ -1,0 +1,51 @@
+---
+const tiles = [
+  {
+    span: 'md:col-span-2 md:row-span-2',
+    k: 'dc-up',
+    title: 'Start the labeled app.',
+    body: 'Reads the project config, brings the compose stack up, then publishes ports. On a clash it names the holder. --take-ports stops the foreign stack and retries once.',
+  },
+  {
+    span: 'md:col-span-2',
+    k: 'dc-exec',
+    title: 'Never docker exec.',
+    body: 'App shell via official CLI. Other services: --service NAME. Stopped boxes start first.',
+  },
+  {
+    span: 'md:col-span-1',
+    k: 'dc-forward',
+    title: 'Colima-safe ports.',
+    body: 'Sidecar on the Docker network. Host socat to 172.x does not work on Colima.',
+  },
+  {
+    span: 'md:col-span-1',
+    k: 'dc-prune',
+    title: 'Disk without nuking DBs.',
+    body: 'dc-df then dc-prune --yes. Never docker system prune -af --volumes.',
+  },
+];
+---
+
+<section class="px-4 py-24 md:px-8 md:py-40">
+  <div class="mx-auto grid w-full max-w-6xl auto-rows-fr grid-flow-dense grid-cols-1 gap-4 md:grid-cols-4">
+    {
+      tiles.map((tile) => (
+        <article
+          class:list={[
+            'group rounded-[2rem] border border-ink/10 bg-ink/5 p-1.5',
+            tile.span,
+          ]}
+        >
+          <div class="flex h-full flex-col justify-between overflow-hidden rounded-[calc(2rem-0.375rem)] bg-core p-8 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:scale-[1.01] md:p-10">
+            <p class="font-mono text-xs tracking-wide text-amber">{tile.k}</p>
+            <div class="mt-10">
+              <h2 class="text-2xl leading-tight tracking-tight text-ink md:text-3xl">{tile.title}</h2>
+              <p class="mt-4 max-w-md text-sm leading-relaxed text-mute md:text-base">{tile.body}</p>
+            </div>
+          </div>
+        </article>
+      ))
+    }
+  </div>
+</section>

@@ -1,0 +1,33 @@
+---
+import Logo from './Logo.astro';
+---
+
+<header class="pointer-events-none fixed inset-x-0 top-0 z-30 flex justify-center px-4 pt-6">
+  <nav
+    class="pointer-events-auto flex w-max max-w-[calc(100vw-2rem)] items-center gap-6 rounded-full border border-ink/10 bg-page/70 px-3 py-2 pl-4 backdrop-blur-2xl"
+    aria-label="Primary"
+  >
+    <a href="#top" class="flex items-center gap-2 text-sm font-medium tracking-tight text-ink">
+      <Logo class="h-6 w-6" />
+      <span>dc-cli</span>
+    </a>
+    <a
+      href="https://github.com/Brasth/dc-cli"
+      class="hidden text-sm text-mute transition-colors duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-ink sm:inline"
+    >
+      GitHub
+    </a>
+    <a
+      href="#install"
+      class="group inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-medium text-page transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96]"
+    >
+      Install
+      <span
+        class="flex h-6 w-6 items-center justify-center rounded-full bg-page/10 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5 group-hover:-translate-y-px"
+        aria-hidden="true"
+      >
+        ↗
+      </span>
+    </a>
+  </nav>
+</header>
