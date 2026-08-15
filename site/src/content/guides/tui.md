@@ -38,7 +38,7 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 | **stop** | `s` | full stack `dc-down` |
 | **rm** | `x` | `dc-down --rm` after `y` |
 | **open** | `o` | host editor on the bind-mount |
-| **attach** | `a` | VS Code Remote **into** the app (`code` only) |
+| **attach** | `a` | VS Code Remote URI; Zed prints Connect Dev Container steps |
 | **ports** | `p` | `dc-forward` (Colima sidecar) |
 | **logs** | `l` | `docker logs -f` on the app |
 | **fleet** | `f` | other workspaces |

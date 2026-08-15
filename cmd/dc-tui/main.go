@@ -72,8 +72,8 @@ Disk:    d  (stays in the board). Reclaim is CLI-only: dc-prune --yes
 Shell / logs / start leave the board and come back. A normal exit is not a crash.
 
 Open vs attach: open = edit files on the Mac/Linux host.
-Attach = VS Code's terminal/debugger run inside Linux.
-Zed and Sublime cannot attach.
+Attach = VS Code Remote URI (a / dc-open --attach).
+Zed attaches itself (Project: Open Remote → Connect Dev Container). Sublime cannot.
 
 start is refused if this folder has no .devcontainer.
 Use CLI dc-up --ports only if you accept REPLACE of project config.

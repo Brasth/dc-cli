@@ -196,7 +196,7 @@ func morePanel(editor string, width int) string {
 		"  shell    bash in the labeled app — board leaves, then comes back",
 		"  stack    j/k + enter or click — starts the box if down, then exec",
 		"  open     host editor on the bind-mount  now: " + editor,
-		"  attach   VS Code Remote INTO the container (code only, must be running)",
+		"  attach   VS Code Remote URI; Zed: Project → Open Remote → Connect Dev Container",
 		"  ports    sidecar publish compose/forwardPorts",
 		"  stop     full compose stack — not app-only",
 		"  rm       compose down (remove stack containers) — asks y/n",
@@ -204,7 +204,7 @@ func morePanel(editor string, width int) string {
 		"  fleet    list every labeled workspace",
 		"  disk     dc-df report (d key). Reclaim: dc-prune --yes (CLI)",
 		"",
-		"open ≠ attach. Zed/Sublime = open only.",
+		"open ≠ attach. Zed attaches itself. Sublime cannot.",
 	}
 	if width > 0 {
 		for i, line := range lines {

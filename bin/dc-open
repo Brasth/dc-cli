@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Open a workspace in a host editor. --attach is VS Code only.
+# Open a workspace in a host editor. --attach is the VS Code Remote URI.
+# Zed attaches first-party; this script only prints those steps.
 set -euo pipefail
 
 _here="$(cd "$(dirname "$0")" && pwd)"
@@ -24,10 +25,11 @@ dc-open — open the workspace in a host editor
 
   dc-open [workspace]
   dc-open --editor zed|code|subl [workspace]
-  dc-open --attach [workspace]     VS Code attach into the container
+  dc-open --attach [workspace]     VS Code Remote URI; Zed prints first-party steps
 
 Host folder for zed / code / subl (bind-mount is the content).
---attach needs `code` on PATH and a running labeled container.
+--attach with `code` needs a running labeled container.
+Without code, Zed users get: dc-up, dc-open, then Connect Dev Container.
 
 Editor: --editor → $DC_EDITOR → first of zed, code, subl on PATH.
 EOF
@@ -57,10 +59,26 @@ done
 DC_RESOLVE_VERBOSE=1
 ws="$(dc_resolve_workspace "$workspace")" || exit 1
 
+# --attach is the VS Code Remote URI. Zed owns its own attach; we only teach it.
+dc_print_zed_attach() {
+  cat <<'EOF'
+dc-open --attach is VS Code only (needs code on PATH).
+Zed attaches first-party:
+  1. dc-up     # compose + ports (Zed does not publish forwardPorts)
+  2. dc-open   # host folder
+  3. In Zed: Project: Open Remote → Connect Dev Container
+EOF
+}
+
 if [[ "$attach" -eq 1 ]]; then
   code_bin="$(dc_editor_bin code || true)"
   if [[ -z "$code_bin" ]]; then
-    echo "dc-open --attach needs VS Code. Install it or add 'code' to PATH. Zed/Sublime cannot attach." >&2
+    if dc_editor_bin zed >/dev/null; then
+      dc_print_zed_attach
+      exit 0
+    fi
+    dc_print_zed_attach >&2
+    echo "Sublime cannot attach. Install VS Code or use Zed (v0.218+)." >&2
     exit 2
   fi
   mapfile -t ids < <(dc_ids_for_workspace "$ws")

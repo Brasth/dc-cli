@@ -47,6 +47,32 @@ jobs:
           set +e
           "$RUNNER_TEMP/dc-bin/dc-down" --all
           test $? -eq 2
+      - name: dc-open --attach teaches Zed path
+        run: |
+          PREFIX="$RUNNER_TEMP/dc-bin" bash install.sh --prefix "$RUNNER_TEMP/dc-bin" >/dev/null
+          ws="$RUNNER_TEMP/attach-ws"
+          mkdir -p "$ws"
+          set +e
+          out="$(PATH="/usr/bin:/bin" HOME="$RUNNER_TEMP/no-editors" \
+            "$RUNNER_TEMP/dc-bin/dc-open" --attach "$ws" 2>&1)"
+          rc=$?
+          set -e
+          test "$rc" -eq 2
+          printf '%s\n' "$out" | grep -q 'Connect Dev Container'
+          printf '%s\n' "$out" | grep -q 'Sublime cannot attach'
+          ! printf '%s\n' "$out" | grep -q 'Zed/Sublime cannot attach'
+          zb="$RUNNER_TEMP/fake-zed"
+          mkdir -p "$zb"
+          printf '#!/bin/sh\n' >"$zb/zed"
+          chmod +x "$zb/zed"
+          set +e
+          out="$(PATH="$zb:/usr/bin:/bin" HOME="$RUNNER_TEMP/no-editors" \
+            "$RUNNER_TEMP/dc-bin/dc-open" --attach "$ws" 2>&1)"
+          rc=$?
+          set -e
+          test "$rc" -eq 0
+          printf '%s\n' "$out" | grep -q 'Connect Dev Container'
+          ! printf '%s\n' "$out" | grep -q 'cannot attach'
       - name: help flags
         run: |
           bash install.sh --help | grep -q -- --full

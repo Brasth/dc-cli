@@ -33,7 +33,7 @@ Keys:
   e  shell   dc-exec            bash in the labeled app
                              dc-exec --list / --service NAME for other services
   o  open    dc-open            host editor (zed/code/subl)
-  a  attach  dc-open --attach   VS Code INTO the container (code only)
+  a  attach  dc-open --attach   VS Code URI; Zed prints Connect Dev Container
   p  ports   dc-forward         sidecar publish (localhost:3000)
   s  stop    dc-down            stop, keep container
   x  rm      dc-down --rm       stop and delete
@@ -41,8 +41,9 @@ Keys:
   f  fleet   all labeled workspaces
   q  quit
 
-open = files on the host. attach = VS Code Remote in Linux.
-Zed/Sublime cannot attach. start needs .devcontainer.
+open = files on the host. attach = VS Code Remote URI.
+Zed attaches itself (Project: Open Remote → Connect Dev Container). Sublime cannot.
+start needs .devcontainer.
 EOF
 }
 

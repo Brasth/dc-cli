@@ -567,6 +567,28 @@ func TestOpenRowClearsStatusOnErr(t *testing.T) {
 	}
 }
 
+func TestHelpAndMoreTeachZedAttach(t *testing.T) {
+	if strings.Contains(helpText, "Zed and Sublime cannot attach") {
+		t.Fatal("help still says Zed cannot attach")
+	}
+	if !strings.Contains(helpText, "Connect Dev Container") {
+		t.Fatal("help must teach Zed first-party attach")
+	}
+	more := morePanel("zed", 120)
+	if strings.Contains(more, "Zed/Sublime = open only") {
+		t.Fatal("more still says Zed is open only")
+	}
+	if strings.Contains(more, "cannot attach") && !strings.Contains(more, "Sublime cannot") {
+		t.Fatalf("more still lumps Zed with cannot attach:\n%s", more)
+	}
+	if !strings.Contains(more, "Connect Dev Container") {
+		t.Fatalf("more must teach Zed first-party attach:\n%s", more)
+	}
+	if !strings.Contains(more, "Zed attaches itself") {
+		t.Fatalf("more must say Zed attaches itself:\n%s", more)
+	}
+}
+
 type errStr string
 
 func (e errStr) Error() string { return string(e) }
