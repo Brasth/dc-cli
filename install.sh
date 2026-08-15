@@ -7,7 +7,7 @@ PREFIX="${PREFIX:-$HOME/bin}"
 WITH_CLI=0
 WITH_SKILL=0
 REF=""
-REPO="${DC_REPO:-Canvilled/dc-cli}"
+REPO="${DC_REPO:-Brasth/dc-cli}"
 
 usage() {
   cat <<'EOF'

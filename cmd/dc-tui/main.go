@@ -598,7 +598,7 @@ func morePanel(editor string) string {
 		"  fleet    list every labeled workspace",
 		"  disk     dc-df report (d key). Reclaim: dc-prune --yes (CLI)",
 		"",
-		mutedStyle.Render("open ≠ attach. Zed/Sublime = open only. Docs: https://github.com/Canvilled/dc-cli"),
+		mutedStyle.Render("open ≠ attach. Zed/Sublime = open only. Docs: https://github.com/Brasth/dc-cli"),
 	}
 	return strings.Join(lines, "\n")
 }

@@ -18,7 +18,7 @@ this folder
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Canvilled/dc-cli/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash
 ```
 
 Always tracks the **latest GitHub release**. Safer: clone, then `bash install.sh`.
