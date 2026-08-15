@@ -88,24 +88,28 @@ dc-tui ~/src/app
 dc-tui --all        # every labeled workspace
 ```
 
-Equal-width button grid. Compact header. Stack rows: **up** / **down**, hover, click to exec (starts the box first).
+Primary row: **start** · **shell** · **stop**. Meta row is quieter. **rm** is danger and asks `y/n`. Stack / fleet rows: **up** / **down**, `j`/`k` or click, Enter to open or exec.
+
+Startup draws the **dc-cli** mark (host frame + amber pip). Any key skips. `DC_TUI_NO_SPLASH=1` skips it. The compact mark stays in the header.
 
 | Button | Key | Does |
 |---|---|---|
-| **start** | `u` | `dc-up` + `dc-forward` |
+| **start** | `u` | `dc-up` + `dc-forward` (needs `.devcontainer`) |
 | **shell** | `e` | `dc-exec` — **app** only |
+| **stop** | `s` | full stack `dc-down` |
+| **rm** | `x` | `dc-down --rm` after `y` |
 | **open** | `o` | host editor on the bind-mount |
 | **attach** | `a` | VS Code Remote **into** the app (`code` only) |
 | **ports** | `p` | `dc-forward` (Colima sidecar) |
-| **stop** / **rm** | `s` / `x` | full stack `dc-down` / `dc-down --rm` |
 | **logs** | `l` | `docker logs -f` on the app |
 | **fleet** | `f` | other workspaces |
 | **more** / **quit** | `?` / `q` | legend / exit |
 | **disk** | `d` | `dc-df` report (stays in TUI) |
+| **rows** | `j`/`k`, Enter | move cursor; fleet opens a folder, stack execs |
 
 Header shows a compact disk line from `dc-df`. Reclaim stays CLI-only (`dc-prune --yes`).
 
-After **shell** / **logs**, the TUI comes back. A normal `exit` is not a crash.
+After **shell** / **logs** / **start**, the board comes back. A normal `exit` is not a crash.
 
 **open ≠ attach.** Open = files on the Mac/Linux host. Attach = VS Code terminal/debugger inside Linux. Zed and Sublime cannot attach.
 

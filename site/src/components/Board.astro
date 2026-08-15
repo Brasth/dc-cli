@@ -1,23 +1,28 @@
 ---
 const fields = [
   { k: 'this folder', v: '~/src/app', tone: '' },
-  { k: '.devcontainer', v: 'YES', tone: 'ok' },
-  { k: 'container', v: 'running  203467d30435', tone: 'ok' },
-  { k: 'docker label', v: 'devcontainer.local_folder', tone: '' },
-  { k: 'host editor', v: '(none)  open uses this; attach needs VS Code', tone: '' },
+  { k: 'status', v: 'running  ready', tone: 'ok' },
+  { k: 'editor', v: 'zed', tone: '' },
 ];
 
-const buttons = [
-  { key: 'u', label: 'start', cmd: 'dc-up', run: 'start labeled app + publish ports', danger: false },
-  { key: 'e', label: 'shell', cmd: 'dc-exec', run: 'exec into the app (never docker exec)', danger: false },
-  { key: 'o', label: 'open host', cmd: 'dc-open', run: 'open bind-mount in the host editor', danger: false },
-  { key: 'a', label: 'attach vscode', cmd: 'dc-open --attach', run: 'VS Code Remote into the app', danger: false },
-  { key: 's', label: 'stop', cmd: 'dc-down', run: 'stop full compose stack', danger: false },
-  { key: 'x', label: 'rm', cmd: 'dc-down --rm', run: 'compose down — remove the stack', danger: true },
-  { key: 'l', label: 'logs', cmd: 'docker logs -f', run: 'follow app logs, then return', danger: false },
-  { key: 'f', label: 'fleet', cmd: 'dc-tui --all', run: 'other labeled workspaces', danger: false },
-  { key: '?', label: 'more', cmd: 'legend', run: 'key legend', danger: false },
-  { key: 'q', label: 'quit', cmd: 'q', run: 'exit board', danger: false },
+const primary = [
+  { key: 'u', label: 'start', cmd: 'dc-up', run: 'start labeled app + publish ports', danger: false, meta: false },
+  { key: 'e', label: 'shell', cmd: 'dc-exec', run: 'exec into the app (never docker exec)', danger: false, meta: false },
+  { key: 's', label: 'stop', cmd: 'dc-down', run: 'stop full compose stack', danger: false, meta: false },
+];
+
+const meta = [
+  { key: 'o', label: 'open', cmd: 'dc-open', run: 'open bind-mount in the host editor', danger: false, meta: true },
+  { key: 'a', label: 'attach', cmd: 'dc-open --attach', run: 'VS Code Remote into the app', danger: false, meta: true },
+  { key: 'p', label: 'ports', cmd: 'dc-forward', run: 'sidecar publish (Colima)', danger: false, meta: true },
+  { key: 'l', label: 'logs', cmd: 'docker logs -f', run: 'follow app logs, then return', danger: false, meta: true },
+];
+
+const rest = [
+  { key: 'f', label: 'fleet', cmd: 'dc-tui --all', run: 'other labeled workspaces', danger: false, meta: true },
+  { key: '?', label: 'more', cmd: 'legend', run: 'key legend', danger: false, meta: true },
+  { key: 'q', label: 'quit', cmd: 'q', run: 'exit board', danger: false, meta: true },
+  { key: 'x', label: 'rm', cmd: 'dc-down --rm', run: 'asks y/n, then compose down', danger: true, meta: false },
 ];
 
 const stack = [
@@ -30,11 +35,17 @@ const stack = [
 <section id="board" class="px-4 pb-10 md:px-6 md:pb-12" aria-label="dc-tui board">
   <div class="board-shell mx-auto w-full max-w-6xl">
     <div class="board-frame">
-      <header class="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4">
-        <p class="font-mono text-sm font-semibold text-[#6ec8e0]">dc-tui</p>
-        <p class="font-mono text-[11px] text-mute" id="board-disk">
-          disk  docker 42% <span class="text-ink/25">·</span> colima 61%
-        </p>
+      <header class="flex flex-wrap items-start gap-3 px-4 pt-4">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" fill="none" aria-hidden="true">
+          <rect x="5" y="5" width="54" height="54" rx="14" stroke="#8A8680" stroke-width="2"></rect>
+          <rect x="16" y="16" width="32" height="32" rx="8" stroke="#8A8680" stroke-width="1.75"></rect>
+          <rect x="40" y="12" width="7" height="7" rx="1.5" fill="#E8A838"></rect>
+        </svg>
+        <div class="min-w-0 flex-1">
+          <p class="font-mono text-sm font-semibold text-[#F4F1EA]">dc-cli <span class="font-normal text-[#8ecf7a]">app</span></p>
+          <p class="font-mono text-[11px] text-mute">~/src/app</p>
+          <p class="font-mono text-[11px] text-mute" id="board-disk">disk  docker 42% · colima 61%</p>
+        </div>
       </header>
 
       <dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 px-4 font-mono text-[12px] leading-5">
@@ -48,23 +59,43 @@ const stack = [
         }
       </dl>
 
-      <div class="mt-4 flex flex-wrap gap-1.5 px-4" role="toolbar" aria-label="dc-tui actions">
-        {
-          buttons.map((b) => (
-            <button
-              type="button"
-              class:list={['board-btn', b.danger && 'is-danger']}
-              data-key={b.key}
-              data-cmd={b.cmd}
-              data-run={b.run}
-            >
-              {b.label}
-            </button>
-          ))
-        }
+      <div class="mt-4 flex flex-col gap-1.5 px-4" role="toolbar" aria-label="dc-tui actions">
+        <div class="flex flex-wrap gap-1.5">
+          {
+            primary.map((b) => (
+              <button type="button" class="board-btn" data-key={b.key} data-cmd={b.cmd} data-run={b.run}>
+                {b.label}
+              </button>
+            ))
+          }
+        </div>
+        <div class="flex flex-wrap gap-1.5">
+          {
+            meta.map((b) => (
+              <button type="button" class="board-btn is-meta" data-key={b.key} data-cmd={b.cmd} data-run={b.run}>
+                {b.label}
+              </button>
+            ))
+          }
+        </div>
+        <div class="flex flex-wrap gap-1.5">
+          {
+            rest.map((b) => (
+              <button
+                type="button"
+                class:list={['board-btn', b.danger ? 'is-danger' : 'is-meta']}
+                data-key={b.key}
+                data-cmd={b.cmd}
+                data-run={b.run}
+              >
+                {b.label}
+              </button>
+            ))
+          }
+        </div>
       </div>
       <p class="px-4 pt-2 font-mono text-[11px] text-mute" id="board-hint">
-        click a button <span class="text-ink/25">·</span> keys u e o a s x l f <span class="text-ink/25">·</span> q quit
+        u start · e shell · s stop · j/k enter · x rm asks y/n · q quit
       </p>
 
       <ul class="mt-4 border-t border-white/5" id="board-stack">
@@ -95,6 +126,7 @@ const stack = [
   const log = document.getElementById('board-log');
   const buttons = [...document.querySelectorAll<HTMLButtonElement>('.board-btn')];
   const rows = [...document.querySelectorAll<HTMLElement>('.board-row')];
+  let pendingRm = false;
 
   function write(line: string) {
     if (!log) return;
@@ -109,6 +141,13 @@ const stack = [
     const run = btn.dataset.run ?? '';
     btn.classList.add('is-on');
     window.setTimeout(() => btn.classList.remove('is-on'), 180);
+    if (btn.dataset.key === 'x') {
+      pendingRm = true;
+      if (hint) hint.textContent = 'remove stack containers? y/n';
+      write('rm  # confirm y/n');
+      return;
+    }
+    pendingRm = false;
     if (hint) hint.textContent = `${cmd}  —  ${run}`;
     write(`${cmd}  # ${run}`);
   }
@@ -122,6 +161,7 @@ const stack = [
 
   for (const row of rows) {
     row.addEventListener('click', () => {
+      pendingRm = false;
       write(`dc-exec --service ${row.dataset.svc}  # start if down, then shell`);
       if (hint) hint.textContent = `stack  —  exec ${row.dataset.svc}`;
     });
@@ -130,6 +170,18 @@ const stack = [
   window.addEventListener('keydown', (event) => {
     const target = event.target as HTMLElement | null;
     if (target && /^(INPUT|TEXTAREA|BUTTON)$/.test(target.tagName)) return;
+    if (pendingRm && (event.key === 'y' || event.key === 'n' || event.key === 'Escape')) {
+      event.preventDefault();
+      pendingRm = false;
+      if (event.key === 'y') {
+        if (hint) hint.textContent = 'dc-down --rm  —  compose down';
+        write('dc-down --rm  # confirmed');
+      } else {
+        if (hint) hint.textContent = 'rm cancelled';
+        write('rm cancelled');
+      }
+      return;
+    }
     const btn = buttons.find((b) => b.dataset.key === event.key);
     if (!btn) return;
     event.preventDefault();

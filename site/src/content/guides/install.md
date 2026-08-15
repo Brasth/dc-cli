@@ -13,7 +13,7 @@ steps:
     text: dc-tui --help or dc-up --help should print usage.
 ---
 
-Needs bash 4+ and Docker (Colima or Desktop). Release kits and Homebrew include the clickable TUI. A source install builds it when Go is on PATH; otherwise you get the bash menu.
+Needs bash 4+ and Docker (Colima or Desktop). Release kits and Homebrew include the clickable TUI (logo splash, start/shell/stop first). A source install builds it when Go is on PATH; otherwise you get the bash menu.
 
 Safer than piping curl: clone the repo, then `bash install.sh`. Each person needs their own Docker/Colima.
 

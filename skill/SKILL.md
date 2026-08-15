@@ -1,7 +1,7 @@
 ---
 name: "devcontainer-cli-global"
 description: "Host-global official @devcontainers/cli helpers. ALWAYS use dc-exec / dc-exec --service NAME — NEVER docker exec. Disk full: dc-df then dc-prune --yes. Port clash on dc-up: shows holder, prompt or --take-ports. NEVER docker system prune -af --volumes. Install: curl main/install.sh (or brew tap Brasth/dc-cli && brew install dc-cli). No project .devcontainer edits."
-version: 18
+version: 19
 created: "2026-08-13"
 updated: "2026-08-15"
 ---
@@ -11,7 +11,7 @@ Use automatically for official @devcontainers/cli without editing project .devco
 ## Procedure
 1. Confirm `devcontainer` and Docker/Colima (`docker ps`).
 2. Never edit project `.devcontainer/devcontainer.json`.
-3. Interactive: `dc-tui` (current folder; padded clickable buttons if Go-built or from a release/brew kit; hover; `?` more) or `dc-tui --all` (fleet). Labels: start/shell/open host/attach vscode/ports. Header shows compact disk (`dc-df`). Key `d` = full `dc-df`. After shell/logs the TUI resumes. open = host editor; attach = VS Code Remote. ports = sidecar. Install: `curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash` or `brew tap Brasth/dc-cli && brew install dc-cli`.
+3. Interactive: `dc-tui` (current folder; Go/release/brew click-board) or `dc-tui --all` (fleet). Logo splash first (any key skips; `DC_TUI_NO_SPLASH=1`). Primary: start/shell/stop. Meta: open/attach/ports/logs. `rm` asks y/n. `j`/`k` + enter on rows. Header shows compact disk (`dc-df`). Key `d` = full `dc-df`. After shell/logs the board resumes. open = host editor; attach = VS Code Remote. ports = sidecar. Install: `curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash` or `brew tap Brasth/dc-cli && brew install dc-cli`.
 4. Start: `dc-up` (project config) then auto `dc-forward`. Only `dc-up --ports` if user accepts REPLACE. On ENOSPC, `dc-up` prints `dc-df` / `dc-prune` hints. On **port already allocated**, `dc-up` lists the holder container (name/compose/folder); on a TTY it asks to stop and retry; agents use `dc-up --take-ports` / `--yes` / `DC_UP_TAKE_PORTS=1`. Do not invent `docker system prune`.
 5. Exec (mandatory): never `docker exec`. Always `dc-exec` from the project folder. App: `dc-exec -- cmd`. Other services: `dc-exec --list` then `dc-exec --service NAME -- cmd` / `--id`. Stopped service is started first.
 6. Stop: `dc-down` = **full compose stack** (app + db + mitm + … + sidecars). App-only: `dc-down --app`. Remove stack: `dc-down --rm`. Nuclear: `dc-down --all --yes`. Old `--compose` is an alias for the default full stack.

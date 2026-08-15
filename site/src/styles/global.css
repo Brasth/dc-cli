@@ -143,6 +143,7 @@ li {
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1;
+  font-weight: 600;
   cursor: pointer;
   transition-property: transform, background-color, color;
   transition-duration: 180ms;
@@ -152,6 +153,18 @@ li {
 .board-btn:hover,
 .board-btn.is-on {
   background: #b8fff0;
+}
+
+.board-btn.is-meta {
+  background: #3a3a3a;
+  color: #e8e4dc;
+  font-weight: 400;
+}
+
+.board-btn.is-meta:hover,
+.board-btn.is-meta.is-on {
+  background: #5c5c5c;
+  color: #1a1a1a;
 }
 
 .board-btn.is-danger {

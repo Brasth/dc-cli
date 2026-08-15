@@ -26,6 +26,8 @@ dc-tui — this folder's devcontainer (not a Docker zoo)
   dc-tui --all           every labeled container (fleet)
   dc-tui --help
 
+The click-board is the Go dc-tui (release / brew). This bash menu is the fallback.
+
 Keys:
   u  start   dc-up              create/start this folder
   e  shell   dc-exec            bash in the labeled app
