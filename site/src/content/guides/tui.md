@@ -6,7 +6,9 @@ updated: 2026-08-15
 howto: false
 faq:
   - q: What is the difference between open and attach?
-    a: Open is the host editor on the bind-mount (Zed, VS Code, Sublime). Attach is VS Code Remote into the Linux app. Zed and Sublime cannot attach.
+    a: Open is the host editor on the bind-mount (Zed, VS Code, Sublime). a / dc-open --attach is the VS Code Remote URI into Linux. Zed attaches itself. Sublime cannot.
+  - q: How do I work inside the container in Zed?
+    a: "dc-up then dc-open. In Zed use Project: Open Remote → Connect Dev Container. dc-cli owns ports, stop, and fleet. Zed does not publish forwardPorts. No extension."
   - q: Does e / shell enter a compose sidecar?
     a: No. e and shell are always the labeled app. Click a stack row, or dc-exec --service NAME, for siblings.
   - q: Why does the TUI come back after shell or logs?

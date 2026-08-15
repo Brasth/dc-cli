@@ -111,7 +111,7 @@ Header shows a compact disk line from `dc-df`. Reclaim stays CLI-only (`dc-prune
 
 After **shell** / **logs** / **start**, the board comes back. A normal `exit` is not a crash.
 
-**open ≠ attach.** Open = files on the Mac/Linux host. Attach = VS Code terminal/debugger inside Linux. Zed and Sublime cannot attach.
+**open ≠ attach.** Open = files on the Mac/Linux host. `a` / `dc-open --attach` is the VS Code Remote URI into Linux. Zed attaches itself. Sublime cannot.
 
 ## Commands (all of them)
 
@@ -204,13 +204,23 @@ Stops **other** workspaces only (same-folder containers are skipped). Prefer sto
 
 ## Editors
 
-| Editor | Host open | Attach into container |
+| Editor | Host open | Inside the container |
 |---|---|---|
-| Zed | yes (`/Applications/Zed.app` is enough) | **no** |
-| VS Code | yes | **yes** — `dc-open --attach` |
+| Zed | yes (`/Applications/Zed.app` is enough) | yes — in Zed: **Project: Open Remote → Connect Dev Container** |
+| VS Code | yes | yes — `dc-open --attach` |
 | Sublime | yes | **no** |
 
 `--editor` / `$DC_EDITOR` / first of `zed`, `code`, `subl` on PATH **or** as a macOS `.app`.
+
+`dc-open` is always the host folder. `dc-open --attach` is VS Code only. Zed (v0.218+) attaches first-party. Start here so Colima ports exist (Zed does not publish `forwardPorts`):
+
+```bash
+dc-up            # compose + dc-forward
+dc-open          # host folder
+# then in Zed: Project: Open Remote → Connect Dev Container
+```
+
+dc-cli owns start / stop / ports / fleet. Zed owns the editor session. No Zed extension.
 
 ## Platform
 

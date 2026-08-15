@@ -11,6 +11,9 @@ steps:
     text: dc-forward. Host socat to 172.x does not work on Colima.
   - name: If compose says port is already allocated
     text: Read the holder list. Retry with dc-up --take-ports, or stop the other stack.
+faq:
+  - q: Does Zed publish app ports?
+    a: "No. Zed Dev Containers do not support forwardPorts. dc-up already runs dc-forward. Attach in Zed after that (Project: Open Remote → Connect Dev Container)."
 ---
 
 `dc-up` starts `.devcontainer/docker-compose.yml`. That file often has **no** `3000:3000`. The app listens **inside**; the Mac has nothing on `:3000`.
