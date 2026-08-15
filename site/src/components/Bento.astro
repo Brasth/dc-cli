@@ -1,25 +1,21 @@
 ---
 const tiles = [
   {
-    span: 'md:col-span-2 md:row-span-2',
     k: 'dc-up',
     title: 'Start the labeled app.',
-    body: 'Reads the project config, brings the compose stack up, then publishes ports. On a clash it names the holder. --take-ports stops the foreign stack and retries once.',
+    body: 'Reads project config, brings the stack up, publishes ports. Clash? It names the holder. --take-ports stops the foreign stack and retries once.',
   },
   {
-    span: 'md:col-span-2',
     k: 'dc-exec',
     title: 'Never docker exec.',
     body: 'App shell via official CLI. Other services: --service NAME. Stopped boxes start first.',
   },
   {
-    span: 'md:col-span-1',
     k: 'dc-forward',
     title: 'Colima-safe ports.',
     body: 'Sidecar on the Docker network. Host socat to 172.x does not work on Colima.',
   },
   {
-    span: 'md:col-span-1',
     k: 'dc-prune',
     title: 'Disk without nuking DBs.',
     body: 'dc-df then dc-prune --yes. Never docker system prune -af --volumes.',
@@ -27,25 +23,25 @@ const tiles = [
 ];
 ---
 
-<section class="px-4 py-24 md:px-8 md:py-40">
-  <div class="mx-auto grid w-full max-w-6xl auto-rows-fr grid-flow-dense grid-cols-1 gap-4 md:grid-cols-4">
-    {
-      tiles.map((tile) => (
-        <article
-          class:list={[
-            'group rounded-[2rem] border border-ink/10 bg-ink/5 p-1.5',
-            tile.span,
-          ]}
-        >
-          <div class="flex h-full flex-col justify-between overflow-hidden rounded-[calc(2rem-0.375rem)] bg-core p-8 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:scale-[1.01] md:p-10">
-            <p class="font-mono text-xs tracking-wide text-amber">{tile.k}</p>
-            <div class="mt-10">
-              <h2 class="text-2xl leading-tight tracking-tight text-ink md:text-3xl">{tile.title}</h2>
-              <p class="mt-4 max-w-md text-sm leading-relaxed text-mute md:text-base">{tile.body}</p>
+<section class="px-4 py-12 md:px-6 md:py-16">
+  <div class="mx-auto w-full max-w-6xl">
+    <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">the missing verbs</p>
+    <div
+      class="mt-4 flex flex-col overflow-hidden rounded-sm border border-ink/15 md:h-[22rem] md:flex-row"
+    >
+      {
+        tiles.map((tile) => (
+          <article
+            class="group relative flex min-h-40 flex-1 flex-col justify-between border-ink/10 bg-core p-5 transition-[flex] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:flex-[2.2] focus-within:flex-[2.2] md:min-h-0 md:border-r md:last:border-r-0"
+          >
+            <p class="font-mono text-[11px] text-amber">{tile.k}</p>
+            <div class="mt-8 md:max-w-[16rem] md:opacity-80 md:transition-opacity md:duration-500 md:group-hover:opacity-100">
+              <h2 class="text-xl leading-tight tracking-tight text-ink">{tile.title}</h2>
+              <p class="mt-3 text-sm leading-relaxed text-mute">{tile.body}</p>
             </div>
-          </div>
-        </article>
-      ))
-    }
+          </article>
+        ))
+      }
+    </div>
   </div>
 </section>

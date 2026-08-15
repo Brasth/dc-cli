@@ -1,6 +1,6 @@
 /* === PRIMITIVES === */
 :root {
-  --color-black-950: #050505;
+  --color-black-950: #070806;
   --color-black-900: #111111;
   --color-cream-50: #f4f1ea;
   --color-cream-300: #c8c0b2;
@@ -56,8 +56,8 @@
   --font-body: var(--font-display);
   --font-code: var(--font-mono);
 
-  --spacing-section: var(--space-32);
-  --spacing-section-lg: var(--space-40);
+  --spacing-section: var(--space-12);
+  --spacing-section-lg: var(--space-16);
 }
 
 /* === COMPONENTS === */

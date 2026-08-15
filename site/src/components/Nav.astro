@@ -2,32 +2,29 @@
 import Logo from './Logo.astro';
 ---
 
-<header class="pointer-events-none fixed inset-x-0 top-0 z-30 flex justify-center px-4 pt-6">
+<header class="fixed inset-x-0 top-0 z-30 border-b border-ink/10 bg-page/80 backdrop-blur-2xl">
   <nav
-    class="pointer-events-auto flex w-max max-w-[calc(100vw-2rem)] items-center gap-6 rounded-full border border-ink/10 bg-page/70 px-3 py-2 pl-4 backdrop-blur-2xl"
+    class="mx-auto flex h-12 w-full max-w-6xl items-center justify-between gap-4 px-4 md:px-6"
     aria-label="Primary"
   >
-    <a href="#top" class="flex items-center gap-2 text-sm font-medium tracking-tight text-ink">
-      <Logo class="h-6 w-6" />
+    <a href="#top" class="flex min-h-10 items-center gap-2 font-mono text-sm text-ink">
+      <Logo class="h-5 w-5" />
       <span>dc-cli</span>
+      <span class="hidden text-mute sm:inline">~/project</span>
     </a>
-    <a
-      href="https://github.com/Brasth/dc-cli"
-      class="hidden text-sm text-mute transition-colors duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-ink sm:inline"
-    >
-      GitHub
-    </a>
-    <a
-      href="#install"
-      class="group inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-medium text-page transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96]"
-    >
-      Install
-      <span
-        class="flex h-6 w-6 items-center justify-center rounded-full bg-page/10 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5 group-hover:-translate-y-px"
-        aria-hidden="true"
+    <div class="flex items-center gap-1">
+      <a
+        href="https://github.com/Brasth/dc-cli"
+        class="inline-flex min-h-10 items-center px-3 font-mono text-xs text-mute transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-ink"
       >
-        ↗
-      </span>
-    </a>
+        github
+      </a>
+      <a
+        href="#install"
+        class="inline-flex min-h-10 items-center bg-amber px-3 font-mono text-xs text-page transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96]"
+      >
+        $ install
+      </a>
+    </div>
   </nav>
 </header>

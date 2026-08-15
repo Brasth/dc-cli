@@ -10,17 +10,17 @@ const rows = [
 ];
 ---
 
-<section class="px-4 py-24 md:px-8 md:py-40">
-  <div class="mx-auto w-full max-w-6xl">
-    <h2 class="max-w-3xl text-4xl leading-tight tracking-tight md:text-6xl">
-      The official CLI has up and exec. This adds the rest.
+<section class="px-4 py-12 md:px-6 md:py-16">
+  <div class="mx-auto grid w-full max-w-6xl gap-8 md:grid-cols-12 md:items-start">
+    <h2 class="font-mono text-2xl leading-tight tracking-tight md:col-span-4 md:text-3xl">
+      Official CLI has up and exec. This adds the rest.
     </h2>
-    <ol class="mt-16 divide-y divide-ink/10 border-y border-ink/10">
+    <ol class="border-t border-ink/10 md:col-span-8">
       {
         rows.map((row) => (
-          <li class="grid grid-cols-1 items-baseline gap-2 py-6 md:grid-cols-12 md:gap-8">
-            <code class="font-mono text-sm text-amber md:col-span-3">{row.cmd}</code>
-            <p class="text-base text-ink/85 md:col-span-9">{row.does}</p>
+          <li class="grid grid-cols-1 items-baseline gap-1 border-b border-ink/10 py-3 md:grid-cols-12 md:gap-6">
+            <code class="font-mono text-xs text-amber md:col-span-3">{row.cmd}</code>
+            <p class="text-sm text-ink/80 md:col-span-9">{row.does}</p>
           </li>
         ))
       }

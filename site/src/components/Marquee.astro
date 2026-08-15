@@ -1,0 +1,16 @@
+---
+const cmds = ['dc-tui', 'dc-up', 'dc-exec', 'dc-down', 'dc-forward', 'dc-df', 'dc-prune', 'dc-ls', 'dc-open'];
+const loop = [...cmds, ...cmds];
+---
+
+<div class="overflow-hidden border-y border-ink/10">
+  <div class="marquee-track flex w-max gap-10 py-3 pr-10 font-mono text-xs tracking-wide text-mute uppercase">
+    {
+      loop.map((cmd) => (
+        <span>
+          <span class="text-amber">▸</span> {cmd}
+        </span>
+      ))
+    }
+  </div>
+</div>
