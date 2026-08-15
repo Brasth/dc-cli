@@ -1,6 +1,6 @@
 ---
 title: "Phase 1: Board hierarchy + prettier dump"
-status: implemented
+status: completed
 ---
 
 # Phase 01: Board hierarchy + prettier dump

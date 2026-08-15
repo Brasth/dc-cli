@@ -111,8 +111,7 @@ func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 		return m.stayCmd("dc-down", m.workspace)
 	case "x":
 		m.confirm = "rm"
-		m.status = ""
-		return m, nil
+		return m.withStatus(""), nil
 	case "l":
 		if len(m.rows) == 0 || m.rows[0].ID == "" {
 			return m.refuse("No container to log.")
@@ -190,19 +189,16 @@ func (m model) openRow(i int) (tea.Model, tea.Cmd) {
 	}
 	folder := m.rows[i].LocalFolder
 	if folder == "" {
-		m.err = "row has no local_folder"
-		return m, nil
+		return m.withErr("row has no local_folder"), nil
 	}
 	if st, err := os.Stat(folder); err != nil || !st.IsDir() {
-		m.err = "folder missing on disk: " + folder
-		return m, nil
+		return m.withErr("folder missing on disk: " + folder), nil
 	}
 	m.fleet = false
 	m.workspace = folder
 	m.hasConfig = hasDevcontainer(folder)
 	m.cursor = 0
-	m.status = ""
-	return m, m.reload()
+	return m.withStatus(""), m.reload()
 }
 
 // runStay is the stay-in-board exec. Tests replace it so confirm y never hits Docker.
@@ -218,13 +214,9 @@ func (m model) stayCmd(name string, args ...string) (tea.Model, tea.Cmd) {
 		if msg == "" {
 			msg = err.Error()
 		}
-		m.err = msg
-		m.status = ""
-		return m, nil
+		return m.withErr(msg), nil
 	}
-	m.err = ""
-	m.status = msg
-	return m, m.reload()
+	return m.withStatus(msg), m.reload()
 }
 
 func compactLines(msg string, n int) string {

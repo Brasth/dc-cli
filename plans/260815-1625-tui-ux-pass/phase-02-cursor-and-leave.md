@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Cursor + leave/return + docs"
-status: implemented
+status: completed
 ---
 
 # Phase 02: Cursor + leave/return + docs

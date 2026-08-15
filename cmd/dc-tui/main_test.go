@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 func workspaceSpecs() [][]btnSpec {
@@ -307,6 +309,19 @@ func TestStayCmdSplitsStatusAndErr(t *testing.T) {
 	if backStatus("l") != "back from logs" {
 		t.Fatalf("back logs=%q", backStatus("l"))
 	}
+	old := runStay
+	t.Cleanup(func() { runStay = old })
+	runStay = func(name string, args ...string) (string, error) {
+		return "port taken", errStr("exit status 1")
+	}
+	got, _ := model{workspace: "/tmp/app", hoverStack: -1, status: "old ok"}.stayCmd("dc-forward", "/tmp/app")
+	mm := got.(model)
+	if mm.err == "" {
+		t.Fatal("stayCmd failure must set err")
+	}
+	if mm.status != "" {
+		t.Fatalf("err should clear status, status=%q", mm.status)
+	}
 }
 
 func TestDisabledStartTile(t *testing.T) {
@@ -412,6 +427,143 @@ func TestViewHasPrimaryHint(t *testing.T) {
 	s := m.View()
 	if !strings.Contains(s, "start") || !strings.Contains(s, "shell") || !strings.Contains(s, "stop") {
 		t.Fatalf("missing primary verbs:\n%s", s)
+	}
+}
+
+func TestExecDoneStartFailure(t *testing.T) {
+	m := model{workspace: "/tmp/app", hasConfig: true, hoverStack: -1, status: "old", leaving: "start"}
+	got, cmd := m.Update(execDoneMsg{action: "u", err: errStr("exit status 1")})
+	mm := got.(model)
+	if mm.err == "" {
+		t.Fatal("dc-up exit 1 must set err")
+	}
+	if mm.status != "" {
+		t.Fatalf("start failure must not paint back-from-start, status=%q", mm.status)
+	}
+	if mm.leaving != "" {
+		t.Fatalf("leaving=%q", mm.leaving)
+	}
+	if cmd == nil {
+		t.Fatal("expected reload after start")
+	}
+	got, _ = mm.Update(reloadMsg{rows: []container{{ID: "abc", Status: "exited"}}})
+	mm = got.(model)
+	if mm.err == "" {
+		t.Fatal("reload must not wipe start failure")
+	}
+	if len(mm.rows) != 1 || mm.rows[0].Status != "exited" {
+		t.Fatalf("rows not refreshed: %+v", mm.rows)
+	}
+}
+
+func TestExecDoneShellExit1IsBack(t *testing.T) {
+	m := model{workspace: "/tmp/app", hoverStack: -1, err: "old", leaving: "shell"}
+	got, _ := m.Update(execDoneMsg{action: "e", err: errStr("exit status 1")})
+	mm := got.(model)
+	if mm.err != "" {
+		t.Fatalf("shell exit 1 should stay benign, err=%q", mm.err)
+	}
+	if mm.status != "back from shell" {
+		t.Fatalf("status=%q", mm.status)
+	}
+}
+
+func TestStartHitboxLongPorts(t *testing.T) {
+	base := model{workspace: "/tmp/app", hasConfig: true, width: 40, hoverStack: -1, editor: "zed"}
+	long := base
+	long.rows = []container{{
+		ID:     "203467d304351234",
+		Status: "running",
+		Ports:  "0.0.0.0:3000->3000/tcp, 0.0.0.0:5432->5432/tcp, 0.0.0.0:9001->9001/tcp",
+	}}
+	short := base
+	_, lb, _ := long.layout()
+	_, sb, _ := short.layout()
+	ys := func(bs []button) int {
+		for _, b := range bs {
+			if b.key == "u" {
+				return b.y0
+			}
+		}
+		return -1
+	}
+	if ys(lb) != ys(sb) {
+		t.Fatalf("long ports moved start hitbox: long=%d short=%d", ys(lb), ys(sb))
+	}
+}
+
+func TestHoveredStackRowFitsWidth(t *testing.T) {
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		width:      40,
+		cursor:     0,
+		hoverStack: 0,
+		editor:     "zed",
+		stack: []stackSvc{
+			{Name: "very-long-container-name-that-would-wrap", Service: "app", Status: "running"},
+			{Name: "db-1", Service: "db", Status: "running"},
+		},
+	}
+	s, _, rowY0 := m.layout()
+	if rowY0 < 0 {
+		t.Fatal("missing stack rows")
+	}
+	lines := strings.Split(s, "\n")
+	if rowY0+1 >= len(lines) {
+		t.Fatalf("not enough lines after rowY0=%d", rowY0)
+	}
+	app, db := lines[rowY0], lines[rowY0+1]
+	if ansi.StringWidth(app) > 40 {
+		t.Fatalf("hovered app row width %d > 40", ansi.StringWidth(app))
+	}
+	if ansi.StringWidth(db) > 40 {
+		t.Fatalf("db row width %d > 40", ansi.StringWidth(db))
+	}
+	if !strings.Contains(db, "db") {
+		t.Fatalf("wrap stole the next hitbox row: app=%q db=%q", app, db)
+	}
+	if m.hitRow(2, rowY0+1) != 1 {
+		t.Fatalf("click on second visual row should hit db, got %d", m.hitRow(2, rowY0+1))
+	}
+}
+
+func TestLayoutNoWrapAtNarrowWidth(t *testing.T) {
+	m := model{
+		workspace:  "/Users/huynguyen/src/very-long-project-name-that-would-wrap",
+		hasConfig:  true,
+		width:      40,
+		hoverStack: -1,
+		editor:     "zed",
+		disk:       "docker 42% · colima 61% · extra long disk line that would wrap",
+		status:     "this status line is also quite long and should not wrap the board",
+		more:       true,
+		rows: []container{{
+			ID:     "203467d304351234",
+			Status: "running",
+			Ports:  "0.0.0.0:3000->3000/tcp, 0.0.0.0:5432->5432/tcp, 0.0.0.0:9001->9001/tcp",
+		}},
+	}
+	s, _, _ := m.layout()
+	for i, line := range strings.Split(s, "\n") {
+		if ansi.StringWidth(line) > 40 {
+			t.Fatalf("line %d width %d > 40", i, ansi.StringWidth(line))
+		}
+	}
+}
+
+func TestOpenRowClearsStatusOnErr(t *testing.T) {
+	m := model{fleet: true, hoverStack: -1, status: "old ok", rows: []container{{Name: "orphan"}}}
+	got, cmd := m.openRow(0)
+	mm := got.(model)
+	if cmd != nil {
+		t.Fatal("missing folder must not reload")
+	}
+	if mm.err == "" {
+		t.Fatal("want err")
+	}
+	if mm.status != "" {
+		t.Fatalf("status leftover %q", mm.status)
 	}
 }
 

@@ -25,6 +25,8 @@ dc-tui --all        # every labeled workspace
 
 Startup draws the **dc-cli** mark (host frame + amber pip). Any key skips. `DC_TUI_NO_SPLASH=1` skips it. The compact mark stays in the header.
 
+![dc-tui board](/images/tui.png)
+
 Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y/n`. Stack / fleet: **up** / **down**, `j`/`k` or click, Enter to open or exec.
 
 ## Keys

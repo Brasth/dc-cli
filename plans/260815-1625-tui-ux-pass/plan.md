@@ -1,7 +1,7 @@
 ---
 title: "dc-tui UX pass — fix the board"
 description: "Make the existing Bubble Tea board scannable and safe. No desktop app."
-status: review
+status: completed
 priority: P1
 effort: 4h
 branch: main
@@ -54,20 +54,21 @@ The click-board is the product. It currently dumps the whole CLI as 11 equal til
 
 | # | Phase | Status | File |
 |---|-------|--------|------|
-| 1 | [Board hierarchy + prettier dump](./phase-01-board-hierarchy.md) | implemented | Groups, disable, confirm, status split, split files |
-| 2 | [Cursor + leave/return](./phase-02-cursor-and-leave.md) | implemented | j/k, Enter, fleet hover, leave banner, docs |
+| 1 | [Board hierarchy + prettier dump](./phase-01-board-hierarchy.md) | completed | Groups, disable, confirm, status split, split files |
+| 2 | [Cursor + leave/return](./phase-02-cursor-and-leave.md) | completed | j/k, Enter, fleet hover, leave banner, docs |
 
-Phase 2 depends on 1.
+Phase 2 depends on 1. Ship-clean follow-up after 1–2 is also **done** (no extra phase).
 
 ## Success criteria
 
 - [x] Primary row is start / shell / stop. Meta is quieter.
 - [x] `rm` asks before `dc-down --rm`. Cancel is a no-op.
-- [x] Fleet and “no `.devcontainer`” never swallow keys. (logs tile still clickable; refuse is not silent)
-- [ ] Last action and errors do not share one red line. (two slots exist; start exit 1 → “back from start”; leftover status+err)
+- [x] Fleet and “no `.devcontainer`” never swallow keys. logs tile is disabled with no container.
+- [x] Exclusive status/err slots. start exit 1 is err and survives reload; shell/logs still swallow 1.
+- [x] Visual-width clip + stack row ≤ `w` so click hitboxes match paint.
 - [x] Keyboard can open a fleet row and exec a stack row without the mouse.
-- [x] `go test ./cmd/dc-tui` passes. CI already runs it. (15/15, 2026-08-15)
-- [ ] README + `site/src/content/guides/tui.md` match the board. (copy yes; screenshots still old 11-tile row)
+- [x] `go test ./cmd/dc-tui` 27+ PASS. Ship-clean review **9/10**.
+- [x] README + `site/src/content/guides/tui.md` match the board. Screenshot is the 3-row board.
 - [x] No desktop, no new deps, no `dc-*` contract changes.
 
 ## Out of scope
@@ -79,22 +80,29 @@ Phase 2 depends on 1.
 - Bash fallback rewrite
 - Release tag / Homebrew bump (do after this ships if we want it on curl)
 
+## Out of this pass (leftover)
+
+Not blocking close. Do not treat as open work for this plan:
+
+- While `leaving`, drop `reloadMsg` (50ms window can reorder stack before exec). Invalid `stack:N` already `refuse`s.
+
 ## Review (2026-08-15)
 
-Report: [reports/260815-tui-ux-review.md](./reports/260815-tui-ux-review.md)
+| Pass | Report | Score |
+|------|--------|-------|
+| UX pass | [reports/260815-tui-ux-review.md](./reports/260815-tui-ux-review.md) | 6/10 — request changes |
+| Ship-clean | [reports/260815-tui-shipclean-review.md](./reports/260815-tui-shipclean-review.md) | **9/10 — ship** |
+| QA | [reports/260815-tui-shipclean-qa.md](./reports/260815-tui-shipclean-qa.md) | 27/27 PASS |
 
-Phases 1–2 implemented. Locked decisions held (Go only, no PTY, no new deps). **Request changes** — not ship-clean.
+Phases 1–2 implemented. Ship-clean landed: start exit 1 is err and survives reload; visual-width clip + stack row width so hitboxes match; exclusive status/err slots; new 3-row screenshot.
 
 ## Next steps
 
-1. `dc-up` exit 1 must not become teal `back from start`. Benign swallow is for shell/logs only.
-2. Truncate header / disk / ports / more / status to `width` so hitboxes match visual rows. Test a long path + `more`.
-3. Writing `err` clears `status` (and vice versa). Disable logs tile when no container.
-4. While `leaving`, drop `reloadMsg` or `refuse` invalid `stack:N` instead of silent return.
-5. Replace README + `site/public/images/tui.png`. Confirm-`y` needs a fake runner before a unit test.
+None for this plan. Plan **completed**.
+
+Later (not this pass): `reloadMsg` while leaving — see leftover above. Release/Homebrew bump is a separate ship.
 
 ## Unresolved
 
 - tea.Quit vs pending `leaveTickMsg` not executed.
-- Confirm `y` has no inject seam; a naive test would run `dc-down --rm`.
 - Visual tokens stay the current lipgloss set.

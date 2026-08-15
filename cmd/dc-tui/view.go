@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 var (
@@ -53,7 +54,7 @@ func (m model) layout() (string, []button, int) {
 	infoW := max(12, w-12)
 	if m.fleet {
 		info := logoWord.Render("dc-cli") + mutedStyle.Render("  fleet") + "  " + mutedStyle.Render("j/k · enter")
-		b.WriteString(joinLogo(m.headerLogo(), info, w) + "\n\n")
+		b.WriteString(clipBlock(joinLogo(m.headerLogo(), info, w), w) + "\n\n")
 	} else {
 		base := filepath.Base(m.workspace)
 		var info strings.Builder
@@ -82,12 +83,12 @@ func (m model) layout() (string, []button, int) {
 		if ports != "" {
 			meta += mutedStyle.Render("  ") + ports
 		}
-		info.WriteString(meta + "\n")
+		info.WriteString(trunc(meta, infoW) + "\n")
 		info.WriteString(kv("editor", trunc(m.editor, max(8, infoW-12))) + "\n")
 		if m.disk != "" {
 			info.WriteString(kv("disk", trunc(m.disk+"  d=df", max(8, infoW-12))))
 		}
-		b.WriteString(joinLogo(m.headerLogo(), strings.TrimRight(info.String(), "\n"), w) + "\n\n")
+		b.WriteString(clipBlock(joinLogo(m.headerLogo(), strings.TrimRight(info.String(), "\n"), w), w) + "\n\n")
 	}
 
 	y0 := strings.Count(b.String(), "\n")
@@ -133,7 +134,7 @@ func (m model) layout() (string, []button, int) {
 		b.WriteString("\n" + mutedStyle.Render("  stack") + hintStyle.Render("   j/k · enter · e is app") + "\n")
 		rowY0 = strings.Count(b.String(), "\n")
 		for i, s := range m.stack {
-			line := formatStackRow(s, w)
+			line := trunc(formatStackRow(s, w), w)
 			if i == m.cursor || i == m.hoverStack {
 				line = rowHover.Width(w).Render(line)
 			}
@@ -146,7 +147,7 @@ func (m model) layout() (string, []button, int) {
 	} else {
 		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  j/k  enter  ? more  q quit") + "\n")
 	}
-	return b.String(), buttons, rowY0
+	return clipBlock(b.String(), w), buttons, rowY0
 }
 
 func leaveLine(kind string) string {
@@ -172,7 +173,7 @@ func formatStackRow(s stackSvc, width int) string {
 	case "exited":
 		st = badStyle.Render(fmt.Sprintf("%-8s", "down"))
 	}
-	name := trunc(s.Name, max(8, width-28))
+	name := trunc(s.Name, max(8, width-30))
 	return "  " + st + "  " + fmt.Sprintf("%-16s", trunc(svc, 16)) + "  " + mutedStyle.Render(name)
 }
 
@@ -353,11 +354,22 @@ func shortID(id string) string {
 }
 
 func trunc(s string, n int) string {
-	if n <= 0 || len(s) <= n {
+	if n <= 0 || ansi.StringWidth(s) <= n {
 		return s
 	}
 	if n == 1 {
 		return "…"
 	}
-	return s[:n-1] + "…"
+	return ansi.Truncate(s, n, "…")
+}
+
+func clipBlock(s string, w int) string {
+	if w <= 0 {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = trunc(line, w)
+	}
+	return strings.Join(lines, "\n")
 }

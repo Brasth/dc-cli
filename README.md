@@ -80,7 +80,7 @@ dc-prune --yes                  # cache + dangling images + nets + orphan sideca
 
 ## TUI
 
-<img width="756" height="248" alt="Screenshot 2026-08-14 at 06 59 02" src="https://github.com/user-attachments/assets/ea1032e7-0a24-49ff-a9d1-94d5f271a46b" />
+<img width="820" alt="dc-tui board: start, shell, stop, then meta actions" src="site/public/images/tui.png" />
 
 ```
 dc-tui              # this folder (cwd, then git root)

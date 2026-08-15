@@ -92,12 +92,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 	case reloadMsg:
 		if msg.err != nil {
-			m.err = msg.err.Error()
-			m.status = ""
+			m = m.withErr(msg.err.Error())
 			m.rows = nil
 			m.stack = nil
 		} else {
-			m.err = ""
 			m.rows = msg.rows
 			m.stack = msg.stack
 			if msg.disk != "" {
@@ -110,11 +108,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.leaving = ""
 		m.pending = ""
 		if msg.err != nil && !benignLeaveErr(msg.action, msg.err) {
-			m.err = msg.err.Error()
-			m.status = ""
+			m = m.withErr(msg.err.Error())
 		} else {
-			m.err = ""
-			m.status = backStatus(msg.action)
+			m = m.withStatus(backStatus(msg.action))
 		}
 		return m, m.reload()
 	case leaveTickMsg:
@@ -204,10 +200,9 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 		m.fleet = !m.fleet
 		m.more = false
 		m.cursor = 0
-		m.status = ""
-		return m, m.reload()
+		return m.withStatus(""), m.reload()
 	case "r":
-		return m, m.reload()
+		return m.withStatus(""), m.reload()
 	case "d":
 		return m.stayCmd("dc-df")
 	case "j", "down":
@@ -218,8 +213,7 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 		return m.activateRow()
 	case "u", "e", "o", "a", "s", "x", "l", "p":
 		if m.fleet {
-			m.status = "open a folder (enter / click) to start / shell / stop"
-			return m, nil
+			return m.withStatus("open a folder (enter / click) to start / shell / stop"), nil
 		}
 		return m.runAction(k)
 	}
@@ -233,8 +227,7 @@ func (m model) handleConfirmKey(k string) (tea.Model, tea.Cmd) {
 		return m.stayCmd("dc-down", "--rm", m.workspace)
 	case "n", "esc":
 		m.confirm = ""
-		m.status = "rm cancelled"
-		return m, nil
+		return m.withStatus("rm cancelled"), nil
 	case "q", "ctrl+c":
 		m.quitting = true
 		return m, tea.Quit
@@ -285,8 +278,7 @@ func (m model) activateRow() (tea.Model, tea.Cmd) {
 	m.clampCursor()
 	if m.fleet {
 		if len(m.rows) == 0 {
-			m.status = "empty — dc-up in a project"
-			return m, nil
+			return m.withStatus("empty — dc-up in a project"), nil
 		}
 		return m.openRow(m.cursor)
 	}
@@ -333,8 +325,7 @@ func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.confirm = ""
-		m.status = "rm cancelled"
-		return m, nil
+		return m.withStatus("rm cancelled"), nil
 	}
 	for _, b := range buttons {
 		if y >= b.y0 && y < b.y1 && x >= b.x0 && x < b.x1 {
@@ -360,21 +351,29 @@ func (m model) clickKey(key string) (tea.Model, tea.Cmd) {
 		m.fleet = !m.fleet
 		m.more = false
 		m.cursor = 0
-		m.status = ""
-		return m, m.reload()
+		return m.withStatus(""), m.reload()
 	case "r":
-		return m, m.reload()
+		return m.withStatus(""), m.reload()
 	default:
 		if m.fleet {
-			m.status = "open a folder (enter / click) to start / shell / stop"
-			return m, nil
+			return m.withStatus("open a folder (enter / click) to start / shell / stop"), nil
 		}
 		return m.runAction(key)
 	}
 }
 
 func (m model) refuse(reason string) (model, tea.Cmd) {
-	m.status = reason
+	return m.withStatus(reason), nil
+}
+
+func (m model) withErr(s string) model {
+	m.err = s
+	m.status = ""
+	return m
+}
+
+func (m model) withStatus(s string) model {
+	m.status = s
 	m.err = ""
-	return m, nil
+	return m
 }
