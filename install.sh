@@ -18,7 +18,8 @@ Usage: bash install.sh [options]
   --with-skill      copy SKILL.md into existing agent homes
   --full            --with-cli + --with-skill
   --prefix DIR      install helpers here (default: ~/bin)
-  --ref latest|TAG|main   fetch that GitHub tree first
+  --ref latest|TAG|main   fetch that GitHub release kit first
+                    (prebuilt dc-tui; falls back to source tree)
                     (auto latest when this script is not next to bin/)
 EOF
 }
@@ -60,8 +61,56 @@ latest_tag() {
   printf '%s\n' "$body" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1
 }
 
+dc_os_arch() {
+  local os arch
+  case "$(uname -s)" in
+    Darwin) os=darwin ;;
+    Linux) os=linux ;;
+    *) return 1 ;;
+  esac
+  case "$(uname -m)" in
+    arm64|aarch64) arch=arm64 ;;
+    x86_64|amd64) arch=amd64 ;;
+    *) return 1 ;;
+  esac
+  printf '%s %s\n' "$os" "$arch"
+}
+
+use_extracted() {
+  local tmp="$1" url="$2" extracted
+  extracted="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -1)"
+  if [[ -z "$extracted" || ! -f "$extracted/bin/dc-up" ]]; then
+    return 1
+  fi
+  ROOT="$extracted"
+  echo "Using $ROOT ($url)"
+}
+
+fetch_release_kit() {
+  local ref="$1" os arch ver url tmp
+  if [[ "$ref" == "latest" ]]; then
+    ref="$(latest_tag)" || return 1
+  fi
+  case "$ref" in
+    main|master) return 1 ;;
+  esac
+  ver="${ref#v}"
+  read -r os arch < <(dc_os_arch) || return 1
+  url="https://github.com/${REPO}/releases/download/v${ver}/dc-cli-${ver}-${os}-${arch}.tar.gz"
+  tmp="$(mktemp -d)"
+  echo "Fetching release kit $url ..."
+  if ! curl -fsSL "$url" | tar -xz -C "$tmp"; then
+    rm -rf "$tmp"
+    return 1
+  fi
+  if ! use_extracted "$tmp" "$url"; then
+    rm -rf "$tmp"
+    return 1
+  fi
+}
+
 fetch_tree() {
-  local ref="$1" url tmp extracted
+  local ref="$1" url tmp
   if [[ "$ref" == "latest" ]]; then
     ref="$(latest_tag)" || { echo "Could not resolve latest release of $REPO" >&2; exit 1; }
   fi
@@ -73,19 +122,25 @@ fetch_tree() {
   tmp="$(mktemp -d)"
   echo "Fetching $REPO@$ref ..."
   curl -fsSL "$url" | tar -xz -C "$tmp"
-  extracted="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -1)"
-  if [[ -z "$extracted" || ! -f "$extracted/bin/dc-up" ]]; then
+  if ! use_extracted "$tmp" "$url"; then
     echo "Fetched tree missing bin/dc-up ($url)" >&2
     exit 1
   fi
-  ROOT="$extracted"
-  echo "Using $ROOT ($ref)"
+}
+
+fetch_ref() {
+  local ref="$1"
+  if [[ "$ref" == "main" || "$ref" == "master" ]]; then
+    fetch_tree "$ref"
+    return
+  fi
+  fetch_release_kit "$ref" || fetch_tree "$ref"
 }
 
 if [[ -n "$REF" ]]; then
-  fetch_tree "$REF"
+  fetch_ref "$REF"
 elif [[ ! -f "$ROOT/bin/dc-up" ]]; then
-  fetch_tree latest
+  fetch_ref latest
 fi
 
 mkdir -p "$PREFIX"
@@ -93,8 +148,12 @@ for f in dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune; do
   cp "$ROOT/bin/$f" "$PREFIX/$f"
   chmod +x "$PREFIX/$f"
 done
-# Clickable Go TUI when go is on PATH; else bash menu.
-if [[ -f "$ROOT/cmd/dc-tui/main.go" ]] && command -v go >/dev/null 2>&1; then
+# Prefer a packed Go binary, then local go build, then bash menu.
+if [[ -f "$ROOT/bin/dc-tui" && "$(head -c 2 "$ROOT/bin/dc-tui")" != "#!" ]]; then
+  cp "$ROOT/bin/dc-tui" "$PREFIX/dc-tui"
+  chmod +x "$PREFIX/dc-tui"
+  echo "Installed prebuilt dc-tui to $PREFIX/dc-tui"
+elif [[ -f "$ROOT/cmd/dc-tui/main.go" ]] && command -v go >/dev/null 2>&1; then
   echo "Building clickable dc-tui (Go)..."
   rm -f "$PREFIX/dc-tui"
   (cd "$ROOT" && go build -o "$PREFIX/dc-tui" ./cmd/dc-tui)

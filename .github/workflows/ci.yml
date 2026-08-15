@@ -16,8 +16,11 @@ jobs:
         run: |
           bash -n install.sh
           bash -n lib/dc-common.sh
+          bash -n scripts/pack-release.sh scripts/print-release-shas.sh
           bash -n bin/dc-up bin/dc-exec bin/dc-down bin/dc-ps bin/dc-forward
-          bash -n bin/dc-ls bin/dc-open bin/dc-tui
+          bash -n bin/dc-ls bin/dc-open bin/dc-tui bin/dc-df bin/dc-prune
+      - name: go test dc-tui
+        run: go test ./cmd/dc-tui
       - name: go build dc-tui
         run: go build -o /tmp/dc-tui ./cmd/dc-tui
       - name: install to prefix
@@ -48,3 +51,26 @@ jobs:
         run: |
           bash install.sh --help | grep -q -- --full
           bash install.sh --help | grep -q -- --ref
+      - name: pack linux-amd64 and install without go
+        run: |
+          scripts/pack-release.sh 0.0.0-ci linux amd64 "$RUNNER_TEMP/dc-dist"
+          tar -tzf "$RUNNER_TEMP/dc-dist/dc-cli-0.0.0-ci-linux-amd64.tar.gz" | grep -q '/bin/dc-tui$'
+          mkdir -p "$RUNNER_TEMP/dc-kit"
+          tar -xzf "$RUNNER_TEMP/dc-dist/dc-cli-0.0.0-ci-linux-amd64.tar.gz" -C "$RUNNER_TEMP/dc-kit"
+          kit="$RUNNER_TEMP/dc-kit/dc-cli-0.0.0-ci-linux-amd64"
+          test "$(head -c 2 "$kit/bin/dc-tui")" != "#!"
+          PATH="/usr/bin:/bin" HOME="$RUNNER_TEMP/prebuilt-home" PREFIX="$RUNNER_TEMP/dc-prebuilt" \
+            bash "$kit/install.sh" --prefix "$RUNNER_TEMP/dc-prebuilt" --with-skill
+          test -x "$RUNNER_TEMP/dc-prebuilt/dc-tui"
+          test "$(head -c 2 "$RUNNER_TEMP/dc-prebuilt/dc-tui")" != "#!"
+          "$RUNNER_TEMP/dc-prebuilt/dc-tui" --help
+          "$RUNNER_TEMP/dc-prebuilt/dc-up" --help
+          test -f "$kit/skill/SKILL.md"
+          test -f "$RUNNER_TEMP/prebuilt-home/.agents/skills/devcontainer-cli-global/SKILL.md"
+          brew="$RUNNER_TEMP/dc-brew"
+          mkdir -p "$brew/bin" "$brew/lib"
+          cp "$kit/bin/"* "$brew/bin/"
+          cp "$kit/lib/dc-common.sh" "$brew/lib/"
+          HOME="$RUNNER_TEMP/empty-home" "$brew/bin/dc-up" --help
+          HOME="$RUNNER_TEMP/empty-home" "$brew/bin/dc-ls" --json --all | grep -qx '\[\]'
+          grep -Fqx 'curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash' README.md
