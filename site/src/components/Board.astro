@@ -14,7 +14,7 @@ const primary = [
 const meta = [
   { key: 'o', label: 'open', cmd: 'dc-open', run: 'open bind-mount in the host editor', danger: false, meta: true },
   { key: 'a', label: 'attach', cmd: 'dc-open --attach', run: 'VS Code Remote into the app', danger: false, meta: true },
-  { key: 'p', label: 'ports', cmd: 'dc-forward', run: 'sidecar publish (Colima)', danger: false, meta: true },
+  { key: 'p', label: 'ports', cmd: 'dc-forward', run: 'reconcile owned sidecars (Colima)', danger: false, meta: true },
   { key: 'l', label: 'logs', cmd: 'docker logs -f', run: 'follow app logs, then return', danger: false, meta: true },
 ];
 

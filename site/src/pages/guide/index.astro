@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import Page from '../../layouts/Page.astro';
 import { breadcrumbs, siteUrl } from '../../lib/schema';
 
-const order = ['install', 'tui', 'ports', 'disk'];
+const order = ['install', 'tui', 'doctor', 'ports', 'disk'];
 const guides = await getCollection('guides');
 const cards = order
   .map((id) => guides.find((entry) => entry.id === id))
@@ -29,7 +29,7 @@ const schema = [
 
 <Page
   title="Guides — dc-cli"
-  description="Task guides for dc-cli: install, dc-tui keys, Colima ports, and disk full. Command flags stay in the README."
+  description="Task guides for dc-cli: install, dc-tui keys, dc-doctor, Colima ports, and disk full. Command flags stay in the README."
   path="/guide/"
   schema={schema}
 >
@@ -37,10 +37,10 @@ const schema = [
     <div class="mx-auto w-full max-w-6xl">
       <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">guide / tasks</p>
       <h1 class="mt-3 max-w-3xl font-mono text-4xl leading-[0.95] tracking-tight md:text-6xl">
-        Four jobs. Not a second README.
+        Five jobs. Not a second README.
       </h1>
       <p class="mt-5 max-w-xl text-sm text-mute">
-        Install, the board, ports, disk. Full flag tables stay on
+        Install, the board, doctor, ports, disk. Full flag tables stay on
         <a class="text-ink/80 hover:text-ink" href="https://github.com/Brasth/dc-cli#commands-all-of-them">GitHub</a>.
       </p>
       <ol class="mt-12 grid gap-px bg-ink/10 sm:grid-cols-2">

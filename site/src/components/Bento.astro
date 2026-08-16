@@ -3,8 +3,8 @@ const tiles = [
   {
     k: 'dc-up',
     title: 'Start the labeled app.',
-    body: 'Reads project config, brings the stack up, publishes ports. Clash? It names the holder.',
-    lines: ['$ dc-up', '→ labeled app up', '→ dc-forward :3000', 'ok  ports published'],
+    body: 'Reads project config, brings the stack up, then reconciles ports. Clash? Labeled foreign stacks only.',
+    lines: ['$ dc-up', '→ labeled app up', '→ dc-forward pairs', 'ok  or forwarding incomplete'],
   },
   {
     k: 'dc-exec',
@@ -13,16 +13,16 @@ const tiles = [
     lines: ['$ dc-exec --service db', '→ start db (was exited)', '→ docker exec skipped', 'root@db:/#'],
   },
   {
-    k: 'dc-forward',
-    title: 'Colima-safe ports.',
-    body: 'Sidecar on the Docker network. Host socat to 172.x does not work on Colima.',
-    lines: ['$ dc-forward 3000', '→ sidecar alpine/socat', '→ host :3000 → app', 'status  listening'],
+    k: 'dc-doctor',
+    title: 'Read-only diagnose.',
+    body: 'Human or --json. Never mutates Docker or project files. Run it before prune or take-ports.',
+    lines: ['$ dc-doctor --json', 'schemaVersion  1', 'summary  usable', 'exit  0'],
   },
   {
-    k: 'dc-prune',
-    title: 'Disk without nuking DBs.',
-    body: 'dc-df then dc-prune --yes. Never docker system prune -af --volumes.',
-    lines: ['$ dc-df', 'docker  42%   colima  61%', '$ dc-prune --yes', 'reclaim  cache + dangling'],
+    k: 'dc-forward',
+    title: 'Colima-safe pairs.',
+    body: 'Reconcile owned sidecars. 9001:80 stays asymmetric. One labeled app or --id.',
+    lines: ['$ dc-forward 9001:80', '→ owned alpine/socat', '→ host :9001 → :80', 'fail closed if blocked'],
   },
 ];
 ---

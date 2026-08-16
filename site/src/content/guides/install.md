@@ -10,7 +10,7 @@ steps:
   - name: Reload the shell
     text: Open a new terminal, or source ~/.zshrc / ~/.bashrc so generation current/bin is on PATH.
   - name: Confirm
-    text: dc-tui --help or dc-up --help should print usage.
+    text: dc-tui --help, dc-up --help, or dc-doctor --help should print usage.
 ---
 
 Needs bash 4+ and Docker (Colima or Desktop). Release kits and Homebrew include the clickable TUI (logo splash, start/shell/stop first). A source install builds it when Go is on PATH; otherwise you get the bash menu.
@@ -50,7 +50,7 @@ The advertised curl passes `--with-cli` so `devcontainer` is on PATH via the **u
 
 Homes and the exact copy list live in the [README Skill](https://github.com/Brasth/dc-cli#skill) section.
 
-Confirm: `dc-tui --help` or `dc-up --help` should print usage.
+Confirm: `dc-tui --help`, `dc-up --help`, or `dc-doctor --help` should print usage. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.8.0).
 
 ## Daily start
 

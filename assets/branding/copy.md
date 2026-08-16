@@ -4,7 +4,7 @@ H1 (2 lines, max-w-6xl):
 Host-global helpers around the official Dev Containers CLI.
 
 Sub:
-Start, exec, stop, ports, disk. No VS Code required. Does not edit project `.devcontainer`.
+Start, exec, stop, ports, doctor, disk. No VS Code required. Does not edit project `.devcontainer`.
 
 Primary CTA:
 Copy install

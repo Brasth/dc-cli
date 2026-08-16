@@ -4,16 +4,17 @@ Site: [dc.brasth.com](https://dc.brasth.com) · Guides: [dc.brasth.com/guide](ht
 
 Host-global helpers around official [`@devcontainers/cli`](https://github.com/devcontainers/cli). **No VS Code required. Does not edit** project `.devcontainer/devcontainer.json`.
 
-Upstream only has `up` / `exec`. This repo adds **stop**, **list**, **open**, **port publish**, and a **TUI**.
+Upstream only has `up` / `exec`. This repo adds **stop**, **list**, **open**, **port publish**, **doctor**, and a **TUI**.
 
 ```
 this folder
    │
    ├─ dc-tui          clickable board (default)
+   ├─ dc-doctor       read-only diagnose (human or --json)
    ├─ dc-up           start the labeled app + publish ports
    ├─ dc-exec         shell in the app
    ├─ dc-exec --service NAME   start (if needed) + shell in another service
-   ├─ dc-forward      host localhost:3000 → app (Colima-safe)
+   ├─ dc-forward      reconcile owned sidecars (Colima-safe)
    └─ dc-down         stop the app (sidecars go too)
 ```
 
@@ -23,13 +24,13 @@ this folder
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Always tracks the **latest GitHub release** (prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
+Always tracks the **latest GitHub release** (currently **v0.8.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start via the **official standalone** installer — not npm. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
 
 macOS/Linux via Homebrew (same kit, no Go required):
 
 ```bash
 brew tap Brasth/dc-cli
-brew install dc-cli
+brew install dc-cli          # already tapped: brew update && brew upgrade dc-cli
 ```
 
 Each person needs their **own** Docker/Colima. Do not share one engine — fleet, prune, and `--take-ports` see the whole daemon.
@@ -52,14 +53,15 @@ Run these from **your** project folder (the one with `.devcontainer`):
 ```bash
 cd /path/to/your/project
 dc-tui                          # or the CLI below
+dc-doctor                       # read-only; --json for agents
 
 dc-up                           # start the labeled app, then publish ports
-dc-up --take-ports              # if host ports clash, stop holders and retry
+dc-up --take-ports              # clash: stop labeled foreign holders only, retry
 dc-exec                         # bash in the app (starts it if it is down)
 dc-exec --list                  # labeled app + other services in that compose project
 dc-exec --service NAME          # start that compose service if it is down, then bash
 dc-exec --service NAME -- cmd   # same, run a command (works without a TTY)
-dc-forward                      # if the host browser cannot reach the app port
+dc-forward                      # reconcile owned sidecars (needs one app or --id)
 dc-down                         # stop FULL compose stack (app+db+mitm+…)
 dc-down --app                   # labeled app only (+ its sidecars)
 dc-down --rm                    # compose down (remove stack containers)
@@ -124,7 +126,7 @@ After **shell** / **logs** / **start**, the board comes back. A normal `exit` is
 | `dc-up [dir]` | project config, then `dc-forward` |
 | `dc-up --no-forward` | skip sidecars (`DC_FORWARD=0`) |
 | `dc-up --ports` | **REPLACE** project config (not a merge) |
-| `dc-up --take-ports` / `--yes` | on host port clash: stop holders, retry once |
+| `dc-up --take-ports` / `--yes` | clash: stop **labeled** foreign stacks/sidecars, retry once |
 | `dc-exec` | app shell |
 | `dc-exec --list` | stack table |
 | `dc-exec --service NAME` | other compose service (starts if down) |
@@ -136,7 +138,7 @@ After **shell** / **logs** / **start**, the board comes back. A normal `exit` is
 | `dc-down --all --yes` | every labeled workspace stack |
 | `dc-ls [--json] [--all]` | labeled app list |
 | `dc-open` / `--attach` | host editor / VS Code attach |
-| `dc-forward` / `3000` / `--stop` | sidecar publish |
+| `dc-forward` / `3000` / `9001:80` / `--stop` | reconcile owned sidecars (one app or `--id`) |
 | `dc-ps` | docker + labels |
 | `dc-df` / `--json` / `--volumes` | disk report (read-only) |
 | `dc-prune` / `--yes` | safe reclaim (cache, dangling, nets, orphan sidecars) |
@@ -145,6 +147,24 @@ After **shell** / **logs** / **start**, the board comes back. A normal `exit` is
 | `dc-prune --colima-hint` | grow Colima VM disk guidance |
 
 There is **no** `dc` meta-binary. **Never** `docker system prune -af --volumes` — use `dc-df` / `dc-prune`.
+
+## Doctor
+
+`dc-doctor` is read-only. It never starts, stops, prunes, or edits project files. Human text and `--json` share the same 17 checks.
+
+```bash
+dc-doctor                 # this folder
+dc-doctor ~/src/app
+dc-doctor --json          # agents: one document, schemaVersion 1
+```
+
+| Exit | Meaning |
+|---|---|
+| `0` | usable (warnings allowed — including missing `.devcontainer`) |
+| `1` | one or more blockers (no Docker, no `devcontainer`, below-floor CLI when a floor is set, …) |
+| `2` | invalid invocation only (unknown flag, not a directory) |
+
+Install-time `install.sh` “Doctor:” lines are still just presence smoke. Day-2 diagnosis is `dc-doctor`. Diagnose **before** `dc-prune --yes` or `--take-ports`.
 
 ## Ports (Colima)
 
