@@ -334,6 +334,14 @@ case "$cmd" in
       '{{.State.Status}}') printf '%s\n' "${status:-running}" ;;
       '{{.Config.Image}}'|'{{.Image}}') printf '%s\n' "${image:-alpine}" ;;
       '{{.Architecture}}')
+        if [[ -f "$dir/no-top-arch" ]]; then
+          echo 'template parsing error: map has no entry for key "Architecture"' >&2
+          exit 1
+        fi
+        arch="$(read_file "$dir/arch")"
+        printf '%s\n' "${arch:-amd64}"
+        ;;
+      '{{.ImageManifestDescriptor.Platform.Architecture}}')
         arch="$(read_file "$dir/arch")"
         printf '%s\n' "${arch:-amd64}"
         ;;
@@ -428,7 +436,15 @@ case "$cmd" in
       echo "Error: No such container: $id" >&2
       exit 1
     fi
-    if [[ "${1:-}" == "chmod" || "${1:-}" == "mkdir" || "${1:-}" == "true" ]]; then
+    if [[ "${1:-}" == "chmod" || "${1:-}" == "mkdir" || "${1:-}" == "true" || "${1:-}" == "rm" || "${1:-}" == "uname" ]]; then
+      if [[ "${1:-}" == "uname" ]]; then
+        arch="$(read_file "$dir/arch")"
+        case "${arch:-amd64}" in
+          arm64|aarch64) echo aarch64 ;;
+          *) echo x86_64 ;;
+        esac
+        exit 0
+      fi
       printf '%s\n' "$*" >>"$STATE/exec.log"
       printf '%s\n' "$*" >>"$dir/exec.log"
       exit 0

@@ -95,18 +95,47 @@ dc_install_guest_yazi() {
 }
 
 dc_container_arch() {
-  local id="$1" raw
+  local id="$1" raw img
+  # Docker ≤28: top-level .Architecture. Docker 29+: gone; use the
+  # image manifest, image inspect, or uname inside the box.
   raw="$(docker inspect -f '{{.Architecture}}' "$id" 2>/dev/null || true)"
-  dc_yazi_norm_arch "$raw"
+  if dc_yazi_norm_arch "$raw"; then
+    return 0
+  fi
+  raw="$(docker inspect -f '{{.ImageManifestDescriptor.Platform.Architecture}}' "$id" 2>/dev/null || true)"
+  if dc_yazi_norm_arch "$raw"; then
+    return 0
+  fi
+  img="$(docker inspect -f '{{.Image}}' "$id" 2>/dev/null || true)"
+  if [[ -n "$img" && "$img" != "<no value>" ]]; then
+    raw="$(docker image inspect -f '{{.Architecture}}' "$img" 2>/dev/null || true)"
+    if dc_yazi_norm_arch "$raw"; then
+      return 0
+    fi
+  fi
+  raw="$(docker exec "$id" uname -m 2>/dev/null || true)"
+  if dc_yazi_norm_arch "$raw"; then
+    return 0
+  fi
+  echo "dc-files: cannot detect arch for ${id:0:12}" >&2
+  return 1
 }
 
 dc_inject_guest_yazi() {
   local id="$1" arch bin
-  [[ -n "$id" ]] || return 1
+  [[ -n "$id" ]] || {
+    echo "dc-files: no container id to inject yazi" >&2
+    return 1
+  }
   arch="$(dc_container_arch "$id")" || return 1
   bin="$(dc_install_guest_yazi "$arch")" || return 1
+  if [[ ! -x "$bin" ]]; then
+    echo "dc-files: guest yazi missing at $bin" >&2
+    return 1
+  fi
+  docker exec "$id" rm -rf "$DC_GUEST_YAZI_PATH" >/dev/null 2>&1 || true
   if ! docker cp "$bin" "$id:${DC_GUEST_YAZI_PATH}"; then
-    echo "dc-files: could not copy yazi into $id" >&2
+    echo "dc-files: could not copy yazi into ${id:0:12} ($bin -> $DC_GUEST_YAZI_PATH)" >&2
     return 1
   fi
   docker exec "$id" chmod +x "$DC_GUEST_YAZI_PATH" >/dev/null 2>&1 || true

@@ -41,6 +41,7 @@ fake_add_container() {
       ports=*) printf '%s\n' "${arg#ports=}" >"$dir/ports" ;;
       image=*) printf '%s\n' "${arg#image=}" >"$dir/image" ;;
       arch=*) printf '%s\n' "${arg#arch=}" >"$dir/arch" ;;
+      notoparch) : >"$dir/no-top-arch" ;;
       network=*) printf '%s\n' "${arg#network=}" >"$dir/network" ;;
       ip=*) printf '%s\n' "${arg#ip=}" >"$dir/ip" ;;
       command=*) printf '%s\n' "${arg#command=}" >"$dir/command" ;;

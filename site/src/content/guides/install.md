@@ -51,7 +51,7 @@ The advertised curl passes `--with-cli` so `devcontainer` is on PATH via the **u
 
 Homes and the exact copy list live in the [README Skill](https://github.com/Brasth/dc-cli#skill) section.
 
-Confirm: `dc-tui --help`, `dc-up --help`, or `dc-doctor --help` should print usage. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.10.3).
+Confirm: `dc-tui --help`, `dc-up --help`, or `dc-doctor --help` should print usage. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.10.4).
 
 ## Daily start
 

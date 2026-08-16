@@ -114,12 +114,38 @@ EOF
   [[ -x "$STATE/tools/guest/amd64/yazi" ]]
 }
 
+case_inject_docker29_arch() {
+  local ws zipdir
+  ws="$(mktemp -d "$STATE/ws.XXXX")"
+  mkdir -p "$ws/.devcontainer"
+  echo '{}' >"$ws/.devcontainer/devcontainer.json"
+  fake_add_container app1 app-1 running \
+    "devcontainer.local_folder=$ws" \
+    image=alpine \
+    arch=arm64 \
+    notoparch
+  unset DC_FILES_NO_INJECT
+  zipdir="$STATE/yz"
+  mkdir -p "$zipdir/yazi-aarch64-unknown-linux-musl"
+  cat >"$zipdir/yazi-aarch64-unknown-linux-musl/yazi" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+  chmod +x "$zipdir/yazi-aarch64-unknown-linux-musl/yazi"
+  (cd "$zipdir" && zip -q -r "$STATE/yazi.zip" yazi-aarch64-unknown-linux-musl)
+  export DC_YAZI_HOME="$STATE/tools" DC_YAZI_ZIP="$STATE/yazi.zip"
+  dc-files --id app1 "$ws"
+  grep -q 'cp .* /tmp/dc-cli-yazi' "$STATE/cp.log"
+  [[ -x "$STATE/tools/guest/arm64/yazi" ]]
+}
+
 run_case help case_help
 run_case nnn-opens case_nnn_opens
 run_case empty-refuses case_empty_refuses
 run_case service-db-empty case_service_db
 run_case service-app-nnn case_service_app_nnn
 run_case inject-linux-yazi case_inject_yazi
+run_case inject-docker29-arch case_inject_docker29_arch
 
 echo
 if [[ "$FAILED" -gt 0 ]]; then
