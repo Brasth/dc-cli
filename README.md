@@ -36,13 +36,14 @@ Each person needs their **own** Docker/Colima. Do not share one engine — fleet
 
 | Flag | What you get |
 |---|---|
-| *(default)* | wrappers in `~/bin` only — **not** the official CLI |
-| `--with-cli` | `npm i -g @devcontainers/cli` if missing |
+| *(default)* | wrappers generation only — **not** the official CLI |
+| `--with-cli` | official **standalone** `@devcontainers/cli` if missing (never npm) |
+| `--with-cli-npm` | explicit exact-pin `npm i -g @devcontainers/cli@<qualified>` |
 | `--with-skill` | copy the agent skill into homes you already have |
 | `--full` | `--with-cli` + `--with-skill` |
 | `--ref v0.4.3` / `main` | pin a tag or use HEAD |
 
-Needs: bash 4+, Docker (Colima or Desktop). Release/brew installs include the clickable TUI. A source install builds it when Go is on PATH; otherwise you get the bash menu. `source ~/.zshrc` or `~/.bashrc` after a curl install (Homebrew already has PATH).
+Needs: bash 4+, Docker (Colima or Desktop). Official CLI floor is whatever `docs/qualification/devcontainer-cli-floor.md` records (unpublished until a release engineer signs four platforms). Stock standalone `--node-version` pins a **Node major only** (mutable patch) — not a reproducible Node pin. Release/brew installs include the clickable TUI. A source install builds it when Go is on PATH; otherwise you get the bash menu. Open a **new login terminal** after a curl install (or `source ~/.zshrc` / `~/.bashrc`).
 
 ## Daily flow
 
@@ -119,6 +120,7 @@ After **shell** / **logs** / **start**, the board comes back. A normal `exit` is
 |---|---|
 | `dc-tui [dir]` | this folder |
 | `dc-tui --all` | fleet |
+| `dc-doctor [dir] [--json]` | read-only diagnostics (exit 0 usable / 1 blocker / 2 bad argv) |
 | `dc-up [dir]` | project config, then `dc-forward` |
 | `dc-up --no-forward` | skip sidecars (`DC_FORWARD=0`) |
 | `dc-up --ports` | **REPLACE** project config (not a merge) |
@@ -148,16 +150,17 @@ There is **no** `dc` meta-binary. **Never** `docker system prune -af --volumes` 
 
 `dc-up` starts `.devcontainer/docker-compose.yml`. That file often has **no** `3000:3000`. The app listens **inside**; the Mac has nothing on `:3000`.
 
-`dc-forward` starts `alpine/socat` **on the Docker network**. Host `socat` → `172.x` does **not** work on Colima.
+`dc-forward` **reconciles** owned `alpine/socat` sidecars **on the Docker network**. Host `socat` → `172.x` does **not** work on Colima. Identity is the **host+container pair** (so `9001:80` stays asymmetric). Requires exactly one labeled app or `--id`. Any requested mapping that cannot be ensured fails the command (and `dc-up` after a successful start).
 
 ```bash
-dc-forward                 # detect app ports from compose `app.ports` + forwardPorts
+dc-forward                 # reconcile compose `app.ports` + forwardPorts
 dc-forward 3000
+dc-forward 9001:80
 dc-forward --status
 dc-forward --stop
 ```
 
-`dc-up` runs this after a successful start. `dc-down` removes the sidecars.
+`dc-up` runs this after a successful start (`--no-forward` / `DC_FORWARD=0` skips). `dc-down` removes workspace-owned sidecars.
 
 `dc-up --ports` is **not** “add 3000”. It **replaces** the whole `devcontainer.json`.
 
@@ -174,9 +177,9 @@ dc-up                    # retry
 
 | Flag | Risk |
 |---|---|
-| `dc-prune --yes` | Low — build cache, dangling images, unused nets, orphan `dc-forward` sidecars |
-| `dc-prune --all --yes` | Medium — unused **tagged** images; parked stacks rebuild on next `dc-up` |
-| `dc-prune --volume NAME --yes` | **High** — named volume data (DBs). One name only; never bulk |
+| `dc-prune --yes` | **Engine-wide** build cache, dangling images, unused nets; **owned-only** orphan `dc-forward` sidecars (target proven absent) |
+| `dc-prune --all --yes` | **Engine-wide** unused **tagged** images; parked stacks rebuild on next `dc-up` |
+| `dc-prune --volume NAME --yes` | **High / owned-only** — named volume data (DBs). One name only; never bulk; mount inventory must succeed |
 | `docker system prune -af --volumes` | **Do not** — not wrapped; destroys named volumes |
 
 If Colima guest `/` is still ~100% after prune, the VM disk cap is full: `dc-prune --colima-hint`. Prune does **not** grow the qemu/VZ image.
@@ -197,10 +200,10 @@ dc-up
 | Mode | Behavior |
 |---|---|
 | TTY (interactive) | lists holder → ask **y/N** → stop foreign holders → retry once |
-| `dc-up --take-ports` / `--yes` / `DC_UP_TAKE_PORTS=1` | same without prompt (agents / CI) |
+| `dc-up --take-ports` / `--yes` / `DC_UP_TAKE_PORTS=1` | same without prompt (agents / CI); only **positively labeled** foreign stacks/sidecars |
 | non-TTY without flag | lists holder + how to re-run; does **not** stop |
 
-Stops **other** workspaces only (same-folder containers are skipped). Prefer stopping a sibling stack over editing project compose ports.
+Stops **other** labeled workspaces only (same-folder containers are skipped). Unlabeled, ambiguous, or inspect-unknown holders are **report-only** — they are not stopped. Prefer stopping a sibling stack over editing project compose ports.
 
 ## Editors
 

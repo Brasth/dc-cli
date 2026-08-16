@@ -117,13 +117,18 @@ if [[ "$do_resize_hint" -eq 1 ]]; then
   exit 0
 fi
 
-# --- single volume delete (phase 3) ---
+# --- single volume delete (owned-only; inventory must succeed) ---
 if [[ -n "$volume_name" ]]; then
   if ! docker volume inspect "$volume_name" >/dev/null 2>&1; then
     echo "Volume not found: $volume_name" >&2
     exit 1
   fi
-  if docker ps -aq --filter "volume=$volume_name" 2>/dev/null | grep -q .; then
+  mounts=""
+  if ! mounts="$(dc_volume_mount_inventory "$volume_name")"; then
+    echo "dc-prune: volume-query-error (mount inventory failed) for $volume_name" >&2
+    exit 1
+  fi
+  if printf '%s\n' "$mounts" | grep -q .; then
     echo "Volume is mounted by a container. Stop/rm that stack first: $volume_name" >&2
     exit 1
   fi
@@ -132,9 +137,21 @@ if [[ -n "$volume_name" ]]; then
     echo "Data loss. Re-run with --yes to confirm."
     exit 0
   fi
-  echo "rm volume  $volume_name"
-  docker volume rm "$volume_name"
-  exit 0
+  dc_prune_volume_rm() {
+    local again
+    if ! again="$(dc_volume_mount_inventory "$volume_name")"; then
+      echo "dc-prune: volume-query-error (under-lock remount check) for $volume_name" >&2
+      return 1
+    fi
+    if printf '%s\n' "$again" | grep -q .; then
+      echo "Volume is mounted by a container. Stop/rm that stack first: $volume_name" >&2
+      return 1
+    fi
+    echo "rm volume  $volume_name  (owned-only)"
+    docker volume rm "$volume_name"
+  }
+  dc_with_mutation_lock dc_prune_volume_rm
+  exit $?
 fi
 
 # --- dry-run / apply plan ---
@@ -145,22 +162,23 @@ while IFS= read -r id; do
 done < <(dc_orphan_forward_ids)
 
 echo "=== dc-prune plan ==="
-echo "  build cache     docker builder prune -f"
+echo "  [engine-wide] build cache     docker builder prune -f"
 if [[ "$all" -eq 1 ]]; then
-  echo "  images          docker image prune -a -f   (--all: unused tagged too)"
+  echo "  [engine-wide] images          docker image prune -a -f   (--all: unused tagged too)"
 elif [[ "$workspace_mode" -eq 1 ]]; then
-  echo "  images          unused images referenced only by this workspace (if any)"
+  echo "  [engine-wide] images          unused images referenced only by this workspace (if any)"
 else
-  echo "  images          docker image prune -f      (dangling only)"
+  echo "  [engine-wide] images          docker image prune -f      (dangling only)"
 fi
-echo "  networks        docker network prune -f"
-echo "  orphan sidecars ${#orphan_ids[@]}  (dc.forward.for target missing)"
+echo "  [engine-wide] networks        docker network prune -f"
+echo "  [owned-only]  orphan sidecars ${#orphan_ids[@]}  (dc.forward.for target tri-state absent)"
 for id in "${orphan_ids[@]+"${orphan_ids[@]}"}"; do
   name="$(docker inspect -f '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')"
   echo "    - ${id:0:12}  ${name:-?}"
 done
 echo
 echo "NOT included: named volumes, exited labeled apps, system prune -af --volumes"
+echo "Engine-wide steps touch the whole daemon (not owned-only)."
 if [[ "$yes" -ne 1 ]]; then
   echo
   echo "Dry-run only. Apply with: dc-prune --yes"
@@ -175,56 +193,81 @@ if [[ "$all" -eq 1 && "$yes" -ne 1 ]]; then
   exit 2
 fi
 
-echo "=== applying ==="
-echo "builder prune..."
-docker builder prune -f || true
+dc_prune_apply() {
+  local fail=0
+  local id target presence name img
 
-if [[ "$workspace_mode" -eq 1 ]]; then
-  # Phase 3: only remove dangling, then report images used by this stack (do not -a).
-  # True "only this workspace's unused images" is ambiguous across shared base images.
-  # We prune dangling globally (safe) and list stack images for the user.
-  echo "image prune (dangling)..."
-  docker image prune -f || true
-  echo "images used by this workspace stack (kept):"
-  while IFS= read -r img; do
-    [[ -n "$img" ]] || continue
-    docker image inspect --format '{{.Id}}  {{index .RepoTags 0}}  {{.Size}}' "$img" 2>/dev/null || true
-  done < <(dc_workspace_image_ids "$workspace" | awk 'NF && !seen[$0]++')
-  echo "(shared base images are never force-deleted by --workspace)"
-elif [[ "$all" -eq 1 ]]; then
-  echo "image prune -a (unused tagged images)..."
-  docker image prune -a -f || true
-else
-  echo "image prune (dangling)..."
-  docker image prune -f || true
-fi
+  run_step() {
+    local label="$1"
+    shift
+    echo "$label..."
+    if ! "$@"; then
+      echo "dc-prune: step failed: $label" >&2
+      fail=1
+    fi
+  }
 
-echo "network prune..."
-docker network prune -f || true
+  echo "=== applying ==="
+  run_step "[engine-wide] builder prune" docker builder prune -f
 
-if [[ ${#orphan_ids[@]} -gt 0 ]]; then
-  echo "removing orphan sidecars..."
-  for id in "${orphan_ids[@]}"; do
-    docker rm -f "$id" >/dev/null 2>&1 || true
-    echo "  removed ${id:0:12}"
-  done
-fi
+  if [[ "$workspace_mode" -eq 1 ]]; then
+    run_step "[engine-wide] image prune (dangling)" docker image prune -f
+    echo "images used by this workspace stack (kept):"
+    while IFS= read -r img; do
+      [[ -n "$img" ]] || continue
+      docker image inspect --format '{{.Id}}  {{index .RepoTags 0}}  {{.Size}}' "$img" 2>/dev/null || true
+    done < <(dc_workspace_image_ids "$workspace" | awk 'NF && !seen[$0]++')
+    echo "(shared base images are never force-deleted by --workspace)"
+  elif [[ "$all" -eq 1 ]]; then
+    run_step "[engine-wide] image prune -a" docker image prune -a -f
+  else
+    run_step "[engine-wide] image prune (dangling)" docker image prune -f
+  fi
+
+  run_step "[engine-wide] network prune" docker network prune -f
+
+  if [[ ${#orphan_ids[@]} -gt 0 ]]; then
+    echo "removing orphan sidecars (owned-only)..."
+    for id in "${orphan_ids[@]}"; do
+      target="$(dc_label "$id" "$DC_FWD_LABEL")"
+      presence="$(dc_inspect_presence "$target")"
+      if [[ "$presence" != "absent" ]]; then
+        echo "dc-prune: skip orphan ${id:0:12} (target ${presence}; not definitively absent)" >&2
+        fail=1
+        continue
+      fi
+      if ! docker rm -f "$id" >/dev/null; then
+        echo "dc-prune: step failed: orphan rm ${id:0:12}" >&2
+        fail=1
+        continue
+      fi
+      echo "  removed ${id:0:12}"
+    done
+  fi
+  return "$fail"
+}
+
+dc_with_mutation_lock dc_prune_apply
+_prune_rc=$?
 
 echo
 echo "=== after ==="
-docker system df
+docker system df 2>/dev/null || true
 echo
 if command -v colima >/dev/null 2>&1; then
   guest="$(colima ssh -- df -h / 2>/dev/null | awk 'NR==2 {print $5 " used on guest / (" $3 " of " $2 ")"}' || true)"
   if [[ -n "$guest" ]]; then
     echo "Colima guest: $guest"
     pct="${guest%%\%*}"
-    # if still very full, hint
     if [[ "$pct" =~ ^[0-9]+$ ]] && [[ "$pct" -ge 90 ]]; then
       echo
       echo "Guest disk still high. Resize is Colima, not Docker:"
       print_colima_hint
     fi
   fi
+fi
+if [[ "$_prune_rc" -ne 0 ]]; then
+  echo "dc-prune: completed with errors (exit $_prune_rc)" >&2
+  exit "$_prune_rc"
 fi
 echo "Done. Retry: dc-up"

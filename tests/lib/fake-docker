@@ -1,0 +1,382 @@
+#!/usr/bin/env bash
+# Deterministic docker stand-in. State dir: $DC_FAKE_STATE. Logs argv to $FAKE_DOCKER_LOG.
+set -euo pipefail
+
+STATE="${DC_FAKE_STATE:?DC_FAKE_STATE required}"
+LOG="${FAKE_DOCKER_LOG:-$STATE/docker.log}"
+mkdir -p "$STATE"
+printf '%s\n' "$*" >>"$LOG"
+
+die() { echo "Error: $*" >&2; exit 1; }
+
+cdir() { printf '%s/containers/%s' "$STATE" "$1"; }
+
+read_file() {
+  local f="$1"
+  [[ -f "$f" ]] && cat "$f" || true
+}
+
+has_label() {
+  local id="$1" want="$2" line key val
+  local dir
+  dir="$(cdir "$id")"
+  [[ -f "$dir/labels" ]] || return 1
+  if [[ "$want" == *"="* ]]; then
+    key="${want%%=*}"
+    val="${want#*=}"
+    grep -Fxq "${key}=${val}" "$dir/labels" 2>/dev/null
+  else
+    grep -q "^${want}=" "$dir/labels" 2>/dev/null
+  fi
+}
+
+label_val() {
+  local id="$1" key="$2"
+  local dir
+  dir="$(cdir "$id")"
+  [[ -f "$dir/labels" ]] || return 0
+  sed -n "s/^${key}=//p" "$dir/labels" | head -1
+}
+
+list_ids() {
+  local all="$1"
+  local dir id status
+  [[ -d "$STATE/containers" ]] || return 0
+  for dir in "$STATE/containers"/*; do
+    [[ -d "$dir" ]] || continue
+    id="$(basename "$dir")"
+    status="$(read_file "$dir/status")"
+    status="${status:-running}"
+    if [[ "$all" -eq 1 || "$status" == "running" ]]; then
+      printf '%s\n' "$id"
+    fi
+  done
+}
+
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+  context)
+    echo "unix:///var/run/docker.sock"
+    exit 0
+    ;;
+  info)
+    echo "Server Version: fake"
+    exit 0
+    ;;
+  system)
+    echo "TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE"
+    echo "Images          0         0         0B        0B"
+    exit 0
+    ;;
+  builder)
+    if [[ -f "$STATE/fail/builder_prune" ]]; then
+      echo "Error: builder prune failed" >&2
+      exit 1
+    fi
+    exit 0
+    ;;
+  image)
+    if [[ "${1:-}" == "prune" && -f "$STATE/fail/image_prune" ]]; then
+      echo "Error: image prune failed" >&2
+      exit 1
+    fi
+    exit 0
+    ;;
+  network)
+    if [[ "${1:-}" == "prune" && -f "$STATE/fail/network_prune" ]]; then
+      echo "Error: network prune failed" >&2
+      exit 1
+    fi
+    exit 0
+    ;;
+  volume)
+    sub="${1:-}"
+    shift || true
+    name="${1:-}"
+    case "$sub" in
+      inspect)
+        if [[ -d "$STATE/volumes/$name" ]]; then
+          echo "{\"Name\":\"$name\"}"
+          exit 0
+        fi
+        echo "Error: No such volume: $name" >&2
+        exit 1
+        ;;
+      rm)
+        if [[ -d "$STATE/volumes/$name" ]]; then
+          rm -rf "$STATE/volumes/$name"
+          echo "$name"
+          exit 0
+        fi
+        echo "Error: No such volume: $name" >&2
+        exit 1
+        ;;
+      *) exit 0 ;;
+    esac
+    ;;
+  compose)
+    # docker compose -p PROJ stop|down [-v]
+    exit 0
+    ;;
+  stop)
+    id="${1:-}"
+    dir="$(cdir "$id")"
+    if [[ ! -d "$dir" ]]; then
+      echo "Error: No such container: $id" >&2
+      exit 1
+    fi
+    echo exited >"$dir/status"
+    echo "$id"
+    exit 0
+    ;;
+  rm)
+    id=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -f|--force|-v) ;;
+        *) id="$1" ;;
+      esac
+      shift
+    done
+    dir="$(cdir "$id")"
+    if [[ ! -d "$dir" ]]; then
+      echo "Error: No such container: $id" >&2
+      exit 1
+    fi
+    rm -rf "$dir"
+    echo "$id"
+    exit 0
+    ;;
+  start)
+    id="${1:-}"
+    dir="$(cdir "$id")"
+    [[ -d "$dir" ]] || { echo "Error: No such container: $id" >&2; exit 1; }
+    echo running >"$dir/status"
+    echo "$id"
+    exit 0
+    ;;
+  run)
+    # Phase 4 creates sidecars. Record and create a container dir from --name / --label.
+    name=""
+    net=""
+    image=""
+    declare -a labels=()
+    declare -a rest=()
+    publish=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -d|--rm) shift; continue ;;
+        --name) name="$2"; shift 2; continue ;;
+        --network) net="$2"; shift 2; continue ;;
+        --label)
+          labels+=("$2")
+          shift 2
+          continue
+          ;;
+        -p)
+          publish="$2"
+          shift 2
+          continue
+          ;;
+        *)
+          if [[ -z "$image" && "$1" != -* ]]; then
+            image="$1"
+            shift
+            rest+=("$@")
+            break
+          fi
+          shift
+          continue
+          ;;
+      esac
+    done
+    id="${name:-run-$$}"
+    dir="$(cdir "$id")"
+    mkdir -p "$dir"
+    printf '%s\n' "$id" >"$dir/name"
+    echo running >"$dir/status"
+    printf '%s\n' "${image:-alpine/socat}" >"$dir/image"
+    printf '%s\n' "${net:-bridge}" >"$dir/network"
+    echo "10.0.0.9" >"$dir/ip"
+    hostp="${publish%%:*}"
+    if [[ -n "$hostp" ]]; then
+      echo "0.0.0.0:${hostp}->${hostp}/tcp" >"$dir/ports"
+    fi
+    : >"$dir/labels"
+    for lab in "${labels[@]+"${labels[@]}"}"; do
+      printf '%s\n' "$lab" >>"$dir/labels"
+    done
+    printf '%s\n' "${rest[*]}" >"$dir/command"
+    echo "$id"
+    exit 0
+    ;;
+  ps)
+    if [[ -f "$STATE/fail/ps" ]]; then
+      echo "Error: Cannot connect to the Docker daemon" >&2
+      exit 1
+    fi
+    all=0
+    quiet=0
+    fmt=""
+    filter_label=""
+    filter_vol=""
+    filter_id=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -a|-aq)
+          all=1
+          [[ "$1" == "-aq" ]] && quiet=1
+          shift
+          ;;
+        -q) quiet=1; shift ;;
+        --filter)
+          f="$2"
+          shift 2
+          case "$f" in
+            label=*) filter_label="${f#label=}" ;;
+            volume=*) filter_vol="${f#volume=}" ;;
+            id=*) filter_id="${f#id=}" ;;
+          esac
+          ;;
+        --format)
+          fmt="$2"
+          shift 2
+          ;;
+        *) shift ;;
+      esac
+    done
+    if [[ -n "$filter_vol" && -f "$STATE/fail/volume_ps" ]]; then
+      echo "Error: Cannot list containers for volume" >&2
+      exit 1
+    fi
+    while IFS= read -r id; do
+      [[ -n "$id" ]] || continue
+      dir="$(cdir "$id")"
+      if [[ -n "$filter_id" && "$id" != "$filter_id"* ]]; then
+        continue
+      fi
+      if [[ -n "$filter_label" ]] && ! has_label "$id" "$filter_label"; then
+        continue
+      fi
+      if [[ -n "$filter_vol" ]]; then
+        if [[ ! -f "$dir/mounts" ]] || ! grep -Fxq "$filter_vol" "$dir/mounts"; then
+          continue
+        fi
+      fi
+      if [[ "$quiet" -eq 1 ]]; then
+        printf '%s\n' "$id"
+        continue
+      fi
+      ports="$(read_file "$dir/ports")"
+      name="$(read_file "$dir/name")"
+      status="$(read_file "$dir/status")"
+      if [[ "$fmt" == '{{.Ports}}' ]]; then
+        printf '%s\n' "$ports"
+      elif [[ "$fmt" == '{{.Names}} {{.Ports}}' ]]; then
+        printf '%s %s\n' "$name" "$ports"
+      elif [[ "$fmt" == 'sidecar  {{.Names}}\t{{.Status}}\t{{.Ports}}' ]]; then
+        printf 'sidecar  %s\t%s\t%s\n' "$name" "$status" "$ports"
+      else
+        printf '%s %s %s %s\n' "$id" "$name" "$status" "$ports"
+      fi
+    done < <(list_ids "$all")
+    exit 0
+    ;;
+  inspect)
+    fmt=""
+    ids=()
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -f|--format|--format=*)
+          if [[ "$1" == --format=* ]]; then
+            fmt="${1#--format=}"
+          else
+            fmt="$2"
+            shift
+          fi
+          shift
+          ;;
+        *)
+          ids+=("$1")
+          shift
+          ;;
+      esac
+    done
+    id="${ids[0]:-}"
+    if [[ -f "$STATE/fail/inspect/${id}" ]]; then
+      echo "Error: Cannot connect to the Docker daemon" >&2
+      exit 1
+    fi
+    dir="$(cdir "$id")"
+    if [[ ! -d "$dir" ]]; then
+      echo "Error: No such object: $id" >&2
+      exit 1
+    fi
+    name="$(read_file "$dir/name")"
+    status="$(read_file "$dir/status")"
+    image="$(read_file "$dir/image")"
+    net="$(read_file "$dir/network")"
+    ip="$(read_file "$dir/ip")"
+    ports="$(read_file "$dir/ports")"
+    hostp=""
+    if [[ "$ports" =~ :([0-9]+)-\> ]]; then
+      hostp="${BASH_REMATCH[1]}"
+    elif [[ "$ports" =~ 0\.0\.0\.0:([0-9]+) ]]; then
+      hostp="${BASH_REMATCH[1]}"
+    fi
+    case "$fmt" in
+      '{{.Id}}') printf '%s\n' "$id" ;;
+      '{{.Name}}') printf '/%s\n' "${name:-$id}" ;;
+      '{{.State.Status}}') printf '%s\n' "${status:-running}" ;;
+      '{{.Config.Image}}'|'{{.Image}}') printf '%s\n' "${image:-alpine}" ;;
+      '{{range $p,$c := .NetworkSettings.Ports}}{{range $c}}{{.HostPort}}\n{{end}}{{end}}')
+        printf '%s\n' "$hostp"
+        ;;
+      '{{range $p,$c := .NetworkSettings.Ports}}{{range $c}}{{.HostPort}}|{{$p}}{{"\n"}}{{end}}{{end}}')
+        contp="$hostp"
+        if [[ "$ports" =~ -\>([0-9]+) ]]; then
+          contp="${BASH_REMATCH[1]}"
+        fi
+        printf '%s|%s/tcp\n' "$hostp" "$contp"
+        ;;
+      '{{join .Config.Cmd " "}}')
+        printf '%s\n' "$(read_file "$dir/command")"
+        ;;
+      '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}|{{$v.IPAddress}} {{end}}')
+        printf '%s|%s \n' "${net:-bridge}" "${ip:-10.0.0.2}"
+        ;;
+      '{{range $p,$b := .HostConfig.PortBindings}}{{range $b}}{{.HostPort}} {{end}}{{end}}')
+        printf '%s \n' "$hostp"
+        ;;
+      '{{.Endpoints.docker.Host}}')
+        printf '%s\n' "unix:///var/run/docker.sock"
+        ;;
+      '{{range .Mounts}}{{.Source}}{{"\t"}}{{.Destination}}{{"\n"}}{{end}}')
+        exit 0
+        ;;
+      '')
+        echo "{\"Id\":\"$id\",\"Name\":\"/${name:-$id}\"}"
+        ;;
+      *)
+        if [[ "$fmt" == '{{index .Config.Labels "'* ]]; then
+          key="${fmt#*\"}"
+          key="${key%%\"*}"
+          val="$(label_val "$id" "$key")"
+          if [[ -z "$val" ]]; then
+            printf '%s\n' "<no value>"
+          else
+            printf '%s\n' "$val"
+          fi
+        else
+          printf '%s\n' "$id"
+        fi
+        ;;
+    esac
+    exit 0
+    ;;
+  *)
+    exit 0
+    ;;
+esac

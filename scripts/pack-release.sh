@@ -19,9 +19,11 @@ trap 'rm -rf "$stage"' EXIT
 dest="$stage/$name"
 mkdir -p "$dest/bin" "$dest/lib" "$dest/config" "$dest/skill"
 
-for f in dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune; do
-  cp "$ROOT/bin/$f" "$dest/bin/$f"
-  chmod +x "$dest/bin/$f"
+for f in dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor; do
+  if [[ -f "$ROOT/bin/$f" ]]; then
+    cp "$ROOT/bin/$f" "$dest/bin/$f"
+    chmod +x "$dest/bin/$f"
+  fi
 done
 
 CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build -trimpath -ldflags "-s -w" \
@@ -33,7 +35,7 @@ if [[ "$(head -c 2 "$dest/bin/dc-tui")" == "#!" ]]; then
   exit 1
 fi
 
-cp "$ROOT/lib/dc-common.sh" "$dest/lib/dc-common.sh"
+cp "$ROOT/lib/"*.sh "$dest/lib/"
 cp "$ROOT/config/override.json" "$dest/config/override.json"
 cp "$ROOT/skill/SKILL.md" "$dest/skill/SKILL.md"
 cp "$ROOT/install.sh" "$dest/install.sh"

@@ -1,6 +1,6 @@
 ---
 title: "Install dc-cli"
-description: "Install dc-cli with one curl (--with-cli) or Homebrew. Release kits include the clickable TUI. Clone with no flags is wrappers only."
+description: "Install dc-cli with one curl (--with-cli standalone) or Homebrew. Release kits include the clickable TUI. Clone with no flags is wrappers only."
 h1: "One curl. Then source your shell."
 updated: 2026-08-15
 howto: true
@@ -8,7 +8,7 @@ steps:
   - name: Run the installer
     text: curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
   - name: Reload the shell
-    text: source ~/.zshrc or ~/.bashrc so ~/bin is on PATH.
+    text: Open a new terminal, or source ~/.zshrc / ~/.bashrc so generation current/bin is on PATH.
   - name: Confirm
     text: dc-tui --help or dc-up --help should print usage.
 ---
@@ -33,13 +33,14 @@ brew install dc-cli
 
 | Flag | What you get |
 |---|---|
-| *(default)* | wrappers in `~/bin` only — **not** the official CLI |
-| `--with-cli` | `npm i -g @devcontainers/cli` if missing |
+| *(default)* | wrappers generation only — **not** the official CLI |
+| `--with-cli` | official **standalone** CLI if missing (never npm) |
+| `--with-cli-npm` | explicit exact-pin npm fallback (host Node must meet that package's `engines.node`) |
 | `--with-skill` | copy the agent skill into homes you already have |
 | `--full` | `--with-cli` + `--with-skill` |
 | `--ref v0.4.3` / `main` | pin a tag or use HEAD |
 
-The advertised curl passes `--with-cli` so `devcontainer` is on PATH (`npm i -g` if missing; needs Node 18+). Clone or `bash install.sh` with no flags stays wrappers only.
+The advertised curl passes `--with-cli` so `devcontainer` is on PATH via the **upstream standalone** installer (bundled Node major, mutable patch). npm is **only** `--with-cli-npm` with an exact qualified pin. The compatibility floor is whatever `docs/qualification/devcontainer-cli-floor.md` records — current registry `0.88.0` / Node 20 is candidate evidence, not a pre-approved floor. Clone or `bash install.sh` with no flags stays wrappers only.
 
 ## Skill
 

@@ -138,96 +138,134 @@ if [[ ${#cleaned[@]} -eq 0 ]]; then
 fi
 ids=("${cleaned[@]}")
 
-drop_sidecars() {
-  local id="$1" fwd fid
-  fwd="$(command -v dc-forward 2>/dev/null || true)"
-  if [[ -z "$fwd" && -x "$_here/dc-forward" ]]; then
-    fwd="$_here/dc-forward"
-  fi
-  if [[ -n "$fwd" ]]; then
-    "$fwd" --stop --id "$id" >/dev/null 2>&1 || true
-  else
-    while IFS= read -r fid; do
-      [[ -n "$fid" ]] || continue
-      docker rm -f "$fid" >/dev/null 2>&1 || true
-    done < <(docker ps -aq --filter "label=dc.forward.for=${id}" 2>/dev/null)
-  fi
-}
-
-compose_projects=()
-declare -A compose_seen=()
-
-queue_compose() {
-  local proj="$1"
-  [[ -n "$proj" && "$proj" != "<no value>" ]] || return 0
-  [[ -n "${compose_seen[$proj]:-}" ]] && return 0
-  compose_seen[$proj]=1
-  compose_projects+=("$proj")
-}
-
-stop_app_only() {
-  local id="$1"
-  local name status folder
-  name="$(docker inspect -f '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')" || name="?"
-  status="$(docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo missing)"
-  folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id" 2>/dev/null || true)"
-  [[ "$folder" == "<no value>" ]] && folder=""
-
-  drop_sidecars "$id"
-
-  if [[ "$status" == "running" ]]; then
-    docker stop "$id" >/dev/null
-    echo "$id  $name  folder=${folder:-}  stopped (app only)"
-  elif [[ "$status" == "missing" ]]; then
-    echo "$id  missing" >&2
-    return
-  else
-    echo "$id  $name  folder=${folder:-}  already ${status} (app only)"
-  fi
-
-  if [[ "$remove" -eq 1 ]]; then
-    if [[ "$volumes" -eq 1 ]]; then
-      docker rm -v "$id" >/dev/null 2>&1 || docker rm "$id" >/dev/null 2>&1 || true
-      echo "$id  removed (+ anonymous volumes)"
-    else
-      docker rm "$id" >/dev/null 2>&1 || true
-      echo "$id  removed"
+dc_down_apply() {
+  drop_sidecars() {
+    local id="$1" fwd fid
+    fwd="$(command -v dc-forward 2>/dev/null || true)"
+    if [[ -z "$fwd" && -x "$_here/dc-forward" ]]; then
+      fwd="$_here/dc-forward"
     fi
-  fi
-}
+    if [[ -n "$fwd" ]]; then
+      "$fwd" --stop --id "$id" >/dev/null 2>&1 || true
+    else
+      while IFS= read -r fid; do
+        [[ -n "$fid" ]] || continue
+        docker rm -f "$fid" >/dev/null 2>&1 || true
+      done < <(docker ps -aq --filter "label=dc.forward.for=${id}" 2>/dev/null)
+    fi
+  }
 
-for id in "${ids[@]}"; do
-  name="$(docker inspect -f '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')" || name="?"
-  folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id" 2>/dev/null || true)"
-  proj="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_COMPOSE}\"}}" "$id" 2>/dev/null || true)"
-  [[ "$folder" == "<no value>" ]] && folder=""
-  [[ "$proj" == "<no value>" ]] && proj=""
+  local -a compose_projects=()
+  declare -A compose_seen=()
+  declare -A compose_folder=()
+  local fail=0
+  local id name folder proj claimants n cfolder presence
 
-  # Always free sidecars for this labeled app.
-  drop_sidecars "$id"
+  queue_compose() {
+    local p="$1" just="$2"
+    [[ -n "$p" && "$p" != "<no value>" ]] || return 0
+    [[ -n "${compose_seen[$p]:-}" ]] && return 0
+    compose_seen[$p]=1
+    compose_projects+=("$p")
+    compose_folder[$p]="$just"
+  }
 
-  if [[ "$stack" -eq 1 && -n "$proj" ]]; then
-    queue_compose "$proj"
-    echo "$id  $name  compose=$proj  folder=${folder:-}  (full stack)"
-    continue
-  fi
+  stop_app_only() {
+    local cid="$1"
+    local cname cstatus cfolder
+    if ! IFS='|' read -r _ cstatus cfolder _ _ < <(dc_revalidate_container "$cid"); then
+      echo "$cid  skipped (revalidate failed)" >&2
+      fail=1
+      return 0
+    fi
+    cname="$(docker inspect -f '{{.Name}}' "$cid" 2>/dev/null | sed 's#^/##')" || cname="?"
+    drop_sidecars "$cid"
 
-  # No compose label, or --app: single container.
-  stop_app_only "$id"
-done
+    if [[ "$cstatus" == "running" ]]; then
+      docker stop "$cid" >/dev/null
+      echo "$cid  $cname  folder=${cfolder:-}  stopped (app only)"
+    else
+      echo "$cid  $cname  folder=${cfolder:-}  already ${cstatus} (app only)"
+    fi
 
-if [[ ${#compose_projects[@]} -gt 0 ]]; then
-  for proj in "${compose_projects[@]}"; do
     if [[ "$remove" -eq 1 ]]; then
       if [[ "$volumes" -eq 1 ]]; then
-        docker compose -p "$proj" down -v
+        docker rm -v "$cid" >/dev/null 2>&1 || docker rm "$cid" >/dev/null 2>&1 || true
+        echo "$cid  removed (+ anonymous volumes)"
       else
-        docker compose -p "$proj" down
+        docker rm "$cid" >/dev/null 2>&1 || true
+        echo "$cid  removed"
       fi
-      echo "compose $proj  down (all services)"
-    else
-      docker compose -p "$proj" stop
-      echo "compose $proj  stopped (all services)"
     fi
+  }
+
+  for id in "${ids[@]}"; do
+    if ! IFS='|' read -r _ _ folder proj _ < <(dc_revalidate_container "$id"); then
+      echo "$id  skipped (revalidate failed)" >&2
+      fail=1
+      continue
+    fi
+    name="$(docker inspect -f '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')" || name="?"
+
+    drop_sidecars "$id"
+
+    if [[ "$stack" -eq 1 && -n "$proj" ]]; then
+      queue_compose "$proj" "$folder"
+      echo "$id  $name  compose=$proj  folder=${folder:-}  (full stack)"
+      continue
+    fi
+
+    stop_app_only "$id"
   done
-fi
+
+  if [[ ${#compose_projects[@]} -gt 0 ]]; then
+    for proj in "${compose_projects[@]}"; do
+      n=0
+      claimants=""
+      while IFS= read -r cfolder; do
+        [[ -n "$cfolder" ]] || continue
+        n=$((n + 1))
+        claimants="${claimants}${claimants:+ }$cfolder"
+      done < <(dc_compose_claimants "$proj")
+      if [[ "$n" -gt 1 ]]; then
+        echo "dc-down: refuse compose-wide mutation for $proj (claimants: $claimants)" >&2
+        fail=1
+        continue
+      fi
+      if [[ "$n" -eq 1 && -n "${compose_folder[$proj]:-}" ]]; then
+        if ! dc_same_workspace "$claimants" "${compose_folder[$proj]}" 2>/dev/null && [[ "$claimants" != "${compose_folder[$proj]}" ]]; then
+          echo "dc-down: compose $proj folder changed ($claimants != ${compose_folder[$proj]})" >&2
+          fail=1
+          continue
+        fi
+      fi
+      if [[ "$remove" -eq 1 ]]; then
+        if [[ "$volumes" -eq 1 ]]; then
+          if ! docker compose -p "$proj" down -v; then
+            echo "dc-down: compose $proj down -v failed" >&2
+            fail=1
+            continue
+          fi
+        else
+          if ! docker compose -p "$proj" down; then
+            echo "dc-down: compose $proj down failed" >&2
+            fail=1
+            continue
+          fi
+        fi
+        echo "compose $proj  down (all services)"
+      else
+        if ! docker compose -p "$proj" stop; then
+          echo "dc-down: compose $proj stop failed" >&2
+          fail=1
+          continue
+        fi
+        echo "compose $proj  stopped (all services)"
+      fi
+    done
+  fi
+
+  return "$fail"
+}
+
+dc_with_mutation_lock dc_down_apply

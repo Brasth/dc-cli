@@ -6,6 +6,12 @@ DC_LABEL_FOLDER="devcontainer.local_folder"
 DC_LABEL_COMPOSE="com.docker.compose.project"
 DC_LABEL_SERVICE="com.docker.compose.service"
 
+_dc_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$_dc_lib_dir/dc-floor.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_dc_lib_dir/dc-floor.sh"
+fi
+
 dc_json_escape() {
   local s="$1"
   if command -v python3 >/dev/null 2>&1; then
@@ -424,9 +430,21 @@ dc_container_net_ip() {
 
 # Host ports already published on this container (not our sidecars).
 dc_published_host_ports() {
+  dc_published_port_pairs "$1" | awk -F'|' '{print $1}'
+}
+
+# host|container pairs published on the app (PortBindings / Ports).
+dc_published_port_pairs() {
   local id="$1"
-  docker inspect -f '{{range $p,$c := .NetworkSettings.Ports}}{{range $c}}{{.HostPort}}\n{{end}}{{end}}' "$id" 2>/dev/null |
-    awk 'NF && $0 != "<no value>"'
+  [[ -n "$id" ]] || return 0
+  docker inspect -f '{{range $p,$c := .NetworkSettings.Ports}}{{range $c}}{{.HostPort}}|{{$p}}{{"\n"}}{{end}}{{end}}' "$id" 2>/dev/null |
+    awk -F'|' 'NF>=1 && $1 != "" && $1 != "<no value>" {
+      split($2, a, "/")
+      split(a[1], b, ":")
+      c=b[1]
+      if (c == "") next
+      print $1 "|" c
+    }'
 }
 
 # Host ports mentioned in an error log ("Bind for 0.0.0.0:9001 failed").
@@ -466,7 +484,7 @@ dc_holders_of_host_port() {
     folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id" 2>/dev/null || true)"
     [[ "$folder" == "<no value>" ]] && folder=""
     [[ "$compose" == "<no value>" ]] && compose=""
-    printf '%s\t%s\t%s\t%s\t%s\n' "$id" "$name" "$compose" "$folder" "$ports"
+    printf '%s\t%s\t%s\t%s\t%s\n' "$id" "$name" "${compose:--}" "${folder:--}" "$ports"
   done < <(docker ps -q 2>/dev/null)
 }
 
@@ -486,47 +504,101 @@ dc_holders_of_ports() {
   done
 }
 
-# Stop a container that is blocking a host port. Prefer compose project stop
-# when labeled; else docker stop this container only.
+# Stop a positively identified foreign holder. Unlabeled / unknown / ambiguous
+# holders are report-only (no docker stop / compose stop fallback).
+# Usage: dc_stop_port_holder ID [CURRENT_WORKSPACE]
 dc_stop_port_holder() {
-  local id="$1" name compose folder
-  name="$(docker inspect -f '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')"
-  compose="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_COMPOSE}\"}}" "$id" 2>/dev/null || true)"
-  folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id" 2>/dev/null || true)"
-  [[ "$compose" == "<no value>" ]] && compose=""
-  [[ "$folder" == "<no value>" ]] && folder=""
-  # dc-down default = full compose stack (mitm/db/…), which frees host ports.
-  if [[ -n "$folder" && -d "$folder" ]] && command -v dc-down >/dev/null 2>&1; then
-    echo "stop holder stack via dc-down  $folder  ($name)"
-    dc-down "$folder" || docker compose -p "$compose" stop >/dev/null 2>&1 || docker stop "$id" >/dev/null
-  elif [[ -n "$compose" ]]; then
-    echo "stop holder compose  $compose  ($name)"
-    docker compose -p "$compose" stop >/dev/null 2>&1 || docker stop "$id" >/dev/null
-  else
-    echo "stop holder  $name  ${id:0:12}"
-    docker stop "$id" >/dev/null
+  dc_with_mutation_lock _dc_stop_port_holder_locked "$@"
+}
+
+_dc_stop_port_holder_locked() {
+  local id="$1" current_ws="${2:-}"
+  local name kind reason folder compose target_id target_ws presence
+  presence="$(dc_inspect_presence "$id")"
+  if [[ "$presence" != "present" ]]; then
+    echo "report-only holder ${id:0:12} reason=inspect-${presence}" >&2
+    return 1
   fi
+  name="$(docker inspect -f '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')"
+  IFS='|' read -r kind reason folder compose target_id target_ws < <(dc_classify_port_holder "$id" "$current_ws")
+  case "$reason" in
+    same-workspace)
+      echo "skip self  ${id:0:12}  (same workspace)"
+      return 0
+      ;;
+    unlabeled|folder-missing|ambiguous-compose|sidecar-unresolved|sidecar-ambiguous|inspect-unknown|sidecar-inspect-unknown)
+      echo "report-only holder ${id:0:12}  ${name:-?}  reason=${reason}" >&2
+      return 1
+      ;;
+  esac
+  case "$kind" in
+    sidecar)
+      if [[ "$reason" == "orphan-absent" ]]; then
+        if [[ "$(dc_inspect_presence "$id")" != "present" ]]; then
+          echo "report-only holder ${id:0:12} reason=inspect-unknown" >&2
+          return 1
+        fi
+        echo "stop holder sidecar (orphan-absent)  ${name:-?}  ${id:0:12}"
+        docker rm -f "$id" >/dev/null
+        return 0
+      fi
+      if [[ -n "$target_ws" && -d "$target_ws" ]] && command -v dc-down >/dev/null 2>&1; then
+        echo "stop holder sidecar via dc-down  $target_ws  ($name)"
+        dc-down "$target_ws"
+        return
+      fi
+      echo "stop holder sidecar  ${name:-?}  ${id:0:12}"
+      docker rm -f "$id" >/dev/null
+      return 0
+      ;;
+    app)
+      if [[ -n "$folder" && -d "$folder" ]] && command -v dc-down >/dev/null 2>&1; then
+        echo "stop holder stack via dc-down  $folder  ($name)"
+        dc-down "$folder"
+        return
+      fi
+      echo "report-only holder ${id:0:12}  ${name:-?}  reason=folder-missing" >&2
+      return 1
+      ;;
+  esac
+  echo "report-only holder ${id:0:12}  ${name:-?}  reason=${reason:-unlabeled}" >&2
+  return 1
 }
 
 # Wanted HOST ports from compose + .devcontainer (no project edits).
 dc_wanted_host_ports() {
+  dc_wanted_port_pairs "$1" | awk -F'|' '{print $1}'
+}
+
+# host|container|provenance   provenance = compose|forwardPorts|fallback
+dc_wanted_port_pairs() {
   local ws="$1"
   if ! command -v python3 >/dev/null 2>&1; then
-    printf '%s\n' 3000 5173 8080 4000 5000 8000 9229
+    printf '%s\n' '3000|3000|fallback'
     return 0
   fi
   python3 - "$ws" <<'PY'
 import json, os, re, sys
 ws = sys.argv[1]
-found = []
+found = []  # (host, container, provenance)
 
-def add(p):
+def add(host, container=None, prov="forwardPorts"):
     try:
-        n = int(str(p).split(":")[0])
+        raw = str(host)
+        if ":" in raw and container is None:
+            a, b = raw.split(":", 1)
+            h, c = int(a), int(b.split("/")[0])
+        else:
+            h = int(raw)
+            c = int(container) if container is not None else h
     except ValueError:
         return
-    if 1 <= n <= 65535 and n not in found:
-        found.append(n)
+    if not (1 <= h <= 65535 and 1 <= c <= 65535):
+        return
+    key = (h, c)
+    if any(x[0] == h and x[1] == c for x in found):
+        return
+    found.append((h, c, prov))
 
 def walk(node):
     if isinstance(node, dict):
@@ -535,11 +607,13 @@ def walk(node):
                 if isinstance(v, list):
                     for item in v:
                         if isinstance(item, dict):
-                            add(item.get("hostPort") or item.get("published") or item.get("containerPort") or item.get("target"))
+                            hp = item.get("hostPort") or item.get("published")
+                            cp = item.get("containerPort") or item.get("target")
+                            add(hp or cp, cp or hp, "forwardPorts")
                         else:
-                            add(item)
+                            add(item, None, "forwardPorts")
                 else:
-                    add(v)
+                    add(v, None, "forwardPorts")
             else:
                 walk(v)
     elif isinstance(node, list):
@@ -547,7 +621,7 @@ def walk(node):
             walk(x)
 
 svc_ok = re.compile(r"^(app|web|next|frontend|ui|devcontainer)\s*:\s*$")
-port_line = re.compile(r"[-:]\s*[\"']?(\d{2,5})(?::\d{2,5})?[\"']?\s*$")
+port_line = re.compile(r"[-:]\s*[\"']?(\d{2,5})(?::(\d{2,5}))?[\"']?\s*$")
 for root, dirs, files in os.walk(ws):
     dirs[:] = [d for d in dirs if d not in (".git", "node_modules", ".pnpm-store", "dist", "build", ".next")]
     if root.count(os.sep) - ws.count(os.sep) > 3:
@@ -583,7 +657,7 @@ for root, dirs, files in os.walk(ws):
                     if re.match(r"\s*-\s", line):
                         m = port_line.search(line)
                         if m:
-                            add(m.group(1))
+                            add(m.group(1), m.group(2) or m.group(1), "compose")
                     else:
                         in_ports = False
         if name == "devcontainer.json" or path.endswith(".devcontainer.json"):
@@ -598,12 +672,12 @@ for root, dirs, files in os.walk(ws):
             except json.JSONDecodeError:
                 for m in re.finditer(r"\"(?:forwardPorts|appPort)\"\s*:\s*(\[[^\]]*\]|\d+)", raw):
                     for n in re.findall(r"\d{2,5}", m.group(1)):
-                        add(n)
+                        add(n, n, "forwardPorts")
 
 if not found:
-    found = [3000]
-for n in found:
-    print(n)
+    found = [(3000, 3000, "fallback")]
+for h, c, p in found:
+    print("%s|%s|%s" % (h, c, p))
 PY
 }
 
@@ -617,18 +691,106 @@ dc_fwd_ids_for() {
   docker ps -aq --filter "label=${DC_FWD_LABEL}=${id}" 2>/dev/null || true
 }
 
-# Sidecars whose target container id is gone (or never existed).
+dc_fwd_workspace_key() {
+  local id="$1" folder
+  folder="$(dc_label "$id" "$DC_LABEL_FOLDER")"
+  if [[ -n "$folder" ]]; then
+    printf '%s\n' "$folder"
+    return 0
+  fi
+  return 1
+}
+
+dc_unique_app_id() {
+  local dir="${1:-.}" explicit="${2:-}"
+  local -a ids=()
+  local id n=0
+  if [[ -n "$explicit" ]]; then
+    if [[ "$(dc_inspect_presence "$explicit")" != "present" ]]; then
+      echo "dc-forward: --id $explicit not found" >&2
+      return 1
+    fi
+    printf '%s\n' "$explicit"
+    return 0
+  fi
+  mapfile -t ids < <(dc_ids_for_workspace "$dir")
+  for id in "${ids[@]+"${ids[@]}"}"; do
+    [[ -n "$id" ]] && n=$((n + 1))
+  done
+  if [[ "$n" -eq 0 ]]; then
+    echo "No matching running/labeled container. Start with dc-up first." >&2
+    return 1
+  fi
+  if [[ "$n" -gt 1 ]]; then
+    echo "dc-forward: duplicate labeled apps; pass --id. matches:" >&2
+    for id in "${ids[@]}"; do
+      [[ -n "$id" ]] || continue
+      echo "  $id" >&2
+    done
+    return 1
+  fi
+  printf '%s\n' "${ids[0]}"
+}
+
+dc_fwd_ids_for_workspace() {
+  local key="$1" cid owner ws forid folder
+  [[ -n "$key" ]] || return 0
+  while IFS= read -r cid; do
+    [[ -n "$cid" ]] || continue
+    owner="$(dc_label "$cid" "dc.forward.owner")"
+    ws="$(dc_label "$cid" "dc.forward.workspace")"
+    forid="$(dc_label "$cid" "$DC_FWD_LABEL")"
+    if [[ "$owner" == "dc-cli" && -n "$ws" ]]; then
+      if [[ "$ws" == "$key" ]] || dc_same_workspace "$ws" "$key" 2>/dev/null; then
+        printf '%s\n' "$cid"
+        continue
+      fi
+    fi
+    # Legacy: for→this workspace while target is Present, only if full fingerprint holds.
+    # Labels alone are never enough (spoof ban).
+    if [[ -n "$forid" && "$owner" != "dc-cli" ]]; then
+      if [[ "$(dc_inspect_presence "$forid")" == "present" ]]; then
+        folder="$(dc_label "$forid" "$DC_LABEL_FOLDER")"
+        if [[ -n "$folder" ]] && { [[ "$folder" == "$key" ]] || dc_same_workspace "$folder" "$key" 2>/dev/null; }; then
+          if dc_fwd_fingerprint_ok "$cid"; then
+            printf '%s\n' "$cid"
+          fi
+        fi
+      fi
+    fi
+  done < <(docker ps -aq --filter "label=${DC_FWD_LABEL}" 2>/dev/null)
+}
+
+dc_fwd_fingerprint_ok() {
+  local id="$1" want_host="${2:-}"
+  local name image cmd host lab_host
+  name="$(docker inspect -f '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')"
+  image="$(docker inspect -f '{{.Config.Image}}' "$id" 2>/dev/null || true)"
+  cmd="$(docker inspect -f '{{join .Config.Cmd " "}}' "$id" 2>/dev/null || true)"
+  lab_host="$(dc_label "$id" "dc.forward.host")"
+  [[ -n "$(dc_label "$id" "$DC_FWD_LABEL")" ]] || return 1
+  [[ -n "$lab_host" ]] || return 1
+  [[ "$name" == dc-fwd-* ]] || return 1
+  [[ "$image" == *socat* || "$image" == "${DC_FWD_IMAGE}"* ]] || return 1
+  printf '%s' "$cmd" | grep -q 'TCP-LISTEN' || return 1
+  if [[ -n "$want_host" && "$lab_host" != "$want_host" ]]; then
+    return 1
+  fi
+  return 0
+}
+
+# Sidecars whose target is tri-state definitively absent (never inspect-unknown).
 dc_orphan_forward_ids() {
-  local cid target st
+  local cid target presence
   if ! command -v docker >/dev/null 2>&1; then
     return 0
   fi
   while IFS= read -r cid; do
     [[ -n "$cid" ]] || continue
-    target="$(docker inspect -f "{{index .Config.Labels \"${DC_FWD_LABEL}\"}}" "$cid" 2>/dev/null || true)"
-    [[ -n "$target" && "$target" != "<no value>" ]] || continue
-    st="$(docker inspect -f '{{.State.Status}}' "$target" 2>/dev/null || echo missing)"
-    if [[ "$st" == "missing" ]]; then
+    target="$(dc_label "$cid" "$DC_FWD_LABEL")"
+    [[ -n "$target" ]] || continue
+    presence="$(dc_inspect_presence "$target")"
+    if [[ "$presence" == "absent" ]]; then
       printf '%s\n' "$cid"
     fi
   done < <(docker ps -aq --filter "label=${DC_FWD_LABEL}" 2>/dev/null)
@@ -645,5 +807,283 @@ dc_workspace_image_ids() {
     [[ -n "$id" ]] || continue
     docker inspect -f '{{.Image}}' "$id" 2>/dev/null || true
   done < <(dc_ids_for_workspace "$dir")
+}
+
+# --- Safety helpers (ownership, tri-state inspect, mutation lock) ---
+
+dc_label() {
+  local id="$1" key="$2" v
+  v="$(docker inspect -f "{{index .Config.Labels \"${key}\"}}" "$id" 2>/dev/null || true)"
+  [[ "$v" == "<no value>" ]] && v=""
+  printf '%s' "$v"
+}
+
+# present | absent | unknown — engine/transport errors are unknown, never absent.
+dc_inspect_presence() {
+  local id="$1" out rc
+  if [[ -z "$id" ]]; then
+    printf '%s\n' unknown
+    return 0
+  fi
+  if ! command -v docker >/dev/null 2>&1; then
+    printf '%s\n' unknown
+    return 0
+  fi
+  set +e
+  out="$(docker inspect -f '{{.Id}}' "$id" 2>&1)"
+  rc=$?
+  set -e
+  if [[ "$rc" -eq 0 && -n "$out" && "$out" != *"Error"* && "$out" != *"error"* ]]; then
+    printf '%s\n' present
+    return 0
+  fi
+  if printf '%s' "$out" | grep -qiE 'no such object|no such container|no such image'; then
+    printf '%s\n' absent
+    return 0
+  fi
+  printf '%s\n' unknown
+}
+
+dc_is_positive_dc_container() {
+  local id="$1" folder
+  folder="$(dc_label "$id" "$DC_LABEL_FOLDER")"
+  [[ -n "$folder" ]]
+}
+
+# Distinct labeled workspace folders claiming compose project $1.
+dc_compose_claimants() {
+  local proj="$1" id folder p existing match
+  local -a out=()
+  [[ -n "$proj" && "$proj" != "<no value>" ]] || return 0
+  while IFS= read -r id; do
+    [[ -n "$id" ]] || continue
+    p="$(dc_label "$id" "$DC_LABEL_COMPOSE")"
+    [[ "$p" == "$proj" ]] || continue
+    folder="$(dc_label "$id" "$DC_LABEL_FOLDER")"
+    [[ -n "$folder" ]] || continue
+    match=0
+    for existing in "${out[@]+"${out[@]}"}"; do
+      if [[ "$existing" == "$folder" ]] || dc_same_workspace "$existing" "$folder" 2>/dev/null; then
+        match=1
+        break
+      fi
+    done
+    [[ "$match" -eq 1 ]] && continue
+    out+=("$folder")
+  done < <(dc_labeled_ids)
+  for folder in "${out[@]+"${out[@]}"}"; do
+    printf '%s\n' "$folder"
+  done
+}
+
+# Pipe-delimited: id|status|folder|compose|fwd — fail if not present.
+dc_revalidate_container() {
+  local id="$1" presence status folder compose fwd
+  presence="$(dc_inspect_presence "$id")"
+  if [[ "$presence" != "present" ]]; then
+    return 1
+  fi
+  status="$(docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || true)"
+  folder="$(dc_label "$id" "$DC_LABEL_FOLDER")"
+  compose="$(dc_label "$id" "$DC_LABEL_COMPOSE")"
+  fwd="$(dc_label "$id" "$DC_FWD_LABEL")"
+  printf '%s|%s|%s|%s|%s\n' "$id" "$status" "$folder" "$compose" "$fwd"
+}
+
+# Pipe-delimited: kind|reason|folder|compose|target_id|target_ws
+dc_classify_port_holder() {
+  local id="$1" current_ws="${2:-}"
+  local presence folder compose fwd target_presence target_ws claimants n
+  presence="$(dc_inspect_presence "$id")"
+  if [[ "$presence" != "present" ]]; then
+    printf 'unknown|inspect-unknown||||\n'
+    return 0
+  fi
+  folder="$(dc_label "$id" "$DC_LABEL_FOLDER")"
+  compose="$(dc_label "$id" "$DC_LABEL_COMPOSE")"
+  fwd="$(dc_label "$id" "$DC_FWD_LABEL")"
+
+  if [[ -n "$fwd" ]]; then
+    target_presence="$(dc_inspect_presence "$fwd")"
+    if [[ "$target_presence" == "unknown" ]]; then
+      printf 'sidecar|sidecar-inspect-unknown|%s|%s|%s|\n' "$folder" "$compose" "$fwd"
+      return 0
+    fi
+    if [[ "$target_presence" == "present" ]]; then
+      target_ws="$(dc_label "$fwd" "$DC_LABEL_FOLDER")"
+      if [[ -z "$target_ws" ]]; then
+        printf 'sidecar|sidecar-unresolved|%s|%s|%s|\n' "$folder" "$compose" "$fwd"
+        return 0
+      fi
+      if [[ -n "$current_ws" ]] && dc_same_workspace "$target_ws" "$current_ws" 2>/dev/null; then
+        printf 'sidecar|same-workspace|%s|%s|%s|%s\n' "$folder" "$compose" "$fwd" "$target_ws"
+        return 0
+      fi
+      printf 'sidecar|foreign|%s|%s|%s|%s\n' "$folder" "$compose" "$fwd" "$target_ws"
+      return 0
+    fi
+    printf 'sidecar|orphan-absent|%s|%s|%s|\n' "$folder" "$compose" "$fwd"
+    return 0
+  fi
+
+  if [[ -z "$folder" ]]; then
+    printf 'unlabeled|unlabeled||%s||\n' "$compose"
+    return 0
+  fi
+  if [[ -n "$current_ws" ]] && dc_same_workspace "$folder" "$current_ws" 2>/dev/null; then
+    printf 'app|same-workspace|%s|%s||\n' "$folder" "$compose"
+    return 0
+  fi
+  if [[ ! -d "$folder" ]]; then
+    printf 'app|folder-missing|%s|%s||\n' "$folder" "$compose"
+    return 0
+  fi
+  if [[ -n "$compose" ]]; then
+    n=0
+    while IFS= read -r claimants; do
+      [[ -n "$claimants" ]] || continue
+      n=$((n + 1))
+    done < <(dc_compose_claimants "$compose")
+    if [[ "$n" -gt 1 ]]; then
+      printf 'ambiguous|ambiguous-compose|%s|%s||\n' "$folder" "$compose"
+      return 0
+    fi
+  fi
+  printf 'app|foreign|%s|%s||\n' "$folder" "$compose"
+}
+
+# Succeed-or-fail list of containers mounting volume NAME. Failure ≠ empty.
+dc_volume_mount_inventory() {
+  local name="$1" out rc
+  [[ -n "$name" ]] || return 1
+  if ! command -v docker >/dev/null 2>&1; then
+    return 1
+  fi
+  set +e
+  out="$(docker ps -aq --filter "volume=${name}" 2>&1)"
+  rc=$?
+  set -e
+  if [[ "$rc" -ne 0 ]]; then
+    return 1
+  fi
+  if printf '%s' "$out" | grep -qiE 'error|cannot connect|permission denied'; then
+    return 1
+  fi
+  printf '%s\n' "$out"
+  return 0
+}
+
+dc_engine_lock_key() {
+  local host ctx raw
+  host="${DOCKER_HOST:-}"
+  if [[ -z "$host" ]] && command -v docker >/dev/null 2>&1; then
+    ctx="$(docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)"
+    host="${ctx:-}"
+  fi
+  host="${host:-unix:///var/run/docker.sock}"
+  raw="${host}|${USER:-$(id -un 2>/dev/null || echo user)}"
+  dc_hex "$raw"
+}
+
+dc_mutation_lock_root() {
+  printf '%s\n' "${DC_MUTATION_LOCK_ROOT:-${XDG_RUNTIME_DIR:-/tmp}/dc-cli/locks}"
+}
+
+dc_pid_start() {
+  local pid="$1"
+  ps -p "$pid" -o lstart= 2>/dev/null | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
+dc_mutation_lock_held() {
+  local key="${1:-}"
+  [[ -n "${DC_MUTATION_LOCK_TOKEN:-}" ]] || return 1
+  if [[ -n "$key" && "${DC_MUTATION_LOCK_ENGINE:-}" != "$key" ]]; then
+    return 1
+  fi
+  return 0
+}
+
+# Conjunctive dead-owner recovery. Never age/mtime alone.
+dc_mutation_lock_try_reclaim_dead() {
+  local lockdir="$1" meta pid start now
+  meta="${lockdir}/owner"
+  [[ -d "$lockdir" && -f "$meta" ]] || return 1
+  pid="$(sed -n 's/^pid=//p' "$meta" | head -1)"
+  start="$(sed -n 's/^start=//p' "$meta" | head -1)"
+  [[ -n "$pid" && -n "$start" ]] || return 1
+  if ! [[ "$pid" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+  if kill -0 "$pid" 2>/dev/null; then
+    now="$(dc_pid_start "$pid")"
+    if [[ -n "$now" && "$now" == "$start" ]]; then
+      return 1
+    fi
+  fi
+  rm -rf "$lockdir"
+  return 0
+}
+
+# Top-level acquire or inherit. Usage: dc_with_mutation_lock cmd [args...]
+dc_with_mutation_lock() {
+  local key lockroot lockdir token wait_s elapsed rc nest
+  if [[ $# -lt 1 ]]; then
+    echo "dc_with_mutation_lock: missing command" >&2
+    return 2
+  fi
+  key="$(dc_engine_lock_key)"
+  if dc_mutation_lock_held "$key"; then
+    nest="${DC_MUTATION_LOCK_NEST:-1}"
+    export DC_MUTATION_LOCK_NEST=$((nest + 1))
+    "$@"
+    rc=$?
+    export DC_MUTATION_LOCK_NEST="$nest"
+    return "$rc"
+  fi
+
+  lockroot="$(dc_mutation_lock_root)"
+  if ! mkdir -p "$lockroot" 2>/dev/null; then
+    echo "dc: mutation lock dir unwritable: $lockroot" >&2
+    return 1
+  fi
+  lockdir="${lockroot}/${key}.lock"
+  token="$(dc_hex "$$-$(date +%s)-${RANDOM:-0}")"
+  wait_s="${DC_MUTATION_LOCK_WAIT:-8}"
+  elapsed=0
+  while ! mkdir "$lockdir" 2>/dev/null; do
+    if dc_mutation_lock_try_reclaim_dead "$lockdir"; then
+      continue
+    fi
+    if [[ "$elapsed" -ge "$wait_s" ]]; then
+      echo "dc: mutation lock busy for engine ${key:0:12} (waited ${wait_s}s)" >&2
+      return 1
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+
+  {
+    printf 'pid=%s\n' "$$"
+    printf 'start=%s\n' "$(dc_pid_start "$$")"
+    printf 'engine=%s\n' "$key"
+    printf 'token=%s\n' "$token"
+  } >"${lockdir}/owner"
+
+  export DC_MUTATION_LOCK_TOKEN="$token"
+  export DC_MUTATION_LOCK_ENGINE="$key"
+  export DC_MUTATION_LOCK_OWNER_PID="$$"
+  export DC_MUTATION_LOCK_NEST=1
+  export DC_MUTATION_LOCK_PATH="$lockdir"
+
+  set +e
+  "$@"
+  rc=$?
+  set -e
+  if [[ "${DC_MUTATION_LOCK_OWNER_PID:-}" == "$$" ]]; then
+    rm -rf "$lockdir"
+    unset DC_MUTATION_LOCK_TOKEN DC_MUTATION_LOCK_ENGINE DC_MUTATION_LOCK_OWNER_PID
+    unset DC_MUTATION_LOCK_NEST DC_MUTATION_LOCK_PATH
+  fi
+  return "$rc"
 }
 

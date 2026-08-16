@@ -43,10 +43,11 @@ class DcCli < Formula
 
   def caveats
     <<~EOS
-      Needs Docker (Colima or Desktop). Official CLI is separate:
-        npm i -g @devcontainers/cli
-      Curl users should pass --with-cli:
+      Needs Docker (Colima or Desktop). Official CLI is separate.
+      Preferred: standalone via advertised curl --with-cli
         curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
+      Explicit npm (exact pin only, never implied by --with-cli):
+        bash install.sh --with-cli-npm
 
       Port override example (dc-up --ports):
         #{pkgshare}/override.json

@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Publish host ports into a running devcontainer.
-# Colima cannot reach 172.x from the Mac — use a sidecar on the Docker network,
-# not host socat.
+# On-demand reconcile of owned forward sidecars (host+container pairs).
 set -euo pipefail
 
 _here="$(cd "$(dirname "$0")" && pwd)"
@@ -12,7 +10,7 @@ elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
   # shellcheck source=/dev/null
   source "${HOME}/.config/devcontainer/dc-common.sh"
 else
-  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  echo "dc-common.sh not found" >&2
   exit 1
 fi
 
@@ -21,29 +19,22 @@ workspace="."
 explicit_id=""
 do_stop=0
 do_status=0
-# leftover positional port specs
 ports=()
 
 usage() {
   cat <<'EOF'
-dc-forward — publish host ports into a running container (sidecar)
+dc-forward — reconcile owned sidecars (host:container pairs)
 
-  dc-forward [workspace]                 detect compose / forwardPorts, sidecar them
-  dc-forward [workspace] 3000 5173       those host ports (same port inside)
-  dc-forward 3000:3000                   explicit HOST:CONTAINER
+  dc-forward [workspace]                 auto desired set from compose / forwardPorts
+  dc-forward [workspace] 3000 5173       those host ports (container=host if omitted)
+  dc-forward 9001:80                     asymmetric pair
   dc-forward --id NAME_OR_ID 3000
   dc-forward --status [workspace]
   dc-forward --stop [workspace]
   dc-forward --help
 
-Does not edit project .devcontainer. Does not replace config (unlike dc-up --ports).
-
-Colima / Docker Desktop: starts alpine/socat on the container network
-  -p HOST:HOST → TCP:containerIP:CONTAINER
-Host socat to 172.x does not work on Colima.
-
-Skip a port if the app container already published it.
-Skip dc-up auto-forward with DC_FORWARD=0.
+Requires exactly one labeled app or --id (duplicates fail closed).
+Does not edit project .devcontainer. Does not take true foreign ports.
 EOF
 }
 
@@ -71,7 +62,7 @@ while [[ $# -gt 0 ]]; do
     *)
       if [[ "$1" == *:* || "$1" =~ ^[0-9]+$ ]]; then
         ports+=("$1")
-        mode="ports"
+        mode="explicit"
       elif [[ -d "$1" ]]; then
         workspace="$1"
       elif docker inspect "$1" >/dev/null 2>&1; then
@@ -90,33 +81,27 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-ids=()
-if [[ -n "$explicit_id" ]]; then
-  ids=("$explicit_id")
-else
-  mapfile -t ids < <(dc_ids_for_workspace "$workspace")
-fi
-
-cleaned=()
-for id in "${ids[@]+"${ids[@]}"}"; do
-  [[ -n "${id:-}" ]] && cleaned+=("$id")
-done
-if [[ ${#cleaned[@]} -eq 0 ]]; then
-  echo "No matching running/labeled container. Start with dc-up first." >&2
-  exit 1
-fi
-id="${cleaned[0]}"
-status="$(docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo missing)"
-if [[ "$status" != "running" && "$do_stop" -ne 1 ]]; then
-  echo "Container $id is $status — start it before forwarding." >&2
-  exit 1
-fi
+id="$(dc_unique_app_id "$workspace" "$explicit_id")" || exit 1
+ws_key="$(dc_fwd_workspace_key "$id" || true)"
+[[ -n "$ws_key" ]] || ws_key="$(dc_resolve_workspace "$workspace" 2>/dev/null || echo "$workspace")"
 
 if [[ "$do_status" -eq 1 ]]; then
-  echo "target  $id  $(docker inspect -f '{{.Name}}' "$id" | sed 's#^/##')"
-  mapfile -t fids < <(dc_fwd_ids_for "$id")
+  echo "target  $id  workspace=$ws_key"
+  echo "desired:"
+  if [[ ${#ports[@]} -gt 0 ]]; then
+    for spec in "${ports[@]}"; do
+      echo "  $spec  (explicit)"
+    done
+  else
+    while IFS='|' read -r h c p; do
+      [[ -n "$h" ]] || continue
+      echo "  ${h}:${c}  ($p)"
+    done < <(dc_wanted_port_pairs "$(dc_resolve_workspace "$workspace")")
+  fi
+  echo "actual:"
+  mapfile -t fids < <(dc_fwd_ids_for_workspace "$ws_key")
   if [[ ${#fids[@]} -eq 0 || -z "${fids[0]:-}" ]]; then
-    echo "sidecars  (none)"
+    echo "  (none)"
     exit 0
   fi
   for fid in "${fids[@]}"; do
@@ -125,107 +110,191 @@ if [[ "$do_status" -eq 1 ]]; then
   exit 0
 fi
 
-if [[ "$do_stop" -eq 1 ]]; then
-  mapfile -t fids < <(dc_fwd_ids_for "$id")
+dc_forward_stop_locked() {
+  local fid name
+  mapfile -t fids < <(dc_fwd_ids_for_workspace "$ws_key")
   if [[ ${#fids[@]} -eq 0 || -z "${fids[0]:-}" ]]; then
     echo "No sidecars for $id"
-    exit 0
+    return 0
   fi
   for fid in "${fids[@]}"; do
     name="$(docker inspect -f '{{.Name}}' "$fid" 2>/dev/null | sed 's#^/##')"
     docker rm -f "$fid" >/dev/null
     echo "removed  $name"
   done
-  exit 0
+}
+
+if [[ "$do_stop" -eq 1 ]]; then
+  dc_with_mutation_lock dc_forward_stop_locked
+  exit $?
 fi
 
-net_ip="$(dc_container_net_ip "$id")"
-if [[ -z "$net_ip" || "$net_ip" != *"|"* ]]; then
-  echo "Could not resolve Docker network/IP for $id" >&2
+status="$(docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo missing)"
+if [[ "$status" != "running" ]]; then
+  echo "Container $id is $status — start it before forwarding." >&2
   exit 1
 fi
-net="${net_ip%%|*}"
-ip="${net_ip#*|}"
-if [[ -z "$net" || -z "$ip" ]]; then
-  echo "Could not resolve Docker network/IP for $id" >&2
-  exit 1
-fi
 
-wanted=()
-if [[ ${#ports[@]} -gt 0 ]]; then
-  wanted=("${ports[@]}")
-else
-  ws="$(dc_resolve_workspace "$workspace")"
-  mapfile -t wanted < <(dc_wanted_host_ports "$ws")
-fi
+dc_forward_reconcile() {
+  local app="$1"
+  local failed=0 started=0
+  local net_ip net ip host cont spec name fid st owner
+  local -a desired_h=() desired_c=() desired_p=()
 
-if [[ ${#wanted[@]} -eq 0 ]]; then
-  echo "No ports to forward."
-  exit 0
-fi
-
-mapfile -t already < <(dc_published_host_ports "$id")
-
-started=0
-skipped=0
-failed=0
-for spec in "${wanted[@]}"; do
-  [[ -n "$spec" ]] || continue
-  host="${spec%%:*}"
-  cont="${spec##*:}"
-  [[ "$spec" == *:* ]] || cont="$host"
-  if ! [[ "$host" =~ ^[0-9]+$ && "$cont" =~ ^[0-9]+$ ]]; then
-    echo "skip  bad spec $spec" >&2
-    skipped=$((skipped + 1))
-    continue
+  app="$(dc_unique_app_id "$workspace" "$explicit_id")" || return 1
+  if [[ "$(docker inspect -f '{{.State.Status}}' "$app" 2>/dev/null || echo missing)" != "running" ]]; then
+    echo "Container $app is not running (post-lock)" >&2
+    return 1
   fi
-  skip=0
-  for p in "${already[@]+"${already[@]}"}"; do
-    if [[ "$p" == "$host" ]]; then
-      echo "skip  :$host already published on the app container"
-      skip=1
-      break
-    fi
-  done
-  if [[ "$skip" -eq 0 ]]; then
-    other="$(docker ps --format '{{.Names}} {{.Ports}}' | awk -v p=":${host}->" 'index($0,p){print $1; exit}')"
-    if [[ -n "$other" ]]; then
-      echo "skip  :$host already on host via $other"
-      skip=1
-    fi
-  fi
-  [[ "$skip" -eq 1 ]] && { skipped=$((skipped + 1)); continue; }
+  ws_key="$(dc_fwd_workspace_key "$app" || printf '%s' "$ws_key")"
+  net_ip="$(dc_container_net_ip "$app")" || {
+    echo "Could not resolve Docker network/IP for $app" >&2
+    return 1
+  }
+  net="${net_ip%%|*}"
+  ip="${net_ip#*|}"
 
-  name="$(dc_fwd_name "$id" "$host")"
-  if docker inspect "$name" >/dev/null 2>&1; then
-    st="$(docker inspect -f '{{.State.Status}}' "$name")"
-    if [[ "$st" == "running" ]]; then
-      echo "ok     :$host already via $name"
-      skipped=$((skipped + 1))
+  if [[ ${#ports[@]} -gt 0 ]]; then
+    for spec in "${ports[@]}"; do
+      host="${spec%%:*}"
+      cont="${spec##*:}"
+      [[ "$spec" == *:* ]] || cont="$host"
+      desired_h+=("$host")
+      desired_c+=("$cont")
+      desired_p+=("explicit")
+    done
+  else
+    local wsres
+    wsres="$(dc_resolve_workspace "$workspace")"
+    while IFS='|' read -r host cont prov; do
+      [[ -n "$host" ]] || continue
+      desired_h+=("$host")
+      desired_c+=("$cont")
+      desired_p+=("$prov")
+    done < <(dc_wanted_port_pairs "$wsres")
+  fi
+
+  if [[ ${#desired_h[@]} -eq 0 ]]; then
+    echo "No ports to forward."
+    return 0
+  fi
+
+  local i want
+  for i in "${!desired_h[@]}"; do
+    host="${desired_h[$i]}"
+    cont="${desired_c[$i]}"
+    # app-published pair?
+    local pair_ok=0
+    while IFS='|' read -r ph pc; do
+      [[ "$ph" == "$host" && "$pc" == "$cont" ]] && pair_ok=1
+    done < <(dc_published_port_pairs "$app")
+    if [[ "$pair_ok" -eq 1 ]]; then
+      echo "skip  ${host}:${cont} already published on the app container"
+      # remove redundant owned sidecar for this host
+      while IFS= read -r fid; do
+        [[ -n "$fid" ]] || continue
+        [[ "$(dc_label "$fid" "dc.forward.host")" == "$host" ]] || continue
+        docker rm -f "$fid" >/dev/null 2>&1 || true
+      done < <(dc_fwd_ids_for_workspace "$ws_key")
       continue
     fi
-    docker rm -f "$name" >/dev/null || true
+
+    # reclaim fingerprinted conflicting orphan on this host
+    while IFS= read -r fid; do
+      [[ -n "$fid" ]] || continue
+      [[ "$(dc_label "$fid" "dc.forward.host")" == "$host" ]] || continue
+      target="$(dc_label "$fid" "$DC_FWD_LABEL")"
+      presence="$(dc_inspect_presence "$target")"
+      if [[ "$presence" == "unknown" ]]; then
+        echo "fail   :$host  target inspect-unknown (no reclaim)" >&2
+        failed=$((failed + 1))
+        continue 2
+      fi
+      if [[ "$presence" == "absent" ]]; then
+        if dc_fwd_fingerprint_ok "$fid" "$host"; then
+          docker rm -f "$fid" >/dev/null
+          echo "reclaim orphan  ${fid:0:12}  :$host"
+        else
+          echo "fail   :$host  spoof/foreign holder ${fid:0:12}" >&2
+          failed=$((failed + 1))
+          continue 2
+        fi
+      fi
+    done < <(dc_orphan_forward_ids)
+
+    # workspace-owned sidecar for this host
+    local have=""
+    while IFS= read -r fid; do
+      [[ -n "$fid" ]] || continue
+      [[ "$(dc_label "$fid" "dc.forward.host")" == "$host" ]] || continue
+      have="$fid"
+    done < <(dc_fwd_ids_for_workspace "$ws_key")
+
+    if [[ -n "$have" ]]; then
+      local forid hip hcont hnet
+      forid="$(dc_label "$have" "$DC_FWD_LABEL")"
+      hip="$(dc_label "$have" "dc.forward.target_ip")"
+      hcont="$(dc_label "$have" "dc.forward.container")"
+      hnet="$(dc_label "$have" "dc.forward.net")"
+      st="$(docker inspect -f '{{.State.Status}}' "$have" 2>/dev/null || echo missing)"
+      if [[ "$st" == "running" && "$forid" == "$app" && "$hip" == "$ip" && "$hcont" == "$cont" && "$hnet" == "$net" ]]; then
+        echo "ok     ${host}:${cont} already via $(docker inspect -f '{{.Name}}' "$have" | sed 's#^/##')"
+        continue
+      fi
+      docker rm -f "$have" >/dev/null
+      echo "recreate ${host}:${cont}"
+    fi
+
+    # foreign bind?
+    other="$(docker ps --format '{{.Names}} {{.Ports}}' | awk -v p=":${host}->" 'index($0,p){print $1; exit}')"
+    if [[ -n "$other" ]]; then
+      echo "fail   :$host  held by $other" >&2
+      failed=$((failed + 1))
+      continue
+    fi
+
+    name="$(dc_fwd_name "$app" "$host")"
+    if ! docker run -d --rm \
+      --name "$name" \
+      --network "$net" \
+      --label "${DC_FWD_LABEL}=${app}" \
+      --label "dc.forward.host=${host}" \
+      --label "dc.forward.container=${cont}" \
+      --label "dc.forward.owner=dc-cli" \
+      --label "dc.forward.workspace=${ws_key}" \
+      --label "dc.forward.net=${net}" \
+      --label "dc.forward.target_ip=${ip}" \
+      -p "${host}:${host}" \
+      "$DC_FWD_IMAGE" \
+      "TCP-LISTEN:${host},fork,reuseaddr" "TCP:${ip}:${cont}" >/dev/null
+    then
+      echo "fail   :$host  (is something else bound on the host?)" >&2
+      failed=$((failed + 1))
+      continue
+    fi
+    echo "fwd    localhost:${host} -> ${ip}:${cont}  ($name  net=$net)"
+    started=$((started + 1))
+  done
+
+  # auto mode: remove obsolete workspace-owned hosts
+  if [[ "$mode" == "auto" ]]; then
+    while IFS= read -r fid; do
+      [[ -n "$fid" ]] || continue
+      host="$(dc_label "$fid" "dc.forward.host")"
+      keep=0
+      for i in "${!desired_h[@]}"; do
+        [[ "${desired_h[$i]}" == "$host" ]] && keep=1
+      done
+      if [[ "$keep" -eq 0 ]]; then
+        docker rm -f "$fid" >/dev/null
+        echo "remove  obsolete :$host"
+      fi
+    done < <(dc_fwd_ids_for_workspace "$ws_key")
   fi
 
-  if ! docker run -d --rm \
-    --name "$name" \
-    --network "$net" \
-    --label "${DC_FWD_LABEL}=${id}" \
-    --label "dc.forward.host=${host}" \
-    -p "${host}:${host}" \
-    "$DC_FWD_IMAGE" \
-    "TCP-LISTEN:${host},fork,reuseaddr" "TCP:${ip}:${cont}" >/dev/null
-  then
-    echo "fail   :$host  (is something else bound on the host?)" >&2
-    failed=$((failed + 1))
-    continue
-  fi
-  echo "fwd    localhost:${host} -> ${ip}:${cont}  ($name  net=$net)"
-  started=$((started + 1))
-done
+  echo "done   started=$started failed=$failed"
+  [[ "$failed" -eq 0 ]]
+}
 
-echo "done   started=$started skipped=$skipped failed=$failed"
-if [[ "$failed" -gt 0 && "$started" -eq 0 ]]; then
-  exit 1
-fi
-exit 0
+dc_with_mutation_lock dc_forward_reconcile "$id"
+exit $?

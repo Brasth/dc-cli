@@ -15,10 +15,21 @@ jobs:
       - name: bash -n
         run: |
           bash -n install.sh
-          bash -n lib/dc-common.sh
-          bash -n scripts/pack-release.sh scripts/print-release-shas.sh
+          bash -n lib/dc-common.sh lib/dc-floor.sh
+          bash -n scripts/pack-release.sh scripts/print-release-shas.sh scripts/check-floor-qual.sh
           bash -n bin/dc-up bin/dc-exec bin/dc-down bin/dc-ps bin/dc-forward
-          bash -n bin/dc-ls bin/dc-open bin/dc-tui bin/dc-df bin/dc-prune
+          bash -n bin/dc-ls bin/dc-open bin/dc-tui bin/dc-df bin/dc-prune bin/dc-doctor
+          bash -n tests/lib/fake-docker tests/lib/harness.sh tests/safety/run.sh tests/install/run.sh tests/doctor/run.sh tests/forward/run.sh
+      - name: safety gates
+        run: bash tests/safety/run.sh
+      - name: installer gates
+        run: bash tests/install/run.sh
+      - name: doctor gates
+        run: bash tests/doctor/run.sh
+      - name: forward reconcile gates
+        run: bash tests/forward/run.sh
+      - name: floor qualification artifact
+        run: bash scripts/check-floor-qual.sh
       - name: go test dc-tui
         run: go test ./cmd/dc-tui
       - name: go build dc-tui
@@ -31,7 +42,7 @@ jobs:
           test -x "$RUNNER_TEMP/dc-bin/dc-ls"
           test -x "$RUNNER_TEMP/dc-bin/dc-open"
           test -x "$RUNNER_TEMP/dc-bin/dc-tui"
-          test -f "$HOME/.config/devcontainer/dc-common.sh"
+          test -f "${XDG_DATA_HOME:-$HOME/.local/share}/dc-cli/generations/current/lib/dc-common.sh"
           "$RUNNER_TEMP/dc-bin/dc-up" --help
           "$RUNNER_TEMP/dc-bin/dc-down" --help
           "$RUNNER_TEMP/dc-bin/dc-ls" --help
@@ -80,6 +91,7 @@ jobs:
         run: |
           bash install.sh --help | grep -q -- --full
           bash install.sh --help | grep -q -- --ref
+          bash install.sh --help | grep -q -- --with-cli-npm
       - name: pack linux-amd64 and install without go
         run: |
           scripts/pack-release.sh 0.0.0-ci linux amd64 "$RUNNER_TEMP/dc-dist"

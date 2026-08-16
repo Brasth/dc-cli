@@ -80,7 +80,7 @@ done
 if ! command -v devcontainer >/dev/null 2>&1; then
   echo "devcontainer CLI not found. Advertised install:" >&2
   echo "  curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli" >&2
-  echo "or: npm i -g @devcontainers/cli" >&2
+  echo "or: bash install.sh --with-cli-npm" >&2
   echo "or: bash install.sh --with-cli" >&2
   exit 1
 fi
@@ -149,8 +149,8 @@ resolve_port_conflict() {
       seen_id[$id]=1
       holder_ids+=("$id")
       printf '    %s  %s' "${id:0:12}" "$name" >&2
-      [[ -n "$compose" ]] && printf '  compose=%s' "$compose" >&2
-      [[ -n "$folder" ]] && printf '  folder=%s' "$folder" >&2
+      [[ -n "$compose" && "$compose" != "-" ]] && printf '  compose=%s' "$compose" >&2
+      [[ -n "$folder" && "$folder" != "-" ]] && printf '  folder=%s' "$folder" >&2
       printf '\n      %s\n' "$hports" >&2
     done < <(dc_holders_of_host_port "$p")
   done
@@ -162,21 +162,33 @@ resolve_port_conflict() {
   fi
 
   # Do not stop containers that belong to *this* workspace (partial up).
+  # Unattended mutate only positively identified foreign / reclaimable sidecars.
   local -a foreign=()
+  local -a blocked=()
+  local kind reason target_id target_ws
   for id in "${holder_ids[@]}"; do
-    folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id" 2>/dev/null || true)"
-    compose="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_COMPOSE}\"}}" "$id" 2>/dev/null || true)"
-    [[ "$folder" == "<no value>" ]] && folder=""
-    [[ "$compose" == "<no value>" ]] && compose=""
-    if [[ -n "$folder" ]] && dc_same_workspace "$folder" "$ws"; then
+    IFS='|' read -r kind reason folder compose target_id target_ws < <(dc_classify_port_holder "$id" "$ws")
+    if [[ "$reason" == "same-workspace" ]]; then
       echo "  skip self  ${id:0:12}  (same workspace)" >&2
       continue
     fi
-    foreign+=("$id")
+    case "$reason" in
+      foreign|orphan-absent)
+        foreign+=("$id")
+        ;;
+      *)
+        blocked+=("$id")
+        echo "  report-only  ${id:0:12}  reason=${reason:-unlabeled}" >&2
+        ;;
+    esac
   done
 
   if [[ ${#foreign[@]} -eq 0 ]]; then
-    echo "  only this workspace holds the ports — fix compose host ports in the project." >&2
+    if [[ ${#blocked[@]} -gt 0 ]]; then
+      echo "  no mutable foreign holders (unlabeled/ambiguous/unknown stay report-only)." >&2
+    else
+      echo "  only this workspace holds the ports — fix compose host ports in the project." >&2
+    fi
     return 1
   fi
 
@@ -203,10 +215,17 @@ resolve_port_conflict() {
       ;;
   esac
 
-  for id in "${foreign[@]}"; do
-    dc_stop_port_holder "$id" || true
-  done
+  dc_with_mutation_lock _dc_up_stop_foreign "$ws" "${foreign[@]}"
   return 0
+}
+
+_dc_up_stop_foreign() {
+  local current_ws="$1"
+  shift
+  local id
+  for id in "$@"; do
+    dc_stop_port_holder "$id" "$current_ws" || true
+  done
 }
 
 tmp="$(mktemp)"
@@ -249,7 +268,10 @@ if [[ -z "$fwd" && -x "$(dirname "$0")/dc-forward" ]]; then
 fi
 if [[ -n "$fwd" ]]; then
   echo "dc-up: publishing unpublished ports (dc-forward)..."
-  "$fwd" "$ws" || true
+  if ! "$fwd" "$ws"; then
+    echo "dc-up: container ready, forwarding incomplete" >&2
+    exit 1
+  fi
 else
   echo "dc-up: dc-forward not on PATH; host browser may not reach the app" >&2
 fi

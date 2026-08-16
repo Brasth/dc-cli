@@ -12,6 +12,7 @@ Copy install
 Install (must match README exactly):
 ```
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
+# --with-cli = official standalone installer (not npm)
 ```
 
 After:

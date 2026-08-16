@@ -1,0 +1,484 @@
+#!/usr/bin/env bash
+# Read-only workspace/engine diagnostics. Bash-3-safe until re-exec.
+# Usage: dc-doctor [workspace] [--json]   exits 0 usable / 1 blocker / 2 bad argv
+
+# --- Bash 3 preflight (no Bash-4-only syntax above the re-exec) ---
+_dc_bash_major="${BASH_VERSINFO[0]:-0}"
+if [ "$_dc_bash_major" -lt 4 ]; then
+  _dc_find_bash4() {
+    _c="$1"
+    [ -x "$_c" ] || return 1
+    _v="$("$_c" -c 'echo ${BASH_VERSINFO[0]}' 2>/dev/null)" || return 1
+    [ "$_v" -ge 4 ] 2>/dev/null
+  }
+  _dc_re=""
+  for _dc_try in bash /opt/homebrew/bin/bash /usr/local/bin/bash /usr/bin/bash; do
+    if _dc_find_bash4 "$_dc_try"; then
+      _dc_re="$(command -v "$_dc_try" 2>/dev/null || echo "$_dc_try")"
+      break
+    fi
+  done
+  if [ -n "$_dc_re" ]; then
+    exec "$_dc_re" "$0" "$@"
+  fi
+  _json=0
+  for _a in "$@"; do
+    [ "$_a" = "--json" ] && _json=1
+  done
+  if [ "$_json" -eq 1 ]; then
+    printf '%s\n' '{"schemaVersion":1,"command":"dc-doctor","workspace":{"requested":".","resolved":null,"hasConfig":false,"configPath":null},"summary":{"status":"blocker","blockerCount":1,"warningCount":0,"okCount":0},"checks":[{"id":"platform_bash","status":"blocker","summary":"Bash 4 or newer is required","detail":null,"data":{},"remediation":"install Bash 4+ (Homebrew bash)","error":{"code":"bash_too_old","message":"interpreter below Bash 4"}}]}'
+  else
+    echo "BLOCKER  platform_bash  Bash 4 or newer is required"
+    echo "Summary: blocked (1 blockers, 0 warnings)"
+  fi
+  exit 1
+fi
+
+set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+json=0
+workspace=""
+usage() {
+  cat <<'EOF'
+dc-doctor — read-only diagnostics (never mutates Docker or project files)
+
+  dc-doctor [workspace]
+  dc-doctor --json [workspace]
+  dc-doctor --help
+
+Exit: 0 usable (warnings ok) / 1 blocker / 2 invalid invocation
+Day-2 contract. install.sh doctor() remains install-time presence only.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --json) json=1 ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if [[ -n "$workspace" ]]; then
+        echo "Unexpected arg: $1" >&2
+        exit 2
+      fi
+      workspace="$1"
+      ;;
+  esac
+  shift
+done
+workspace="${workspace:-.}"
+
+if [[ "$workspace" != "." && ! -d "$workspace" ]]; then
+  echo "Not a directory: $workspace" >&2
+  exit 2
+fi
+
+COMMON=""
+if [[ -n "${DC_COMMON_PATH:-}" ]]; then
+  COMMON="$DC_COMMON_PATH"
+elif [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  COMMON="$_here/../lib/dc-common.sh"
+elif [[ -f "${XDG_DATA_HOME:-$HOME/.local/share}/dc-cli/generations/current/lib/dc-common.sh" ]]; then
+  COMMON="${XDG_DATA_HOME:-$HOME/.local/share}/dc-cli/generations/current/lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  COMMON="${HOME}/.config/devcontainer/dc-common.sh"
+fi
+
+CHECK_IDS=(
+  platform_bash common_library docker_cli docker_daemon docker_context colima
+  devcontainer_cli devcontainer_read_configuration workspace_config
+  duplicate_labels stack_identity desired_ports actual_ports stale_owned_sidecars
+  disk dc_cli_version dc_cli_channel
+)
+
+# record fields stored as US-separated: id status summary detail datajson remediation ecode emsg
+_US=$'\x1f'
+declare -a RECORDS=()
+
+add_rec() {
+  local id="$1" st="$2" sum="$3" det="${4:-}" data="${5:-}" rem="${6:-}" ec="${7:-}" em="${8:-}"
+  [[ -n "$data" ]] || data="{}"
+  RECORDS+=("${id}${_US}${st}${_US}${sum}${_US}${det}${_US}${data}${_US}${rem}${_US}${ec}${_US}${em}")
+}
+
+emit_bootstrap() {
+  local st="$1" cid="$2" sum="$3" ec="$4" em="$5" path="${6:-}"
+  local id recs="" n=0 blockers=0 warnings=0 oks=0 data
+  data="{}"
+  [[ -n "$path" ]] && data="{\"path\":$(json_str "$path")}"
+  for id in "${CHECK_IDS[@]}"; do
+    n=$((n + 1))
+    if [[ "$id" == "$cid" ]]; then
+      recs="${recs}${recs:+,}{\"id\":\"$id\",\"status\":\"blocker\",\"summary\":$(json_str "$sum"),\"detail\":null,\"data\":$data,\"remediation\":$(json_str "reinstall helpers via install.sh"),\"error\":{\"code\":\"$ec\",\"message\":$(json_str "$em")}}"
+      blockers=$((blockers + 1))
+    else
+      recs="${recs}${recs:+,}{\"id\":\"$id\",\"status\":\"blocker\",\"summary\":\"skipped\",\"detail\":null,\"data\":{},\"remediation\":null,\"error\":{\"code\":\"dependency_${cid}\",\"message\":\"depends on ${cid}\"}}"
+      blockers=$((blockers + 1))
+    fi
+  done
+  if [[ "$json" -eq 1 ]]; then
+    printf '{"schemaVersion":1,"command":"dc-doctor","workspace":{"requested":%s,"resolved":null,"hasConfig":false,"configPath":null},"summary":{"status":"blocker","blockerCount":%s,"warningCount":0,"okCount":0},"checks":[%s]}\n' \
+      "$(json_str "$workspace")" "$blockers" "$recs"
+  else
+    echo "BLOCKER  $cid  $sum"
+    echo "Summary: blocked ($blockers blockers, 0 warnings)"
+  fi
+}
+
+json_str() {
+  local s="$1"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import json,sys; sys.stdout.write(json.dumps(sys.argv[1]))' "$s"
+    return
+  fi
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  printf '"%s"' "$s"
+}
+
+if [[ -z "$COMMON" || ! -r "$COMMON" ]]; then
+  emit_bootstrap blocker common_library "common library missing or unreadable" \
+    common_library_missing "lib/dc-common.sh not found" "${COMMON:-unset}"
+  exit 1
+fi
+
+# shellcheck source=/dev/null
+if ! source "$COMMON"; then
+  emit_bootstrap blocker common_library "common library failed to source" \
+    common_library_unreadable "source failed" "$COMMON"
+  exit 1
+fi
+
+resolved="."
+if ! resolved="$(dc_resolve_workspace "$workspace")"; then
+  echo "Not a directory: $workspace" >&2
+  exit 2
+fi
+req="$workspace"
+has_cfg=false
+cfg_path=""
+if [[ -f "$resolved/.devcontainer/devcontainer.json" ]]; then
+  has_cfg=true
+  cfg_path="$resolved/.devcontainer/devcontainer.json"
+elif [[ -f "$resolved/.devcontainer.json" ]]; then
+  has_cfg=true
+  cfg_path="$resolved/.devcontainer.json"
+fi
+
+# 1 platform_bash
+add_rec platform_bash ok "Bash ${BASH_VERSINFO[0]} on $(uname -s)" "" \
+  "{\"bashMajor\":${BASH_VERSINFO[0]},\"os\":$(json_str "$(uname -s)")}"
+
+# 2 common_library
+add_rec common_library ok "common library sourced" "" "{\"path\":$(json_str "$COMMON")}"
+
+# 3 docker_cli
+if command -v docker >/dev/null 2>&1; then
+  add_rec docker_cli ok "docker on PATH" "" "{\"path\":$(json_str "$(command -v docker)")}"
+  docker_ok=1
+else
+  add_rec docker_cli blocker "docker not on PATH" "" "{}" "install Docker Engine or Desktop" docker_missing "docker not found"
+  docker_ok=0
+fi
+
+# 4 docker_daemon
+if [[ "$docker_ok" -ne 1 ]]; then
+  add_rec docker_daemon blocker "docker unavailable" "" "{}" "" docker_unavailable "docker cli missing"
+else
+  if docker info >/dev/null 2>&1; then
+    add_rec docker_daemon ok "docker daemon reachable" "" "{}"
+    daemon_ok=1
+  else
+    add_rec docker_daemon blocker "docker daemon unreachable" "" "{}" "start Docker Desktop or colima start" docker_daemon_unreachable "docker info failed"
+    daemon_ok=0
+  fi
+fi
+
+# 5 docker_context
+if [[ "${daemon_ok:-0}" -eq 1 ]]; then
+  ctx="$(docker context show 2>/dev/null || docker context inspect --format '{{.Name}}' 2>/dev/null || echo unknown)"
+  add_rec docker_context ok "context $ctx" "" "{\"name\":$(json_str "$ctx")}"
+elif [[ "$docker_ok" -eq 1 ]]; then
+  add_rec docker_context warning "context unread" "" "{}" "" docker_unavailable "daemon down"
+else
+  add_rec docker_context blocker "docker unavailable" "" "{}" "" docker_unavailable "docker cli missing"
+fi
+
+# 6 colima
+if command -v colima >/dev/null 2>&1; then
+  cst="$(colima status 2>/dev/null | head -1 || true)"
+  add_rec colima warning "colima present" "$cst" "{\"present\":true}" "" "" ""
+  # status text is advisory; Stopped is warning-ish but keep warning only if not Running
+  if printf '%s' "$cst" | grep -qi running; then
+    RECORDS[-1]="colima${_US}ok${_US}colima running${_US}${cst}${_US}{\"present\":true}${_US}${_US}${_US}"
+  fi
+else
+  add_rec colima ok "colima not installed" "" "{\"present\":false}"
+fi
+
+# 7 devcontainer_cli
+cli_present=0
+cli_ver=""
+if command -v devcontainer >/dev/null 2>&1; then
+  cli_present=1
+  raw="$(devcontainer --version 2>/dev/null || true)"
+  cli_ver="$(printf '%s' "$raw" | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)"
+  floor="${DC_DEVCONTAINER_MIN_VERSION:-}"
+  if [[ -n "$floor" ]]; then
+    if [[ -z "$cli_ver" ]]; then
+      add_rec devcontainer_cli blocker "CLI version unparseable (floor defined)" "" \
+        "{\"path\":$(json_str "$(command -v devcontainer)"),\"version\":null,\"floor\":$(json_str "$floor")}" \
+        "install standalone --with-cli or exact npm pin" unparseable_version "cannot parse version vs floor"
+    elif command -v python3 >/dev/null 2>&1 && python3 - "$cli_ver" "$floor" <<'PY'
+import sys
+def p(s):
+    return [int(x) if x.isdigit() else 0 for x in s.split(".")[:3]] + [0,0,0]
+a,b=p(sys.argv[1])[:3],p(sys.argv[2])[:3]
+sys.exit(0 if a>=b else 1)
+PY
+    then
+      add_rec devcontainer_cli ok "devcontainer $cli_ver" "" \
+        "{\"path\":$(json_str "$(command -v devcontainer)"),\"version\":$(json_str "$cli_ver"),\"floor\":$(json_str "$floor")}"
+    else
+      add_rec devcontainer_cli blocker "devcontainer $cli_ver below floor $floor" "" \
+        "{\"path\":$(json_str "$(command -v devcontainer)"),\"version\":$(json_str "$cli_ver"),\"floor\":$(json_str "$floor")}" \
+        "upgrade via standalone or exact npm pin" below_floor "version below qualified floor"
+    fi
+  else
+    if [[ -z "$cli_ver" ]]; then
+      add_rec devcontainer_cli warning "devcontainer version unparseable" "" \
+        "{\"path\":$(json_str "$(command -v devcontainer)"),\"version\":null}"
+    else
+      add_rec devcontainer_cli ok "devcontainer $cli_ver" "" \
+        "{\"path\":$(json_str "$(command -v devcontainer)"),\"version\":$(json_str "$cli_ver")}"
+    fi
+  fi
+else
+  add_rec devcontainer_cli blocker "devcontainer not on PATH" "" "{}" \
+    "curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli" \
+    missing "devcontainer not found"
+fi
+
+# 8 read-configuration then 9 workspace_config (contract order)
+if [[ "$cli_present" -ne 1 ]]; then
+  add_rec devcontainer_read_configuration warning "skipped (no CLI)" "" "{}" "" dependency_devcontainer_cli "devcontainer missing"
+elif [[ "$has_cfg" != true ]]; then
+  add_rec devcontainer_read_configuration warning "skipped (no workspace config path)" "" "{}" "" dependency_workspace_config "config path missing"
+else
+  if devcontainer read-configuration --workspace-folder "$resolved" >/dev/null 2>&1; then
+    add_rec devcontainer_read_configuration ok "read-configuration succeeded" "" "{}"
+  else
+    add_rec devcontainer_read_configuration blocker "read-configuration failed" "" "{}" \
+      "fix project devcontainer.json" read_configuration_failed "probe failed"
+  fi
+fi
+
+if [[ "$has_cfg" == true ]]; then
+  add_rec workspace_config ok "config path present" "" \
+    "{\"hasConfig\":true,\"configPath\":$(json_str "$cfg_path")}"
+else
+  add_rec workspace_config warning "no .devcontainer config path" "" \
+    "{\"hasConfig\":false,\"configPath\":null}" "add .devcontainer/devcontainer.json"
+fi
+
+# 10 duplicate_labels
+if [[ "${daemon_ok:-0}" -ne 1 ]]; then
+  add_rec duplicate_labels warning "skipped" "" "{}" "" docker_unavailable "daemon down"
+else
+  mapfile -t _ids < <(dc_ids_for_workspace "$resolved")
+  n=0
+  for i in "${_ids[@]+"${_ids[@]}"}"; do
+    [[ -n "$i" ]] && n=$((n + 1))
+  done
+  if [[ "$n" -ge 2 ]]; then
+    ids_json="["
+    first=1
+    for i in "${_ids[@]}"; do
+      [[ -n "$i" ]] || continue
+      [[ "$first" -eq 1 ]] || ids_json+=","
+      first=0
+      ids_json+="$(json_str "$i")"
+    done
+    ids_json+="]"
+    add_rec duplicate_labels blocker "multiple labeled apps for workspace" "" \
+      "{\"matches\":$ids_json}" "pass --id to target one app" duplicate_labels "more than one labeled app"
+  else
+    add_rec duplicate_labels ok "labeled apps=$n" "" "{\"count\":$n}"
+  fi
+fi
+
+# 11 stack_identity
+if [[ "${daemon_ok:-0}" -ne 1 ]]; then
+  add_rec stack_identity warning "skipped" "" "{}" "" docker_unavailable "daemon down"
+else
+  app_id="${_ids[0]:-}"
+  if [[ -z "$app_id" ]]; then
+    add_rec stack_identity ok "no labeled app" "" "{\"matches\":[]}"
+  else
+    st="$(docker inspect -f '{{.State.Status}}' "$app_id" 2>/dev/null || echo unknown)"
+    if [[ "$st" == "running" ]]; then
+      add_rec stack_identity ok "app $st" "" "{\"id\":$(json_str "$app_id"),\"status\":$(json_str "$st")}"
+    else
+      add_rec stack_identity warning "app $st" "" "{\"id\":$(json_str "$app_id"),\"status\":$(json_str "$st")}"
+    fi
+  fi
+fi
+
+# 12 desired_ports
+mapfile -t wanted < <(dc_wanted_host_ports "$resolved")
+wjson="["
+wf=1
+for p in "${wanted[@]+"${wanted[@]}"}"; do
+  [[ -n "$p" ]] || continue
+  [[ "$wf" -eq 1 ]] || wjson+=","
+  wf=0
+  wjson+="$p"
+done
+wjson+="]"
+prov="config"
+if [[ ${#wanted[@]} -eq 1 && "${wanted[0]:-}" == "3000" ]]; then
+  prov="fallback"
+  add_rec desired_ports warning "fallback default ports" "" "{\"ports\":$wjson,\"provenance\":$(json_str "$prov")}"
+else
+  add_rec desired_ports ok "desired host ports" "" "{\"ports\":$wjson,\"provenance\":$(json_str "$prov")}"
+fi
+
+# 13 actual_ports
+if [[ "${daemon_ok:-0}" -ne 1 ]]; then
+  add_rec actual_ports warning "skipped" "" "{}" "" docker_unavailable "daemon down"
+else
+  mapfile -t pubs < <(dc_published_host_ports "${app_id:-}" 2>/dev/null || true)
+  add_rec actual_ports ok "published ports recorded" "" "{\"appId\":$(json_str "${app_id:-}")}"
+  if [[ ${#wanted[@]} -gt 0 && "$has_cfg" == true ]]; then
+    missing=0
+    for p in "${wanted[@]}"; do
+      hit=0
+      for a in "${pubs[@]+"${pubs[@]}"}"; do
+        [[ "$a" == "$p" ]] && hit=1
+      done
+      [[ "$hit" -eq 0 ]] && missing=1
+    done
+    if [[ "$missing" -eq 1 ]]; then
+      RECORDS[-1]="actual_ports${_US}warning${_US}desired host port not published on app${_US}${_US}{\"appId\":$(json_str "${app_id:-}")}${_US}${_US}${_US}"
+    fi
+  fi
+fi
+
+# 14 stale_owned_sidecars
+if [[ "${daemon_ok:-0}" -ne 1 ]]; then
+  add_rec stale_owned_sidecars warning "skipped" "" "{}" "" docker_unavailable "daemon down"
+else
+  mapfile -t orphans < <(dc_orphan_forward_ids)
+  oc=0
+  for i in "${orphans[@]+"${orphans[@]}"}"; do
+    [[ -n "$i" ]] && oc=$((oc + 1))
+  done
+  if [[ "$oc" -gt 0 ]]; then
+    add_rec stale_owned_sidecars warning "orphan sidecars=$oc" "" "{\"count\":$oc}" "dc-prune --yes (owned-only orphans)"
+  else
+    add_rec stale_owned_sidecars ok "no stale owned sidecars" "" "{\"count\":0}"
+  fi
+fi
+
+# 15 disk
+if [[ "${daemon_ok:-0}" -ne 1 ]]; then
+  add_rec disk warning "skipped" "" "{}" "" docker_unavailable "daemon down"
+else
+  if docker system df >/dev/null 2>&1; then
+    add_rec disk ok "disk snapshot captured" "" "{}"
+  else
+    add_rec disk warning "df probe failed" "" "{}" "" df_failed "docker system df failed"
+  fi
+fi
+
+# 16/17 version + channel
+ver=""
+chan="unknown"
+if [[ -f "$_here/../VERSION" ]]; then
+  ver="$(tr -d '[:space:]' <"$_here/../VERSION" || true)"
+fi
+if [[ -z "$ver" && -x "$_here/dc-tui" ]]; then
+  ver="$("$_here/dc-tui" --help 2>/dev/null | head -1 || true)"
+fi
+if command -v brew >/dev/null 2>&1 && brew list --versions dc-cli >/dev/null 2>&1; then
+  chan="homebrew"
+elif [[ -L "${XDG_DATA_HOME:-$HOME/.local/share}/dc-cli/generations/current" ]]; then
+  chan="source"
+fi
+if [[ -n "$ver" ]]; then
+  add_rec dc_cli_version ok "dc-cli version known" "" "{\"version\":$(json_str "$ver")}"
+else
+  add_rec dc_cli_version warning "dc-cli version unknown" "" "{\"version\":null}"
+fi
+if [[ "$chan" == "unknown" ]]; then
+  add_rec dc_cli_channel warning "channel unknown" "" "{\"channel\":\"unknown\"}"
+else
+  add_rec dc_cli_channel ok "channel $chan" "" "{\"channel\":$(json_str "$chan")}"
+fi
+
+blockers=0
+warnings=0
+oks=0
+for rec in "${RECORDS[@]}"; do
+  IFS=$'\x1f' read -r _id _st _rest <<<"$rec"
+  case "$_st" in
+    blocker) blockers=$((blockers + 1)) ;;
+    warning) warnings=$((warnings + 1)) ;;
+    *) oks=$((oks + 1)) ;;
+  esac
+done
+summary="ok"
+[[ "$blockers" -gt 0 ]] && summary="blocker"
+
+render_human() {
+  local rec id st sum det
+  for rec in "${RECORDS[@]}"; do
+    IFS=$'\x1f' read -r id st sum det _ <<<"$rec"
+    printf '%-8s %s  %s\n' "$(echo "$st" | tr '[:lower:]' '[:upper:]')" "$id" "$sum"
+  done
+  if [[ "$summary" == "blocker" ]]; then
+    echo "Summary: blocked ($blockers blockers, $warnings warnings)"
+  else
+    echo "Summary: usable ($blockers blockers, $warnings warnings)"
+  fi
+}
+
+render_json() {
+  local rec id st sum det data rem ec em first=1 err
+  printf '{"schemaVersion":1,"command":"dc-doctor","workspace":{"requested":%s,"resolved":%s,"hasConfig":%s,"configPath":%s},"summary":{"status":%s,"blockerCount":%s,"warningCount":%s,"okCount":%s},"checks":[' \
+    "$(json_str "$req")" "$(json_str "$resolved")" "$has_cfg" \
+    "$( [[ -n "$cfg_path" ]] && json_str "$cfg_path" || echo null )" \
+    "$(json_str "$summary")" "$blockers" "$warnings" "$oks"
+  for rec in "${RECORDS[@]}"; do
+    IFS=$'\x1f' read -r id st sum det data rem ec em <<<"$rec"
+    [[ "$first" -eq 1 ]] || printf ','
+    first=0
+    err="null"
+    if [[ -n "$ec" ]]; then
+      err="{\"code\":$(json_str "$ec"),\"message\":$(json_str "$em")}"
+    fi
+    printf '{"id":%s,"status":%s,"summary":%s,"detail":%s,"data":%s,"remediation":%s,"error":%s}' \
+      "$(json_str "$id")" "$(json_str "$st")" "$(json_str "$sum")" \
+      "$( [[ -n "$det" ]] && json_str "$det" || echo null )" \
+      "$data" \
+      "$( [[ -n "$rem" ]] && json_str "$rem" || echo null )" \
+      "$err"
+  done
+  printf ']}\n'
+}
+
+if [[ "$json" -eq 1 ]]; then
+  render_json
+else
+  render_human
+fi
+
+if [[ "$blockers" -gt 0 ]]; then
+  exit 1
+fi
+exit 0
