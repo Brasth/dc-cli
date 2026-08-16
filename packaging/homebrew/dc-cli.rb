@@ -1,44 +1,45 @@
 # Source of truth for Brasth/homebrew-dc-cli (Formula/dc-cli.rb).
 # After a v* release: scripts/print-release-shas.sh vX.Y.Z then update version + sha256.
-# Layout: bin/* + lib/dc-common.sh so dirname $0/../lib resolves.
+# Layout: bin/* + lib/*.sh so dirname $0/../lib resolves.
 # Do not symlink from libexec — that breaks the scripts' relative lib path.
 class DcCli < Formula
   desc "Host-global helpers around @devcontainers/cli"
   homepage "https://dc.brasth.com"
-  version "0.7.2"
+  version "0.8.0"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.7.2/dc-cli-0.7.2-darwin-arm64.tar.gz"
-      sha256 "006ebdd8ef7178cced275606ff8093394adba71b8986bb80a5106be7dbe3ee49"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.8.0/dc-cli-0.8.0-darwin-arm64.tar.gz"
+      sha256 "76377ceadc1c4099c04c76f07ecea03f6e6e1b18887a8085310fc97c2e7a5331"
     end
     on_intel do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.7.2/dc-cli-0.7.2-darwin-amd64.tar.gz"
-      sha256 "126fc7a28759805caed73baba14dade3b56b02c2c130a8f68ccf97491c3c4ca5"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.8.0/dc-cli-0.8.0-darwin-amd64.tar.gz"
+      sha256 "a00c44f18f481ca2fb74d8dd038ddd24ef617573702d54007da7c0c6e282ce66"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.7.2/dc-cli-0.7.2-linux-arm64.tar.gz"
-      sha256 "c947412d2a05256231d639768f4e56fb6428cbdb40f7473b25564b87f97187ce"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.8.0/dc-cli-0.8.0-linux-arm64.tar.gz"
+      sha256 "a40597798fa5d994bb061ee8aceadeae93c8eb4575da9ea0829b3fd6a3efc861"
     end
     on_intel do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.7.2/dc-cli-0.7.2-linux-amd64.tar.gz"
-      sha256 "b247f65c2d1e3b6a98475dcdad1e28cb26ae9f089b9250360882b0dcae6b2c31"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.8.0/dc-cli-0.8.0-linux-amd64.tar.gz"
+      sha256 "991ca2808af8b77bfae4a02695d7ae21334b8e1cc59ffa2242b8a41d4b9ff013"
     end
   end
 
   def install
     bin.install Dir["bin/*"]
-    lib.install "lib/dc-common.sh"
+    lib.install Dir["lib/*.sh"]
     pkgshare.install "config/override.json" if File.exist?("config/override.json")
   end
 
   test do
     assert_match "dc-tui", shell_output("#{bin}/dc-tui --help")
     assert_match "dc-up", shell_output("#{bin}/dc-up --help")
+    assert_match "dc-doctor", shell_output("#{bin}/dc-doctor --help")
   end
 
   def caveats
