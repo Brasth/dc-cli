@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -144,6 +145,8 @@ func (m model) layout() (string, []button, int) {
 
 	if m.confirm == "rm" {
 		b.WriteString("\n" + hintStyle.Render("y confirm  n/esc cancel  q quit") + "\n")
+	} else if !m.fleet && len(m.webLinks()) > 0 {
+		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  1-9 url  j/k  enter  ? more  q quit") + "\n")
 	} else {
 		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  j/k  enter  ? more  q quit") + "\n")
 	}
@@ -198,6 +201,7 @@ func morePanel(editor string, width int) string {
 		"  open     host editor on the bind-mount  now: " + editor,
 		"  attach   VS Code Remote URI; Zed: Project → Open Remote → Connect Dev Container",
 		"  ports    sidecar publish compose/forwardPorts",
+		"  url      click or 1-9 — open a published website in the browser",
 		"  stop     full compose stack — not app-only",
 		"  rm       compose down (remove stack containers) — asks y/n",
 		"  logs     follow docker logs — Ctrl-C returns here",
@@ -232,7 +236,7 @@ func (m model) buttonGroups() [][]btnSpec {
 			{key: "q", label: "quit"},
 		}}
 	}
-	return [][]btnSpec{
+	groups := [][]btnSpec{
 		{
 			{key: "u", label: "start", primary: true, disabled: !m.hasConfig},
 			{key: "e", label: "shell", primary: true},
@@ -251,6 +255,18 @@ func (m model) buttonGroups() [][]btnSpec {
 			{key: "x", label: "rm", danger: true},
 		},
 	}
+	if links := m.webLinks(); len(links) > 0 {
+		specs := make([]btnSpec, len(links))
+		for i, l := range links {
+			label := l.Label
+			if i < 9 {
+				label = strconv.Itoa(i+1) + " " + l.Label
+			}
+			specs[i] = btnSpec{key: "url:" + l.URL, label: label, primary: true}
+		}
+		groups = append(groups, specs)
+	}
+	return groups
 }
 
 func renderGroups(groups [][]btnSpec, width, y0 int, hover string) (string, []button) {

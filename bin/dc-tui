@@ -35,6 +35,7 @@ Keys:
   o  open    dc-open            host editor (zed/code/subl)
   a  attach  dc-open --attach   VS Code URI; Zed prints Connect Dev Container
   p  ports   dc-forward         sidecar publish (localhost:3000)
+  1-9 url    open a published website in the browser
   s  stop    dc-down            stop, keep container
   x  rm      dc-down --rm       stop and delete
   l  logs    docker logs -f

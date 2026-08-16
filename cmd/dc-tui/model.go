@@ -42,6 +42,7 @@ type model struct {
 	editor     string
 	rows       []container
 	stack      []stackSvc
+	fwdMaps    []portPair
 	buttons    []button
 	rowY0      int
 	width      int
@@ -60,10 +61,11 @@ type model struct {
 }
 
 type reloadMsg struct {
-	rows  []container
-	stack []stackSvc
-	disk  string
-	err   error
+	rows    []container
+	stack   []stackSvc
+	fwdMaps []portPair
+	disk    string
+	err     error
 }
 
 type execDoneMsg struct {
@@ -98,6 +100,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.rows = msg.rows
 			m.stack = msg.stack
+			m.fwdMaps = msg.fwdMaps
 			if msg.disk != "" {
 				m.disk = msg.disk
 			}
@@ -217,6 +220,11 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 			return m.withStatus("open a folder (enter / click) to start / shell / stop"), nil
 		}
 		return m.runAction(k)
+	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
+		if m.fleet {
+			return m, nil
+		}
+		return m.openWebIndex(int(k[0] - '1'))
 	}
 	return m, nil
 }
@@ -356,6 +364,9 @@ func (m model) clickKey(key string) (tea.Model, tea.Cmd) {
 	case "r":
 		return m.withStatus(""), m.reload()
 	default:
+		if strings.HasPrefix(key, "url:") {
+			return m.openWebURL(strings.TrimPrefix(key, "url:"))
+		}
 		if m.fleet {
 			return m.withStatus("open a folder (enter / click) to start / shell / stop"), nil
 		}

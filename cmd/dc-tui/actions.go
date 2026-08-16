@@ -46,7 +46,8 @@ func (m model) reload() tea.Cmd {
 				disk = strings.TrimSpace(df.Compact)
 			}
 		}
-		return reloadMsg{rows: rows, stack: stack, disk: disk}
+		fwd := mergePairs(listFwdMaps(ws), listStackPorts(stack))
+		return reloadMsg{rows: rows, stack: stack, fwdMaps: fwd, disk: disk}
 	}
 }
 
