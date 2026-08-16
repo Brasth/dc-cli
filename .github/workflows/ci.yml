@@ -103,7 +103,11 @@ jobs:
           PATH="/usr/bin:/bin" HOME="$RUNNER_TEMP/prebuilt-home" PREFIX="$RUNNER_TEMP/dc-prebuilt" \
             bash "$kit/install.sh" --prefix "$RUNNER_TEMP/dc-prebuilt" --with-skill
           test -x "$RUNNER_TEMP/dc-prebuilt/dc-tui"
-          test "$(head -c 2 "$RUNNER_TEMP/dc-prebuilt/dc-tui")" != "#!"
+          # PREFIX entries are shims; the prebuilt TUI lives in the generation payload.
+          test "$(head -c 2 "$RUNNER_TEMP/dc-prebuilt/dc-tui")" = "#!"
+          gen_tui="$RUNNER_TEMP/prebuilt-home/.local/share/dc-cli/generations/current/bin/dc-tui"
+          test -x "$gen_tui"
+          test "$(head -c 2 "$gen_tui")" != "#!"
           "$RUNNER_TEMP/dc-prebuilt/dc-tui" --help
           "$RUNNER_TEMP/dc-prebuilt/dc-up" --help
           test -f "$kit/skill/SKILL.md"
@@ -111,7 +115,7 @@ jobs:
           brew="$RUNNER_TEMP/dc-brew"
           mkdir -p "$brew/bin" "$brew/lib"
           cp "$kit/bin/"* "$brew/bin/"
-          cp "$kit/lib/dc-common.sh" "$brew/lib/"
+          cp "$kit/lib/"*.sh "$brew/lib/"
           HOME="$RUNNER_TEMP/empty-home" "$brew/bin/dc-up" --help
           HOME="$RUNNER_TEMP/empty-home" "$brew/bin/dc-ls" --json --all | grep -qx '\[\]'
           grep -Fqx 'curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli' README.md
