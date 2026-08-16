@@ -5,30 +5,32 @@
 class DcCli < Formula
   desc "Host-global helpers around @devcontainers/cli"
   homepage "https://dc.brasth.com"
-  version "0.10.1"
+  version "0.10.2"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.10.1/dc-cli-0.10.1-darwin-arm64.tar.gz"
-      sha256 "5eacece35598d0dd7bfa95ff237763c10c29dd46476d1bab9fed5f7b3c2091bb"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.10.2/dc-cli-0.10.2-darwin-arm64.tar.gz"
+      sha256 "226a67a1fa881e203afac85e7388e6215044b28751e42d9d5e5b8902576c0f98"
     end
     on_intel do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.10.1/dc-cli-0.10.1-darwin-amd64.tar.gz"
-      sha256 "f4250f86c2aa8f281f62f19c39fc5059514f83b6c3caffecbb6b5deb528c7c54"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.10.2/dc-cli-0.10.2-darwin-amd64.tar.gz"
+      sha256 "b1946d36269bef25503f96c9e7baf7e6ca76883b2a567f90222adb6acfb1ebba"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.10.1/dc-cli-0.10.1-linux-arm64.tar.gz"
-      sha256 "3caf5a55067e4359bebe8eabd9d9894451b7e552fe004346b06a6ef6a937e26e"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.10.2/dc-cli-0.10.2-linux-arm64.tar.gz"
+      sha256 "3c79577a5f262fae84c71e483d818512e5984b400534c14926568cc7fc65bbb1"
     end
     on_intel do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.10.1/dc-cli-0.10.1-linux-amd64.tar.gz"
-      sha256 "566cbe3b78f7bb327204d2cecf917b9e4a078775b173eaa047ba72796b8b4118"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.10.2/dc-cli-0.10.2-linux-amd64.tar.gz"
+      sha256 "7e7fc72b531304cf0793782bc239b4794e2152a86621b24a104ed318dde38994"
     end
   end
+
+  depends_on "yazi" => :recommended
 
   def install
     bin.install Dir["bin/*"]
