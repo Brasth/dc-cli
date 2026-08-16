@@ -10,7 +10,7 @@
   --color-ink: #f4f1ea;
   --color-mute: #8a8680;
   --color-line: #2c2a26;
-  --color-amber: #e8a838;
+  --color-amber: var(--color-accent);
   --color-core: #0c0c0a;
   --ease-out-fluid: cubic-bezier(0.32, 0.72, 0, 1);
 }
@@ -117,7 +117,7 @@ li {
   height: 34rem;
   margin: -17rem 0 0 -17rem;
   pointer-events: none;
-  background: radial-gradient(circle, rgb(232 168 56 / 0.16), transparent 62%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 16%, transparent), transparent 62%);
   will-change: transform;
 }
 

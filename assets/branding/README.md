@@ -21,7 +21,7 @@ Concepts in `concepts/` are exploration only. Do not ship them.
 |---|---|
 | Background | `#050505` |
 | Foreground | `#F4F1EA` |
-| Accent | `#E8A838` |
+| Accent | `#6FCF7B` |
 | Steel | `#8A8680` |
 
 ## Type

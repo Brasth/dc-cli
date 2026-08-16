@@ -93,7 +93,7 @@ dc-tui --all        # every labeled workspace
 
 Primary row: **start** · **shell** · **stop**. Meta row is quieter. **rm** is danger and asks `y/n`. Stack / fleet rows: **up** / **down**, `j`/`k` or click, Enter to open or exec.
 
-Startup draws the **dc-cli** mark (host frame + amber pip). Any key skips. `DC_TUI_NO_SPLASH=1` skips it. The compact mark stays in the header.
+Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `DC_TUI_NO_SPLASH=1` skips it. The compact mark stays in the header.
 
 | Button | Key | Does |
 |---|---|---|

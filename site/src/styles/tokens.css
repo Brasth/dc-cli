@@ -6,8 +6,8 @@
   --color-cream-300: #c8c0b2;
   --color-steel-500: #8a8680;
   --color-steel-700: #3a3834;
-  --color-amber-400: #e8a838;
-  --color-amber-500: #d4921f;
+  --color-phosphor-400: #6fcf7b;
+  --color-phosphor-500: #4eae5a;
   --color-danger-500: #c45c4a;
 
   --font-display: "Geist", "Satoshi", ui-sans-serif, system-ui, sans-serif;
@@ -48,8 +48,8 @@
   --color-fg: var(--color-cream-50);
   --color-muted: var(--color-steel-500);
   --color-line: var(--color-steel-700);
-  --color-accent: var(--color-amber-400);
-  --color-accent-hover: var(--color-amber-500);
+  --color-accent: var(--color-phosphor-400);
+  --color-accent-hover: var(--color-phosphor-500);
   --color-danger: var(--color-danger-500);
 
   --font-heading: var(--font-display);

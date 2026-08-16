@@ -6,7 +6,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Brand mark: host frame around a guest, amber pip (assets/branding/logo-mark.svg).
+// Brand mark: host frame around a guest, phosphor pip (assets/branding/logo-mark.svg).
 const (
 	splashLast   = 5
 	splashHold   = 3
@@ -15,7 +15,7 @@ const (
 
 var (
 	logoFrame = lipgloss.NewStyle().Foreground(lipgloss.Color("#8A8680"))
-	logoPip   = lipgloss.NewStyle().Foreground(lipgloss.Color("#E8A838")).Bold(true)
+	logoPip   = lipgloss.NewStyle().Foreground(lipgloss.Color("#6FCF7B")).Bold(true)
 	logoWord  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F4F1EA"))
 	logoTag   = lipgloss.NewStyle().Foreground(lipgloss.Color("#8A8680"))
 )

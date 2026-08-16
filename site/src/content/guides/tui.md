@@ -23,7 +23,7 @@ dc-tui ~/src/app
 dc-tui --all        # every labeled workspace
 ```
 
-Startup draws the **dc-cli** mark (host frame + amber pip). Any key skips. `DC_TUI_NO_SPLASH=1` skips it. The compact mark stays in the header.
+Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `DC_TUI_NO_SPLASH=1` skips it. The compact mark stays in the header.
 
 ![dc-tui board](/images/tui.png)
 
