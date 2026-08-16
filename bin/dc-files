@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Open an in-container file manager if the image already has one.
+# Open a file manager *inside* the container. Prefer one already in the image;
+# otherwise copy a cached Linux yazi into /tmp (never apt-get).
 set -euo pipefail
 
 _here="$(cd "$(dirname "$0")" && pwd)"
@@ -13,6 +14,10 @@ else
   echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
   exit 1
 fi
+if [[ -f "$_here/../lib/dc-install-yazi.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-install-yazi.sh"
+fi
 
 workspace="."
 service=""
@@ -22,7 +27,7 @@ tools=(yazi nnn lf mc ranger)
 
 usage() {
   cat <<'EOF'
-dc-files — open a file manager already inside the container
+dc-files — open a file manager inside the container
 
   dc-files [workspace]                 labeled app
   dc-files --service NAME [workspace]  that compose service
@@ -30,9 +35,8 @@ dc-files — open a file manager already inside the container
   dc-files --path DIR [...]            start directory inside the box
 
 Detects $DC_FILES_TOOL, then yazi, nnn, lf, mc, ranger in the box.
-If none, opens the same tool on the host bind-mount (install.sh
-fetches yazi when the host has no file manager).
-Does not install anything into the container. Bind-mount editor: dc-open.
+If none, copies a Linux yazi into /tmp and runs that (never apt-get).
+Bind-mount editor on the host: dc-open.
 EOF
 }
 
@@ -129,27 +133,29 @@ for tool in "${tools[@]}"; do
 done
 
 if [[ -z "$found" ]]; then
-  if [[ "${DC_FILES_NO_HOST:-}" != "1" ]]; then
-    host=""
-    for tool in "${tools[@]}"; do
-      [[ -n "$tool" ]] || continue
-      if command -v "$tool" >/dev/null 2>&1; then
-        host="$tool"
-        break
-      fi
-    done
-    if [[ -n "$host" ]]; then
-      host_path="$start_path"
-      if [[ -z "$host_path" ]]; then
-        host_path="$(dc_resolve_workspace "$workspace")" || host_path="$workspace"
-      fi
-      echo "dc-files: no file manager in this container; opening host $host on $host_path" >&2
-      exec "$host" "$host_path"
-    fi
+  if [[ "${DC_FILES_NO_INJECT:-}" == "1" ]]; then
+    echo "dc-files: no file manager in this container (tried ${tools[*]})." >&2
+    exit 1
   fi
-  echo "dc-files: no file manager in this container (tried ${tools[*]})." >&2
-  echo "Re-run install.sh to fetch host yazi, or use dc-open for the bind-mount." >&2
-  exit 1
+  if ! declare -F dc_inject_guest_yazi >/dev/null 2>&1; then
+    echo "dc-files: no file manager in this container (tried ${tools[*]})." >&2
+    echo "dc-install-yazi.sh missing; cannot inject Linux yazi." >&2
+    exit 1
+  fi
+  inject_id="$target"
+  if [[ "$use_official" -eq 1 ]]; then
+    inject_id="$(dc_ids_for_workspace "$workspace" | head -n1)"
+    if [[ -z "$inject_id" ]]; then
+      echo "dc-files: no labeled app in $workspace (dc-up first)" >&2
+      exit 1
+    fi
+    dc_ensure_running "$inject_id" || exit 1
+  fi
+  echo "dc-files: no file manager in this container; copying Linux yazi into the box" >&2
+  if ! found="$(dc_inject_guest_yazi "$inject_id")"; then
+    echo "dc-files: could not inject yazi. Use dc-open for the bind-mount." >&2
+    exit 1
+  fi
 fi
 
 if [[ "$use_official" -eq 1 ]]; then

@@ -89,23 +89,29 @@ case_service_app_nnn() {
   grep -q 'nnn' "$STATE/exec.log"
 }
 
-case_host_yazi() {
-  local ws
+case_inject_yazi() {
+  local ws zipdir
   ws="$(mktemp -d "$STATE/ws.XXXX")"
   mkdir -p "$ws/.devcontainer"
   echo '{}' >"$ws/.devcontainer/devcontainer.json"
   fake_add_container app1 app-1 running \
     "devcontainer.local_folder=$ws" \
-    image=alpine
-  unset DC_FILES_NO_HOST
-  cat >"$STATE/bin/yazi" <<EOF
+    image=alpine \
+    arch=amd64
+  unset DC_FILES_NO_INJECT
+  zipdir="$STATE/yz"
+  mkdir -p "$zipdir/yazi-x86_64-unknown-linux-musl"
+  cat >"$zipdir/yazi-x86_64-unknown-linux-musl/yazi" <<'EOF'
 #!/usr/bin/env bash
-printf '%s\n' "\$*" >"$STATE/host-yazi.args"
+exit 0
 EOF
-  chmod +x "$STATE/bin/yazi"
+  chmod +x "$zipdir/yazi-x86_64-unknown-linux-musl/yazi"
+  (cd "$zipdir" && zip -q -r "$STATE/yazi.zip" yazi-x86_64-unknown-linux-musl)
+  export DC_YAZI_HOME="$STATE/tools" DC_YAZI_ZIP="$STATE/yazi.zip"
   dc-files --id app1 "$ws"
-  grep -q "$ws" "$STATE/host-yazi.args"
-  [[ ! -f "$STATE/exec.log" ]] || ! grep -q . "$STATE/exec.log"
+  grep -q 'cp .* /tmp/dc-cli-yazi' "$STATE/cp.log"
+  grep -q '/tmp/dc-cli-yazi' "$STATE/exec.log"
+  [[ -x "$STATE/tools/guest/amd64/yazi" ]]
 }
 
 run_case help case_help
@@ -113,7 +119,7 @@ run_case nnn-opens case_nnn_opens
 run_case empty-refuses case_empty_refuses
 run_case service-db-empty case_service_db
 run_case service-app-nnn case_service_app_nnn
-run_case host-yazi-fallback case_host_yazi
+run_case inject-linux-yazi case_inject_yazi
 
 echo
 if [[ "$FAILED" -gt 0 ]]; then

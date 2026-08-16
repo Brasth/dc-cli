@@ -100,6 +100,20 @@ if [[ "$do_list" -eq 1 ]]; then
   exit 0
 fi
 
+dc_exec_color_rc() {
+  if [[ -f "$_here/../lib/dc-exec-color.sh" ]]; then
+    printf '%s\n' "$_here/../lib/dc-exec-color.sh"
+    return 0
+  fi
+  return 1
+}
+
+dc_inject_color_rc() {
+  local id="$1" src
+  src="$(dc_exec_color_rc)" || return 1
+  docker cp "$src" "$id:/tmp/dc-cli.bashrc" >/dev/null 2>&1
+}
+
 docker_exec() {
   local id="$1"
   shift
@@ -109,6 +123,12 @@ docker_exec() {
   if [[ -t 0 && -t 1 ]]; then
     flags=(-it)
   fi
+  flags+=(
+    -e "TERM=${TERM:-xterm-256color}"
+    -e "COLORTERM=${COLORTERM:-truecolor}"
+    -e "CLICOLOR=1"
+    -e "FORCE_COLOR=1"
+  )
   exec docker exec "${flags[@]}" "$id" "$@"
 }
 
@@ -118,7 +138,11 @@ docker_shell() {
   if [[ $# -gt 0 ]]; then
     docker_exec "$id" "$@"
   fi
+  dc_inject_color_rc "$id" || true
   if docker exec "$id" bash -lc 'exit 0' >/dev/null 2>&1; then
+    if docker exec "$id" test -f /tmp/dc-cli.bashrc >/dev/null 2>&1; then
+      docker_exec "$id" bash --rcfile /tmp/dc-cli.bashrc
+    fi
     docker_exec "$id" bash
   fi
   docker_exec "$id" sh
@@ -152,8 +176,23 @@ ws="$(dc_cli_workspace_folder "$workspace")"
 app_id="$(dc_ids_for_workspace "$workspace" | head -n1)"
 if [[ -n "$app_id" ]]; then
   dc_ensure_running "$app_id" || exit 1
+  if [[ ${#cmd[@]} -eq 0 ]]; then
+    dc_inject_color_rc "$app_id" || true
+  fi
 fi
 if [[ ${#cmd[@]} -eq 0 ]]; then
-  exec devcontainer exec --workspace-folder "$ws" bash
+  if [[ -n "$app_id" ]] && docker exec "$app_id" test -f /tmp/dc-cli.bashrc >/dev/null 2>&1; then
+    exec devcontainer exec --workspace-folder "$ws" \
+      --remote-env "TERM=${TERM:-xterm-256color}" \
+      --remote-env "COLORTERM=${COLORTERM:-truecolor}" \
+      bash --rcfile /tmp/dc-cli.bashrc
+  fi
+  exec devcontainer exec --workspace-folder "$ws" \
+    --remote-env "TERM=${TERM:-xterm-256color}" \
+    --remote-env "COLORTERM=${COLORTERM:-truecolor}" \
+    bash
 fi
-exec devcontainer exec --workspace-folder "$ws" "${cmd[@]}"
+exec devcontainer exec --workspace-folder "$ws" \
+  --remote-env "TERM=${TERM:-xterm-256color}" \
+  --remote-env "COLORTERM=${COLORTERM:-truecolor}" \
+  "${cmd[@]}"

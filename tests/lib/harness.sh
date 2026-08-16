@@ -14,7 +14,7 @@ harness_setup() {
   ln -sf "$ROOT/tests/lib/fake-docker" "$STATE/bin/docker"
   chmod +x "$ROOT/tests/lib/fake-docker"
   export PATH="$STATE/bin:$ROOT/bin:$PATH"
-  export DC_FILES_NO_HOST=1
+  export DC_FILES_NO_INJECT=1
   : >"$FAKE_DOCKER_LOG"
 }
 
@@ -40,6 +40,7 @@ fake_add_container() {
     case "$arg" in
       ports=*) printf '%s\n' "${arg#ports=}" >"$dir/ports" ;;
       image=*) printf '%s\n' "${arg#image=}" >"$dir/image" ;;
+      arch=*) printf '%s\n' "${arg#arch=}" >"$dir/arch" ;;
       network=*) printf '%s\n' "${arg#network=}" >"$dir/network" ;;
       ip=*) printf '%s\n' "${arg#ip=}" >"$dir/ip" ;;
       command=*) printf '%s\n' "${arg#command=}" >"$dir/command" ;;

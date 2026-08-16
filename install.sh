@@ -32,7 +32,7 @@ Usage: bash install.sh [options]
   --ref latest|TAG|main   fetch that GitHub release kit first
                     (prebuilt dc-tui; falls back to source tree)
                     (auto latest when this script is not next to bin/)
-  --no-yazi         do not fetch host yazi (DC_SKIP_YAZI=1)
+  --no-yazi         do not prefetch Linux yazi for dc-files (DC_SKIP_YAZI=1)
 EOF
 }
 
@@ -385,8 +385,8 @@ append_path_block "$HOME/.bashrc" "# dc-cli helpers" "$PREFIX"
 
 export PATH="$GEN_ROOT/current/bin:$PREFIX:$PATH"
 
-if declare -F ensure_host_file_manager >/dev/null 2>&1; then
-  ensure_host_file_manager
+if declare -F ensure_guest_file_manager >/dev/null 2>&1; then
+  ensure_guest_file_manager
 fi
 
 # --- official CLI channels ---
@@ -530,10 +530,10 @@ doctor() {
   else
     echo "  socat         optional  dc-forward only — brew/apt install socat"
   fi
-  if command -v yazi >/dev/null 2>&1 || command -v nnn >/dev/null 2>&1; then
-    echo "  files         OK  host $(command -v yazi 2>/dev/null || command -v nnn) (dc-files fallback)"
+  if [[ -x "${HOME}/.local/share/dc-cli/tools/guest/arm64/yazi" || -x "${HOME}/.local/share/dc-cli/tools/guest/amd64/yazi" ]]; then
+    echo "  files         OK  guest yazi cached (dc-files copies it into /tmp)"
   else
-    echo "  files         optional  no host yazi/nnn — dc-files uses an in-box FM if present"
+    echo "  files         optional  dc-files fetches Linux yazi on first use"
   fi
   if [[ -x "$PREFIX/dc-up" && -x "$PREFIX/dc-tui" ]]; then
     echo "  helpers       OK  $PREFIX (generation $GEN_ROOT/current)"

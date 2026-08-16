@@ -15,11 +15,11 @@ jobs:
       - name: bash -n
         run: |
           bash -n install.sh
-          bash -n lib/dc-common.sh lib/dc-floor.sh
+          bash -n lib/dc-common.sh lib/dc-floor.sh lib/dc-install-yazi.sh lib/dc-exec-color.sh
           bash -n scripts/pack-release.sh scripts/print-release-shas.sh scripts/check-floor-qual.sh
           bash -n bin/dc-up bin/dc-exec bin/dc-down bin/dc-ps bin/dc-forward
           bash -n bin/dc-ls bin/dc-open bin/dc-tui bin/dc-df bin/dc-prune bin/dc-doctor
-          bash -n tests/lib/fake-docker tests/lib/harness.sh tests/safety/run.sh tests/install/run.sh tests/doctor/run.sh tests/forward/run.sh
+          bash -n tests/lib/fake-docker tests/lib/harness.sh tests/safety/run.sh tests/install/run.sh tests/doctor/run.sh tests/forward/run.sh tests/files/run.sh tests/exec/run.sh
       - name: safety gates
         run: bash tests/safety/run.sh
       - name: installer gates
@@ -28,6 +28,10 @@ jobs:
         run: bash tests/doctor/run.sh
       - name: forward reconcile gates
         run: bash tests/forward/run.sh
+      - name: files inject gates
+        run: bash tests/files/run.sh
+      - name: exec color gates
+        run: bash tests/exec/run.sh
       - name: floor qualification artifact
         run: bash scripts/check-floor-qual.sh
       - name: go test dc-tui
@@ -92,6 +96,7 @@ jobs:
           bash install.sh --help | grep -q -- --full
           bash install.sh --help | grep -q -- --ref
           bash install.sh --help | grep -q -- --with-cli-npm
+          bash install.sh --help | grep -q -- --no-yazi
       - name: pack linux-amd64 and install without go
         run: |
           scripts/pack-release.sh 0.0.0-ci linux amd64 "$RUNNER_TEMP/dc-dist"

@@ -15,7 +15,7 @@ this folder
    ├─ dc-exec         shell in the app
    ├─ dc-exec --service NAME   start (if needed) + shell in another service
    ├─ dc-db           host TablePlus on a declared db port
-   ├─ dc-files        yazi/nnn in the box, else host yazi on the bind-mount
+   ├─ dc-files        yazi/nnn in the box, else Linux yazi copied into /tmp
    ├─ dc-forward      reconcile owned sidecars (Colima-safe)
    └─ dc-down         stop the app (sidecars go too)
 ```
@@ -26,7 +26,7 @@ this folder
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Always tracks the **latest GitHub release** (currently **v0.10.2**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start via the **official standalone** installer — not npm. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
+Always tracks the **latest GitHub release** (currently **v0.10.3**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start via the **official standalone** installer — not npm. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
 
 macOS/Linux via Homebrew (same kit, no Go required):
 
@@ -45,7 +45,7 @@ Each person needs their **own** Docker/Colima. Do not share one engine — fleet
 | `--with-skill` | copy the agent skill into homes you already have |
 | `--full` | `--with-cli` + `--with-skill` |
 | `--ref v0.4.3` / `main` | pin a tag or use HEAD |
-| `--no-yazi` | do not fetch host yazi (`DC_SKIP_YAZI=1`) |
+| `--no-yazi` | do not prefetch Linux yazi (`DC_SKIP_YAZI=1`) |
 
 Needs: bash 4+, Docker (Colima or Desktop). Official CLI floor is whatever `docs/qualification/devcontainer-cli-floor.md` records (unpublished until a release engineer signs four platforms). Stock standalone `--node-version` pins a **Node major only** (mutable patch) — not a reproducible Node pin. Release/brew installs include the clickable TUI. A source install builds it when Go is on PATH; otherwise you get the bash menu. Open a **new login terminal** after a curl install (or `source ~/.zshrc` / `~/.bashrc`).
 
@@ -66,7 +66,7 @@ dc-exec --service NAME          # start that compose service if it is down, then
 dc-exec --service NAME -- cmd   # same, run a command (works without a TTY)
 dc-db --list                    # classify stack DBs (passwords redacted)
 dc-db                           # open TablePlus on the declared host port
-dc-files                        # yazi/nnn in the box, else host yazi on the bind-mount
+dc-files                        # yazi/nnn in the box, else Linux yazi copied into /tmp
 dc-forward                      # reconcile owned sidecars (needs one app or --id)
 dc-down                         # stop FULL compose stack (app+db+mitm+…)
 dc-down --app                   # labeled app only (+ its sidecars)
@@ -113,7 +113,7 @@ Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `D
 | **url** | `1`–`9` / click | open a published website (`http://127.0.0.1:PORT`) |
 | **logs** | `l` | follow docker logs in the board (highlighted; q back) |
 | **db** | `b` | `dc-db` — host TablePlus (etc.) on a declared db port |
-| **files** | `m` | `dc-files` — yazi/nnn in the box, else host yazi |
+| **files** | `m` | `dc-files` — yazi/nnn in the box, else Linux yazi in /tmp |
 | **fleet** | `f` | other workspaces |
 | **more** / **quit** | `?` / `q` | legend / exit |
 | **disk** | `d` | `dc-df` report (stays in TUI) |
@@ -125,7 +125,7 @@ After **shell** / **start** / **files**, the board comes back. **logs** stays on
 
 **open ≠ attach.** Open = files on the Mac/Linux host. `a` / `dc-open --attach` is the VS Code Remote URI into Linux. Zed attaches itself. Sublime cannot.
 
-**db ≠ url tiles.** `b` / `dc-db` opens TablePlus (or DBeaver / rainfrog) on the host port you already set on the db service. It never invents a port. No compose `ports` / matching `forwardPorts` → refuse. Two databases need `--service`. Bind-mount files stay `o`; `m` is a guest FM if the image has one, else host yazi (install.sh fetches it — never `apt-get` into the box).
+**db ≠ url tiles.** `b` / `dc-db` opens TablePlus (or DBeaver / rainfrog) on the host port you already set on the db service. It never invents a port. No compose `ports` / matching `forwardPorts` → refuse. Two databases need `--service`. Bind-mount editor stays `o`; `m` / `dc-files` always runs **inside** the container (image FM, or a Linux yazi copied to `/tmp` — never `apt-get`). `e` / `dc-exec` is a color shell (`ls`, prompt, `hl` for access logs).
 
 ## Commands (all of them)
 
@@ -151,7 +151,7 @@ After **shell** / **start** / **files**, the board comes back. **logs** stays on
 | `dc-ls [--json] [--all]` | labeled app list |
 | `dc-open` / `--attach` | host editor / VS Code attach |
 | `dc-db` / `--list` / `--print` | host DB client on a **declared** compose/`forwardPorts` port |
-| `dc-files` | yazi/nnn in the box, else host yazi on the bind-mount |
+| `dc-files` | yazi/nnn in the box, else Linux yazi copied into `/tmp` |
 | `dc-forward` / `3000` / `9001:80` / `--stop` | reconcile owned sidecars (one app or `--id`) |
 | `dc-ps` | docker + labels |
 | `dc-df` / `--json` / `--volumes` | disk report (read-only) |

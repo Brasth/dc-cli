@@ -201,7 +201,7 @@ func morePanel(editor string, width int) string {
 	lines := []string{
 		"more — what each action does",
 		"  start    create/start this folder (needs .devcontainer) then dc-forward",
-		"  shell    bash in the labeled app — board leaves, then comes back",
+		"  shell    bash in the labeled app — color prompt, ls, hl for logs",
 		"  stack    j/k + enter or click — starts the box if down, then exec",
 		"  open     host editor on the bind-mount  now: " + editor,
 		"  attach   VS Code Remote URI; Zed: Project → Open Remote → Connect Dev Container",
@@ -211,7 +211,7 @@ func morePanel(editor string, width int) string {
 		"  rm       compose down (remove stack containers) — asks y/n",
 		"  logs     follow docker logs in the board — highlighted, q returns",
 		"  db       open TablePlus (etc.) on a declared db port (b)",
-		"  files    yazi/nnn in the box, else host yazi on the bind-mount (m)",
+		"  files    yazi/nnn in the box, else Linux yazi copied into /tmp (m)",
 		"  fleet    list every labeled workspace",
 		"  disk     dc-df report (d key). Reclaim: dc-prune --yes (CLI)",
 		"",

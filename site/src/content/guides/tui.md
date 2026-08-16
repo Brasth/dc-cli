@@ -47,7 +47,7 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 | **url** | `1`–`9` / click | open a published website in the host browser |
 | **logs** | `l` | follow docker logs in the board (highlighted; q back) |
 | **db** | `b` | `dc-db` — host TablePlus on a declared db port |
-| **files** | `m` | `dc-files` — yazi/nnn in the box, else host yazi |
+| **files** | `m` | `dc-files` — yazi/nnn in the box, else Linux yazi in /tmp |
 | **fleet** | `f` | other workspaces |
 | **more** / **quit** | `?` / `q` | legend / exit |
 | **disk** | `d` | `dc-df` report (stays in TUI) |

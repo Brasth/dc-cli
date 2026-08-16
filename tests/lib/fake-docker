@@ -333,6 +333,10 @@ case "$cmd" in
       '{{.Name}}') printf '/%s\n' "${name:-$id}" ;;
       '{{.State.Status}}') printf '%s\n' "${status:-running}" ;;
       '{{.Config.Image}}'|'{{.Image}}') printf '%s\n' "${image:-alpine}" ;;
+      '{{.Architecture}}')
+        arch="$(read_file "$dir/arch")"
+        printf '%s\n' "${arch:-amd64}"
+        ;;
       '{{range $p,$c := .NetworkSettings.Ports}}{{range $c}}{{.HostPort}}\n{{end}}{{end}}')
         printf '%s\n' "$hostp"
         ;;
@@ -386,10 +390,34 @@ case "$cmd" in
     esac
     exit 0
     ;;
+  cp)
+    src="${1:-}"
+    dest="${2:-}"
+    printf '%s\n' "cp $src $dest" >>"$STATE/cp.log"
+    cid="${dest%%:*}"
+    cpath="${dest#*:}"
+    cdir="$(cdir "$cid")"
+    if [[ ! -d "$cdir" ]]; then
+      echo "Error: No such container: $cid" >&2
+      exit 1
+    fi
+    if [[ "$cpath" == "/tmp/dc-cli-yazi" || "$cpath" == */dc-cli-yazi ]]; then
+      printf '%s\n' "/tmp/dc-cli-yazi" >>"$cdir/bins"
+    fi
+    if [[ "$cpath" == "/tmp/dc-cli.bashrc" ]]; then
+      : >"$cdir/color-rc"
+    fi
+    exit 0
+    ;;
   exec)
     while [[ $# -gt 0 ]]; do
       case "$1" in
         -i|-t|-it|-d) shift ;;
+        -e|--env)
+          shift
+          [[ $# -gt 0 ]] && shift
+          ;;
+        --env=*) shift ;;
         *) break ;;
       esac
     done
@@ -398,6 +426,17 @@ case "$cmd" in
     dir="$(cdir "$id")"
     if [[ ! -d "$dir" ]]; then
       echo "Error: No such container: $id" >&2
+      exit 1
+    fi
+    if [[ "${1:-}" == "chmod" || "${1:-}" == "mkdir" || "${1:-}" == "true" ]]; then
+      printf '%s\n' "$*" >>"$STATE/exec.log"
+      printf '%s\n' "$*" >>"$dir/exec.log"
+      exit 0
+    fi
+    if [[ "${1:-}" == "test" ]]; then
+      if [[ "${2:-}" == "-f" && "${3:-}" == "/tmp/dc-cli.bashrc" && -f "$dir/color-rc" ]]; then
+        exit 0
+      fi
       exit 1
     fi
     script=""

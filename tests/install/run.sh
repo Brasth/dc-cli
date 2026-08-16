@@ -176,9 +176,10 @@ EOF
     DC_GENERATION_ROOT="$home/share/generations" PREFIX="$prefix" \
     DC_SKIP_TUI_BUILD=1 DC_YAZI_ZIP="$home/yazi.zip" \
     bash "$ROOT/install.sh" --prefix "$prefix" >/dev/null
-  [[ -x "$home/.local/share/dc-cli/tools/yazi" ]]
-  [[ -L "$prefix/yazi" ]]
-  "$prefix/yazi" | grep -q fake-yazi
+  arch=amd64
+  case "$(uname -m)" in arm64|aarch64) arch=arm64 ;; esac
+  [[ -x "$home/.local/share/dc-cli/tools/guest/$arch/yazi" ]]
+  "$home/.local/share/dc-cli/tools/guest/$arch/yazi" | grep -q fake-yazi
   rm -rf "$home"
 }
 
@@ -194,7 +195,7 @@ run_case "shadowed below-floor winner fail-closed" case_shadow_below_floor
 run_case "fresh-login PATH resolves helpers" case_fresh_login_path
 run_case "no-flags does not run npm" case_noflags_no_cli
 run_case "help lists --no-yazi" case_help_no_yazi
-run_case "installs host yazi from zip" case_yazi_from_zip
+run_case "installs guest yazi from zip" case_yazi_from_zip
 
 echo
 if [[ "$FAILED" -ne 0 ]]; then
