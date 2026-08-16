@@ -58,10 +58,15 @@ case_atomic_generation() {
   # Partial extra id dir is not current.
   mkdir -p "$home/share/generations/partial-id/bin"
   [[ "$(readlink "$home/share/generations/current")" != *partial-id ]]
+  first="$(readlink "$home/share/generations/current")"
   HOME="$home" DC_GENERATION_ROOT="$home/share/generations" PREFIX="$prefix" \
     DC_SKIP_TUI_BUILD=1 \
     bash "$ROOT/install.sh" --prefix "$prefix" >/dev/null
   [[ ! -d "$home/share/generations/partial-id" ]]
+  second="$(readlink "$home/share/generations/current")"
+  [[ -n "$second" && "$second" != "$first" ]]
+  [[ -x "$home/share/generations/current/bin/dc-up" ]]
+  [[ ! -e "$first/current.tmp" ]]
   rm -rf "$home"
 }
 

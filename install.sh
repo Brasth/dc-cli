@@ -254,7 +254,14 @@ elif [[ "${DC_SKIP_TUI_BUILD:-}" == "1" && -f "$ROOT/bin/dc-tui" ]]; then
   echo "Staged bash dc-tui (DC_SKIP_TUI_BUILD=1)"
 elif [[ -f "$ROOT/cmd/dc-tui/main.go" ]] && command -v go >/dev/null 2>&1; then
   echo "Building clickable dc-tui (Go)..."
-  (cd "$ROOT" && go build -o "$stage/bin/dc-tui" ./cmd/dc-tui)
+  ver=""
+  if [[ -f "$ROOT/VERSION" ]]; then
+    ver="$(tr -d '[:space:]' <"$ROOT/VERSION" || true)"
+    ver="${ver#v}"
+  fi
+  ldflags="-s -w"
+  [[ -n "$ver" ]] && ldflags="$ldflags -X main.version=${ver}"
+  (cd "$ROOT" && go build -ldflags "$ldflags" -o "$stage/bin/dc-tui" ./cmd/dc-tui)
   chmod +x "$stage/bin/dc-tui"
   echo "Staged Go dc-tui"
 elif [[ -f "$ROOT/bin/dc-tui" ]]; then
@@ -269,6 +276,9 @@ else
   echo "Missing $ROOT/lib" >&2
   rm -rf "$stage"
   exit 1
+fi
+if [[ -f "$ROOT/VERSION" ]]; then
+  cp "$ROOT/VERSION" "$stage/VERSION"
 fi
 
 verify_stage() {
@@ -293,9 +303,9 @@ if ! verify_stage; then
   exit 1
 fi
 
-tmp_link="$GEN_ROOT/current.tmp"
-ln -sfn "$stage" "$tmp_link"
-mv -f "$tmp_link" "$GEN_ROOT/current"
+# Replace the current symlink in place. Do not `mv` onto it — on macOS
+# `mv` follows a directory symlink and drops the new link inside the old kit.
+ln -sfn "$stage" "$GEN_ROOT/current"
 echo "Activated generation $gid -> $GEN_ROOT/current"
 
 # Best-effort GC of old generation dirs (never touch current target).
