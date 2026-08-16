@@ -456,6 +456,14 @@ func TestExecDoneStartFailure(t *testing.T) {
 	}
 }
 
+func TestExecDoneReenablesMouse(t *testing.T) {
+	m := model{workspace: "/tmp/app", hoverStack: -1, leaving: "start"}
+	_, cmd := m.Update(execDoneMsg{action: "u"})
+	if cmd == nil {
+		t.Fatal("return from start must reload and re-enable mouse")
+	}
+}
+
 func TestExecDoneShellExit1IsBack(t *testing.T) {
 	m := model{workspace: "/tmp/app", hoverStack: -1, err: "old", leaving: "shell"}
 	got, _ := m.Update(execDoneMsg{action: "e", err: errStr("exit status 1")})

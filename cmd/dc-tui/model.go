@@ -112,7 +112,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m = m.withStatus(backStatus(msg.action))
 		}
-		return m, m.reload()
+		// ExecProcess disables mouse on ReleaseTerminal and never restores it.
+		return m, tea.Batch(tea.EnableMouseAllMotion, m.reload())
 	case leaveTickMsg:
 		return m.runPending()
 	case splashTickMsg:
