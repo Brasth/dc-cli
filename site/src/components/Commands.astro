@@ -7,7 +7,7 @@ const rows = [
   { cmd: 'dc-down', does: 'Stop the full compose stack. --app for the labeled app only.' },
   { cmd: 'dc-forward', does: 'Reconcile owned sidecars. One app or --id. Pairs like 9001:80.' },
   { cmd: 'dc-db', does: 'Open TablePlus on a declared db port. --list to classify. Never invents a port.' },
-  { cmd: 'dc-files', does: 'Leave-exec yazi/nnn already in the container. Never apt-get.' },
+  { cmd: 'dc-files', does: 'yazi/nnn in the box, else host yazi on the bind-mount. Never apt-get.' },
   { cmd: 'dc-df', does: 'Docker + Colima disk report. Read-only.' },
   { cmd: 'dc-prune', does: 'Engine-wide cache/images/nets. Owned-only orphans. Dry-run without --yes.' },
 ];

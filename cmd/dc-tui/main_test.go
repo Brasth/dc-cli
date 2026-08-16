@@ -307,23 +307,6 @@ func TestLeaveIgnoresSecondShell(t *testing.T) {
 	}
 }
 
-func TestLeaveOnLogs(t *testing.T) {
-	m := model{
-		workspace:  "/tmp/app",
-		hasConfig:  true,
-		hoverStack: -1,
-		rows:       []container{{ID: "abc123"}},
-	}
-	got, cmd := m.handleKey("l")
-	mm := got.(model)
-	if mm.leaving != "logs" {
-		t.Fatalf("leaving=%q", mm.leaving)
-	}
-	if cmd == nil {
-		t.Fatal("expected leave tick")
-	}
-}
-
 func TestCursorClampAndEnterFleet(t *testing.T) {
 	dir1 := t.TempDir()
 	dir2 := t.TempDir()

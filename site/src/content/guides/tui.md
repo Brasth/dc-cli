@@ -45,9 +45,9 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 | **attach** | `a` | VS Code Remote URI; Zed prints Connect Dev Container steps |
 | **ports** | `p` | `dc-forward` (Colima sidecar) |
 | **url** | `1`–`9` / click | open a published website in the host browser |
-| **logs** | `l` | `docker logs -f` on the app |
+| **logs** | `l` | follow docker logs in the board (highlighted; q back) |
 | **db** | `b` | `dc-db` — host TablePlus on a declared db port |
-| **files** | `m` | `dc-files` — yazi/nnn inside the app if present |
+| **files** | `m` | `dc-files` — yazi/nnn in the box, else host yazi |
 | **fleet** | `f` | other workspaces |
 | **more** / **quit** | `?` / `q` | legend / exit |
 | **disk** | `d` | `dc-df` report (stays in TUI) |

@@ -114,10 +114,7 @@ func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 		m.confirm = "rm"
 		return m.withStatus(""), nil
 	case "l":
-		if len(m.rows) == 0 || m.rows[0].ID == "" {
-			return m.refuse("No container to log.")
-		}
-		return m.startLeave("logs", "l")
+		return m.openLogs()
 	case "b":
 		return m.stayCmd("dc-db", m.workspace)
 	case "m":
@@ -172,12 +169,6 @@ func (m model) runPending() (tea.Model, tea.Cmd) {
 		cmd = exec.Command("dc-up", ws)
 	case "e":
 		cmd = exec.Command("dc-exec", ws)
-	case "l":
-		if len(m.rows) == 0 || m.rows[0].ID == "" {
-			m.leaving = ""
-			return m.refuse("No container to log.")
-		}
-		cmd = exec.Command("docker", "logs", "-f", m.rows[0].ID)
 	case "m":
 		cmd = exec.Command("dc-files", ws)
 	default:

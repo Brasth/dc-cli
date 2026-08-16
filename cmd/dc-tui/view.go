@@ -42,6 +42,9 @@ func (m model) View() string {
 	if m.splashOn {
 		return m.splashView()
 	}
+	if m.logOpen {
+		return m.logsView()
+	}
 	s, _, _ := m.layout()
 	return s
 }
@@ -156,7 +159,7 @@ func (m model) layout() (string, []button, int) {
 func leaveLine(kind string) string {
 	switch kind {
 	case "logs":
-		return "leaving to logs — Ctrl-C to return"
+		return "opening logs"
 	case "start":
 		return "leaving to start — board returns when it finishes"
 	case "files":
@@ -206,9 +209,9 @@ func morePanel(editor string, width int) string {
 		"  url      click or 1-9 — open a published website in the browser",
 		"  stop     full compose stack — not app-only",
 		"  rm       compose down (remove stack containers) — asks y/n",
-		"  logs     follow docker logs — Ctrl-C returns here",
+		"  logs     follow docker logs in the board — highlighted, q returns",
 		"  db       open TablePlus (etc.) on a declared db port (b)",
-		"  files    in-container yazi/nnn if present (m). Bind-mount: open",
+		"  files    yazi/nnn in the box, else host yazi on the bind-mount (m)",
 		"  fleet    list every labeled workspace",
 		"  disk     dc-df report (d key). Reclaim: dc-prune --yes (CLI)",
 		"",

@@ -49,7 +49,7 @@ case_atomic_generation() {
   prefix="$home/bin"
   mkdir -p "$prefix"
   HOME="$home" DC_GENERATION_ROOT="$home/share/generations" PREFIX="$prefix" \
-    DC_SKIP_TUI_BUILD=1 \
+    DC_SKIP_TUI_BUILD=1 DC_SKIP_YAZI=1 \
     bash "$ROOT/install.sh" --prefix "$prefix" >/dev/null
   [[ -L "$home/share/generations/current" ]]
   [[ -f "$home/share/generations/current/lib/dc-common.sh" ]]
@@ -60,7 +60,7 @@ case_atomic_generation() {
   [[ "$(readlink "$home/share/generations/current")" != *partial-id ]]
   first="$(readlink "$home/share/generations/current")"
   HOME="$home" DC_GENERATION_ROOT="$home/share/generations" PREFIX="$prefix" \
-    DC_SKIP_TUI_BUILD=1 \
+    DC_SKIP_TUI_BUILD=1 DC_SKIP_YAZI=1 \
     bash "$ROOT/install.sh" --prefix "$prefix" >/dev/null
   [[ ! -d "$home/share/generations/partial-id" ]]
   second="$(readlink "$home/share/generations/current")"
@@ -84,7 +84,7 @@ EOF
   out="$(
     PATH="$home/fake:/usr/bin:/bin" HOME="$home" \
       DC_GENERATION_ROOT="$home/share/generations" PREFIX="$prefix" \
-      DC_DEVCONTAINER_MIN_VERSION="0.88.0" DC_SKIP_TUI_BUILD=1 \
+      DC_DEVCONTAINER_MIN_VERSION="0.88.0" DC_SKIP_TUI_BUILD=1 DC_SKIP_YAZI=1 \
       bash "$ROOT/install.sh" --prefix "$prefix" --with-cli 2>&1
   )"
   rc=$?
@@ -112,7 +112,7 @@ EOF
   out="$(
     PATH="$home/bad:$home/good:/usr/bin:/bin" HOME="$home" \
       DC_GENERATION_ROOT="$home/share/generations" PREFIX="$prefix" \
-      DC_DEVCONTAINER_MIN_VERSION="0.88.0" DC_SKIP_TUI_BUILD=1 \
+      DC_DEVCONTAINER_MIN_VERSION="0.88.0" DC_SKIP_TUI_BUILD=1 DC_SKIP_YAZI=1 \
       bash "$ROOT/install.sh" --prefix "$prefix" --with-cli 2>&1
   )"
   rc=$?
@@ -128,7 +128,7 @@ case_fresh_login_path() {
   prefix="$home/bin"
   mkdir -p "$prefix"
   HOME="$home" DC_GENERATION_ROOT="$home/share/generations" PREFIX="$prefix" \
-    DC_SKIP_TUI_BUILD=1 \
+    DC_SKIP_TUI_BUILD=1 DC_SKIP_YAZI=1 \
     bash "$ROOT/install.sh" --prefix "$prefix" >/dev/null
   grep -q 'dc-cli generation' "$home/.bashrc"
   out="$(
@@ -151,8 +151,34 @@ EOF
   chmod +x "$home/fake/npm"
   PATH="$home/fake:/usr/bin:/bin" HOME="$home" \
     DC_GENERATION_ROOT="$home/share/generations" PREFIX="$prefix" \
-    DC_SKIP_TUI_BUILD=1 \
+    DC_SKIP_TUI_BUILD=1 DC_SKIP_YAZI=1 \
     bash "$ROOT/install.sh" --prefix "$prefix" >/dev/null
+  rm -rf "$home"
+}
+
+case_help_no_yazi() {
+  bash "$ROOT/install.sh" --help | grep -q -- --no-yazi
+}
+
+case_yazi_from_zip() {
+  local home prefix zipdir
+  home="$(mktemp -d "${TMPDIR:-/tmp}/dc-inst.XXXX")"
+  prefix="$home/bin"
+  zipdir="$home/yz"
+  mkdir -p "$prefix" "$zipdir/yazi-aarch64-apple-darwin"
+  cat >"$zipdir/yazi-aarch64-apple-darwin/yazi" <<'EOF'
+#!/usr/bin/env bash
+echo fake-yazi
+EOF
+  chmod +x "$zipdir/yazi-aarch64-apple-darwin/yazi"
+  (cd "$zipdir" && zip -q -r "$home/yazi.zip" yazi-aarch64-apple-darwin)
+  PATH="/usr/bin:/bin" HOME="$home" \
+    DC_GENERATION_ROOT="$home/share/generations" PREFIX="$prefix" \
+    DC_SKIP_TUI_BUILD=1 DC_YAZI_ZIP="$home/yazi.zip" \
+    bash "$ROOT/install.sh" --prefix "$prefix" >/dev/null
+  [[ -x "$home/.local/share/dc-cli/tools/yazi" ]]
+  [[ -L "$prefix/yazi" ]]
+  "$prefix/yazi" | grep -q fake-yazi
   rm -rf "$home"
 }
 
@@ -167,6 +193,8 @@ run_case "below-floor --with-cli reject" case_below_floor
 run_case "shadowed below-floor winner fail-closed" case_shadow_below_floor
 run_case "fresh-login PATH resolves helpers" case_fresh_login_path
 run_case "no-flags does not run npm" case_noflags_no_cli
+run_case "help lists --no-yazi" case_help_no_yazi
+run_case "installs host yazi from zip" case_yazi_from_zip
 
 echo
 if [[ "$FAILED" -ne 0 ]]; then

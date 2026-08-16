@@ -7,6 +7,7 @@ PREFIX="${PREFIX:-$HOME/bin}"
 WITH_CLI=0
 WITH_CLI_NPM=0
 WITH_SKILL=0
+SKIP_YAZI=0
 REF=""
 REPO="${DC_REPO:-Brasth/dc-cli}"
 ADVERTISED_CURL='curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli'
@@ -31,6 +32,7 @@ Usage: bash install.sh [options]
   --ref latest|TAG|main   fetch that GitHub release kit first
                     (prebuilt dc-tui; falls back to source tree)
                     (auto latest when this script is not next to bin/)
+  --no-yazi         do not fetch host yazi (DC_SKIP_YAZI=1)
 EOF
 }
 
@@ -40,6 +42,7 @@ while [[ $# -gt 0 ]]; do
     --with-cli-npm) WITH_CLI_NPM=1 ;;
     --with-skill) WITH_SKILL=1 ;;
     --full) WITH_CLI=1; WITH_SKILL=1 ;;
+    --no-yazi) SKIP_YAZI=1 ;;
     --prefix)
       shift
       PREFIX="$1"
@@ -160,6 +163,11 @@ elif [[ ! -f "$ROOT/bin/dc-up" ]]; then
 fi
 
 HELPERS=(dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-db dc-files)
+
+if [[ -f "$ROOT/lib/dc-install-yazi.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$ROOT/lib/dc-install-yazi.sh"
+fi
 
 semver_ge() {
   local a="$1" b="$2"
@@ -377,6 +385,10 @@ append_path_block "$HOME/.bashrc" "# dc-cli helpers" "$PREFIX"
 
 export PATH="$GEN_ROOT/current/bin:$PREFIX:$PATH"
 
+if declare -F ensure_host_file_manager >/dev/null 2>&1; then
+  ensure_host_file_manager
+fi
+
 # --- official CLI channels ---
 install_standalone() {
   local script
@@ -517,6 +529,11 @@ doctor() {
     echo "  socat         OK  (optional; dc-forward uses a Docker sidecar)"
   else
     echo "  socat         optional  dc-forward only — brew/apt install socat"
+  fi
+  if command -v yazi >/dev/null 2>&1 || command -v nnn >/dev/null 2>&1; then
+    echo "  files         OK  host $(command -v yazi 2>/dev/null || command -v nnn) (dc-files fallback)"
+  else
+    echo "  files         optional  no host yazi/nnn — dc-files uses an in-box FM if present"
   fi
   if [[ -x "$PREFIX/dc-up" && -x "$PREFIX/dc-tui" ]]; then
     echo "  helpers       OK  $PREFIX (generation $GEN_ROOT/current)"

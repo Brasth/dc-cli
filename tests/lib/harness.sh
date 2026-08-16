@@ -14,6 +14,7 @@ harness_setup() {
   ln -sf "$ROOT/tests/lib/fake-docker" "$STATE/bin/docker"
   chmod +x "$ROOT/tests/lib/fake-docker"
   export PATH="$STATE/bin:$ROOT/bin:$PATH"
+  export DC_FILES_NO_HOST=1
   : >"$FAKE_DOCKER_LOG"
 }
 

@@ -29,8 +29,10 @@ dc-files — open a file manager already inside the container
   dc-files --id NAME_OR_ID
   dc-files --path DIR [...]            start directory inside the box
 
-Detects $DC_FILES_TOOL, then yazi, nnn, lf, mc, ranger.
-Does not install anything. Bind-mount files on the host: dc-open.
+Detects $DC_FILES_TOOL, then yazi, nnn, lf, mc, ranger in the box.
+If none, opens the same tool on the host bind-mount (install.sh
+fetches yazi when the host has no file manager).
+Does not install anything into the container. Bind-mount editor: dc-open.
 EOF
 }
 
@@ -127,8 +129,26 @@ for tool in "${tools[@]}"; do
 done
 
 if [[ -z "$found" ]]; then
+  if [[ "${DC_FILES_NO_HOST:-}" != "1" ]]; then
+    host=""
+    for tool in "${tools[@]}"; do
+      [[ -n "$tool" ]] || continue
+      if command -v "$tool" >/dev/null 2>&1; then
+        host="$tool"
+        break
+      fi
+    done
+    if [[ -n "$host" ]]; then
+      host_path="$start_path"
+      if [[ -z "$host_path" ]]; then
+        host_path="$(dc_resolve_workspace "$workspace")" || host_path="$workspace"
+      fi
+      echo "dc-files: no file manager in this container; opening host $host on $host_path" >&2
+      exec "$host" "$host_path"
+    fi
+  fi
   echo "dc-files: no file manager in this container (tried ${tools[*]})." >&2
-  echo "Install in the image, or use dc-open for the bind-mount." >&2
+  echo "Re-run install.sh to fetch host yazi, or use dc-open for the bind-mount." >&2
   exit 1
 fi
 

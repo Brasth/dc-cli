@@ -39,6 +39,7 @@ brew install dc-cli
 | `--with-skill` | copy the agent skill into homes you already have |
 | `--full` | `--with-cli` + `--with-skill` |
 | `--ref v0.4.3` / `main` | pin a tag or use HEAD |
+| `--no-yazi` | do not fetch host yazi (`DC_SKIP_YAZI=1`) |
 
 The advertised curl passes `--with-cli` so `devcontainer` is on PATH via the **upstream standalone** installer (bundled Node major, mutable patch). npm is **only** `--with-cli-npm` with an exact qualified pin. The compatibility floor is unpublished (`DC_DEVCONTAINER_MIN_VERSION` / `DC_DEVCONTAINER_NPM_VERSION` empty) until `docs/qualification/devcontainer-cli-floor.md` has four platform `result: pass` rows — `--with-cli-npm` hard-rejects until then. Current registry `0.88.0` / Node 20 is candidate evidence, not a pre-approved floor. Clone or `bash install.sh` with no flags stays wrappers only.
 
@@ -50,7 +51,7 @@ The advertised curl passes `--with-cli` so `devcontainer` is on PATH via the **u
 
 Homes and the exact copy list live in the [README Skill](https://github.com/Brasth/dc-cli#skill) section.
 
-Confirm: `dc-tui --help`, `dc-up --help`, or `dc-doctor --help` should print usage. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.10.1).
+Confirm: `dc-tui --help`, `dc-up --help`, or `dc-doctor --help` should print usage. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.10.2).
 
 ## Daily start
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"strings"
 	"time"
 
@@ -46,6 +47,7 @@ type model struct {
 	buttons    []button
 	rowY0      int
 	width      int
+	height     int
 	err        string
 	quitting   bool
 	more       bool
@@ -58,6 +60,14 @@ type model struct {
 	pending    string // action key after leave tick: u/e/l or stack:N
 	splashOn   bool
 	splash     int
+	logOpen    bool
+	logID      string
+	logName    string
+	logLines   []string
+	logOff     int
+	logFollow  bool
+	logStop    func()
+	logR       *bufio.Reader
 }
 
 type reloadMsg struct {
@@ -92,6 +102,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
+		m.height = msg.Height
+	case logLineMsg:
+		return m.applyLogLine(msg.line)
+	case logDoneMsg:
+		if m.logOpen {
+			m.logFollow = false
+			if msg.err != nil && !strings.Contains(strings.ToLower(msg.err.Error()), "eof") {
+				m = m.withErr(msg.err.Error())
+			}
+		}
+		return m, nil
 	case reloadMsg:
 		if msg.err != nil {
 			m = m.withErr(msg.err.Error())
@@ -134,6 +155,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		return m.handleKey(msg.String())
 	case tea.MouseMsg:
+		if m.logOpen {
+			switch msg.Button {
+			case tea.MouseButtonWheelUp:
+				return m.scrollLogs(-3), nil
+			case tea.MouseButtonWheelDown:
+				return m.scrollLogs(3), nil
+			}
+			return m, nil
+		}
 		switch msg.Action {
 		case tea.MouseActionMotion:
 			m.hover = m.hitButton(msg.X, msg.Y)
@@ -181,6 +211,9 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		return m.skipSplash(), nil
+	}
+	if m.logOpen {
+		return m.handleLogKey(k)
 	}
 	if m.leaving != "" {
 		if k == "q" || k == "ctrl+c" {
@@ -324,6 +357,9 @@ func (m model) hitRow(x, y int) int {
 func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
 	if m.splashOn {
 		return m.skipSplash(), nil
+	}
+	if m.logOpen {
+		return m, nil
 	}
 	if m.leaving != "" {
 		return m, nil

@@ -74,7 +74,8 @@ Urls:    click or 1-9  open a published website (http/https) in the browser
 Rows:    j/k or arrows, enter (fleet = open folder, stack = exec)
 Disk:    d  (stays in the board). Reclaim is CLI-only: dc-prune --yes
 
-Shell / logs / start leave the board and come back. A normal exit is not a crash.
+Shell / start / files leave the board and come back. Logs stay on the board (q back).
+A normal exit is not a crash.
 
 Open vs attach: open = edit files on the Mac/Linux host.
 Attach = VS Code Remote URI (a / dc-open --attach).
