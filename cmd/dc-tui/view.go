@@ -54,12 +54,12 @@ func (m model) layout() (string, []button, int) {
 	}
 	infoW := max(12, w-12)
 	if m.fleet {
-		info := logoWord.Render("dc-cli") + mutedStyle.Render("  fleet") + "  " + mutedStyle.Render("j/k · enter")
+		info := logoWord.Render("dc-cli") + mutedStyle.Render("  "+cliVersion()) + mutedStyle.Render("  fleet") + "  " + mutedStyle.Render("j/k · enter")
 		b.WriteString(clipBlock(joinLogo(m.headerLogo(), info, w), w) + "\n\n")
 	} else {
 		base := filepath.Base(m.workspace)
 		var info strings.Builder
-		info.WriteString(logoWord.Render("dc-cli") + "  " + headerStyle.Render(trunc(base, infoW)) + "\n")
+		info.WriteString(logoWord.Render("dc-cli") + mutedStyle.Render("  "+cliVersion()) + "  " + headerStyle.Render(trunc(base, infoW)) + "\n")
 		info.WriteString(mutedStyle.Render(trunc(m.workspace, infoW)) + "\n")
 		cfg := badStyle.Render("no .devcontainer")
 		if m.hasConfig {
@@ -146,9 +146,9 @@ func (m model) layout() (string, []button, int) {
 	if m.confirm == "rm" {
 		b.WriteString("\n" + hintStyle.Render("y confirm  n/esc cancel  q quit") + "\n")
 	} else if !m.fleet && len(m.webLinks()) > 0 {
-		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  1-9 url  j/k  enter  ? more  q quit") + "\n")
+		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  b db  m files  1-9 url  j/k  enter  ? more  q quit") + "\n")
 	} else {
-		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  j/k  enter  ? more  q quit") + "\n")
+		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  b db  m files  j/k  enter  ? more  q quit") + "\n")
 	}
 	return clipBlock(b.String(), w), buttons, rowY0
 }
@@ -251,6 +251,8 @@ func (m model) buttonGroups() [][]btnSpec {
 			{key: "a", label: "attach"},
 			{key: "p", label: "ports"},
 			{key: "l", label: "logs", disabled: len(m.rows) == 0 || m.rows[0].ID == ""},
+		},
+		{
 			{key: "b", label: "db"},
 			{key: "m", label: "files"},
 		},

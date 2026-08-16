@@ -1,5 +1,6 @@
 ---
 import Logo from './Logo.astro';
+import { latestRelease } from '../lib/schema';
 ---
 
 <header class="fixed inset-x-0 top-0 z-30 border-b border-ink/10 bg-page/80 px-4 backdrop-blur-2xl md:px-6">
@@ -10,7 +11,7 @@ import Logo from './Logo.astro';
     <a href="/" class="flex min-h-10 items-center gap-2 font-mono text-sm text-ink">
       <Logo class="h-5 w-5" />
       <span>dc-cli</span>
-      <span class="hidden text-mute sm:inline">~/project</span>
+      <span class="hidden text-mute sm:inline">{latestRelease}</span>
     </a>
     <div class="flex items-center gap-1">
       <span id="nav-clock" class="hidden px-3 font-mono text-[11px] tabular-nums text-mute sm:inline">00:00:00</span>

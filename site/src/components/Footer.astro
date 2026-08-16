@@ -1,4 +1,6 @@
 ---
+import { latestRelease } from '../lib/schema';
+
 const year = new Date().getFullYear();
 ---
 
@@ -6,8 +8,11 @@ const year = new Date().getFullYear();
   <div
     class="mx-auto flex w-full max-w-6xl flex-col gap-4 border-t border-ink/10 pt-6 font-mono text-xs md:flex-row md:items-center md:justify-between"
   >
-    <p class="text-mute">MIT. {year}. Canvilled / Brasth.</p>
+    <p class="text-mute">MIT. {year}. Canvilled / Brasth. {latestRelease}</p>
     <div class="flex flex-wrap gap-5">
+      <a class="text-ink/75 hover:text-ink" href={`https://github.com/Brasth/dc-cli/releases/tag/${latestRelease}`}>
+        {latestRelease}
+      </a>
       <a class="text-ink/75 hover:text-ink" href="/guide/">guides</a>
       <a class="text-ink/75 hover:text-ink" href="/issues/">issues</a>
       <a class="text-ink/75 hover:text-ink" href="https://github.com/Brasth/dc-cli">repository</a>

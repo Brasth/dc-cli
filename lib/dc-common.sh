@@ -12,6 +12,35 @@ if [[ -f "$_dc_lib_dir/dc-floor.sh" ]]; then
   source "$_dc_lib_dir/dc-floor.sh"
 fi
 
+# Kit version from VERSION next to bin/, then $DC_CLI_VERSION, then git tag, else dev.
+dc_cli_version() {
+  local f ver
+  if [[ -n "${DC_CLI_VERSION:-}" ]]; then
+    printf '%s\n' "${DC_CLI_VERSION#v}"
+    return 0
+  fi
+  for f in "$_dc_lib_dir/../VERSION" "$_dc_lib_dir/../../VERSION"; do
+    if [[ -f "$f" ]]; then
+      ver="$(tr -d '[:space:]' <"$f" || true)"
+      ver="${ver#v}"
+      if [[ -n "$ver" ]]; then
+        printf '%s\n' "$ver"
+        return 0
+      fi
+    fi
+  done
+  if command -v git >/dev/null 2>&1 && git -C "$_dc_lib_dir/.." describe --tags --abbrev=0 >/dev/null 2>&1; then
+    ver="$(git -C "$_dc_lib_dir/.." describe --tags --abbrev=0)"
+    printf '%s\n' "${ver#v}"
+    return 0
+  fi
+  printf '%s\n' "dev"
+}
+
+dc_cli_print_version() {
+  printf '%s %s\n' "${1:-dc-cli}" "$(dc_cli_version)"
+}
+
 dc_json_escape() {
   local s="$1"
   if command -v python3 >/dev/null 2>&1; then

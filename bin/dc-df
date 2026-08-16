@@ -42,6 +42,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --json) json=1 ;;
     --volumes|-v) show_volumes=1 ;;
+    --version|-V) dc_cli_print_version "$(basename "$0")"; exit 0 ;;
     -h|--help) usage; exit 0 ;;
     -*)
       echo "Unknown flag: $1" >&2

@@ -73,6 +73,7 @@ while [[ $# -gt 0 ]]; do
       [[ $# -ge 1 ]] || { echo "--url needs a connection URL" >&2; exit 2; }
       url_override="$1"
       ;;
+    --version|-V) dc_cli_print_version "$(basename "$0")"; exit 0 ;;
     -h|--help) usage; exit 0 ;;
     --)
       shift

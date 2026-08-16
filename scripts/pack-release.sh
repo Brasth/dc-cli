@@ -26,7 +26,9 @@ for f in dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-
   fi
 done
 
-CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build -trimpath -ldflags "-s -w" \
+printf '%s\n' "$VERSION" >"$dest/VERSION"
+CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build -trimpath \
+  -ldflags "-s -w -X main.version=${VERSION}" \
   -o "$dest/bin/dc-tui" "$ROOT/cmd/dc-tui"
 chmod +x "$dest/bin/dc-tui"
 

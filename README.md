@@ -26,7 +26,7 @@ this folder
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Always tracks the **latest GitHub release** (currently **v0.10.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start via the **official standalone** installer — not npm. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
+Always tracks the **latest GitHub release** (currently **v0.10.1**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start via the **official standalone** installer — not npm. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
 
 macOS/Linux via Homebrew (same kit, no Go required):
 
@@ -132,6 +132,7 @@ After **shell** / **logs** / **start**, the board comes back. A normal `exit` is
 |---|---|
 | `dc-tui [dir]` | this folder |
 | `dc-tui --all` | fleet |
+| `dc-tui --version` / `dc-up --version` | print kit version |
 | `dc-doctor [dir] [--json]` | read-only diagnostics (exit 0 usable / 1 blocker / 2 bad argv) |
 | `dc-up [dir]` | project config, then `dc-forward` |
 | `dc-up --no-forward` | skip sidecars (`DC_FORWARD=0`) |

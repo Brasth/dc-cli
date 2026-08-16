@@ -383,6 +383,47 @@ func TestStayCmdSplitsStatusAndErr(t *testing.T) {
 	}
 }
 
+func TestDbFilesOwnRow(t *testing.T) {
+	_, buttons := renderGroups(workspaceSpecs(), 80, 0, "")
+	var db, files, logs, fleet button
+	for _, b := range buttons {
+		switch b.key {
+		case "b":
+			db = b
+		case "m":
+			files = b
+		case "l":
+			logs = b
+		case "f":
+			fleet = b
+		}
+	}
+	if db.label == "" || files.label == "" {
+		t.Fatal("db and files tiles must be on the board")
+	}
+	if db.y0 <= logs.y0 {
+		t.Fatalf("db should sit below logs: db.y0=%d logs.y0=%d", db.y0, logs.y0)
+	}
+	if fleet.y0 <= db.y0 {
+		t.Fatalf("fleet should sit below db: fleet.y0=%d db.y0=%d", fleet.y0, db.y0)
+	}
+	if db.y0 != files.y0 {
+		t.Fatalf("db and files should share a row: db.y0=%d files.y0=%d", db.y0, files.y0)
+	}
+}
+
+func TestHeaderShowsVersion(t *testing.T) {
+	t.Setenv("DC_CLI_VERSION", "0.10.0")
+	m := model{workspace: filepath.Join(os.TempDir(), "app"), hasConfig: true, width: 80, hoverStack: -1, editor: "zed"}
+	s := ansi.Strip(m.View())
+	if !strings.Contains(s, "0.10.0") {
+		t.Fatalf("header missing version:\n%s", s)
+	}
+	if !strings.Contains(s, "db") || !strings.Contains(s, "files") {
+		t.Fatalf("board missing db/files:\n%s", s)
+	}
+}
+
 func TestDisabledStartTile(t *testing.T) {
 	groups := model{hasConfig: false}.buttonGroups()
 	_, buttons := renderGroups(groups, 80, 0, "")

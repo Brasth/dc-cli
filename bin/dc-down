@@ -75,6 +75,7 @@ while [[ $# -gt 0 ]]; do
       [[ $# -ge 1 ]] || { echo "--id needs a container" >&2; exit 2; }
       explicit_id="$1"
       ;;
+    --version|-V) dc_cli_print_version "$(basename "$0")"; exit 0 ;;
     -h|--help) usage; exit 0 ;;
     --)
       shift

@@ -55,6 +55,7 @@ EOF
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --json) json=1 ;;
+    --version|-V) dc_cli_print_version "$(basename "$0")"; exit 0 ;;
     -h|--help) usage; exit 0 ;;
     -*)
       echo "Unknown flag: $1" >&2
@@ -397,13 +398,12 @@ else
 fi
 
 # 16/17 version + channel
-ver=""
+ver="$(dc_cli_version)"
+[[ "$ver" == "dev" ]] && ver=""
 chan="unknown"
-if [[ -f "$_here/../VERSION" ]]; then
-  ver="$(tr -d '[:space:]' <"$_here/../VERSION" || true)"
-fi
 if [[ -z "$ver" && -x "$_here/dc-tui" ]]; then
-  ver="$("$_here/dc-tui" --help 2>/dev/null | head -1 || true)"
+  ver="$("$_here/dc-tui" --version 2>/dev/null | awk '{print $NF}')"
+  [[ "$ver" == "dev" ]] && ver=""
 fi
 if command -v brew >/dev/null 2>&1 && brew list --versions dc-cli >/dev/null 2>&1; then
   chan="homebrew"

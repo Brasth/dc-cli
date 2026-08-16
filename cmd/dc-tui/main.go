@@ -19,6 +19,9 @@ func main() {
 		case "-h", "--help":
 			fmt.Print(helpText)
 			os.Exit(0)
+		case "--version", "-V":
+			fmt.Println("dc-tui", cliVersion())
+			os.Exit(0)
 		case "--all":
 			fleet = true
 		case "-":
@@ -59,6 +62,7 @@ const helpText = `dc-tui — this folder's devcontainer (click buttons or keys)
 
   dc-tui [workspace]     this folder (cwd, then git root)
   dc-tui --all           every labeled container (fleet)
+  dc-tui --version
   dc-tui --help
 
 Logo splash on start (any key skips). DC_TUI_NO_SPLASH=1 to skip.

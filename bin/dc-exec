@@ -61,6 +61,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --list) do_list=1 ;;
     --json) json=1 ;;
+    --version|-V) dc_cli_print_version "$(basename "$0")"; exit 0 ;;
     -h|--help) usage; exit 0 ;;
     --)
       shift

@@ -61,6 +61,12 @@ case_help() {
   dc-db --help | grep -q 'declared'
 }
 
+case_version() {
+  out="$(DC_CLI_VERSION=0.10.0 dc-db --version)"
+  printf '%s\n' "$out" | grep -q 'dc-db'
+  printf '%s\n' "$out" | grep -q '0.10.0'
+}
+
 case_list_postgres_redact() {
   local ws out
   ws="$(mktemp -d "$STATE/ws.XXXX")"
@@ -354,6 +360,7 @@ case_classify_unit() {
 }
 
 run_case help case_help
+run_case version case_version
 run_case list-postgres-redact case_list_postgres_redact
 run_case json-no-password case_json_no_password
 run_case no-db case_no_db

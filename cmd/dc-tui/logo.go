@@ -123,7 +123,7 @@ func logoSplash(frame, width int) string {
 	}
 	word := ""
 	if frame >= splashLast {
-		word = "\n" + logoWord.Render("dc-cli") + "  " + logoTag.Render("host frame · guest")
+		word = "\n" + logoWord.Render("dc-cli") + "  " + logoTag.Render(cliVersion()) + "  " + logoTag.Render("host frame · guest")
 	}
 	body := block + word
 	if width > 12 {
