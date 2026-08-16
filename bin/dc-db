@@ -1,0 +1,296 @@
+#!/usr/bin/env bash
+# List stack databases or open a host client on a user-declared host port.
+set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  exit 1
+fi
+if [[ -f "$_here/../lib/dc-db.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-db.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-db.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-db.sh"
+else
+  echo "dc-db.sh not found" >&2
+  exit 1
+fi
+
+do_list=0
+json=0
+secrets=0
+do_print=0
+service=""
+client=""
+url_override=""
+workspace="."
+
+usage() {
+  cat <<'EOF'
+dc-db — open a host DB client on the port you already declared
+
+  dc-db --list [--json] [--secrets] [workspace]
+  dc-db [--service NAME] [--client NAME] [--print] [--url URL] [workspace]
+
+Follows compose db.ports or a well-known forwardPorts number. Never invents
+a host port. No declared map → refuse. Two DBs need --service.
+
+Client: --client / $DC_DB_CLIENT, then TablePlus, Sequel Ace (mysql),
+dbeaver, rainfrog, lazysql. --print never launches.
+Passwords may appear in the TablePlus argv (its CLI). Prefer --print for agents.
+Inferred env creds are first-init only; override with --url if the volume is stale.
+
+Does not edit .devcontainer. Does not add db services to auto dc-forward.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --list) do_list=1 ;;
+    --json) json=1 ;;
+    --secrets) secrets=1 ;;
+    --print) do_print=1 ;;
+    --service|-s)
+      shift
+      [[ $# -ge 1 ]] || { echo "--service needs a name" >&2; exit 2; }
+      service="$1"
+      ;;
+    --client)
+      shift
+      [[ $# -ge 1 ]] || { echo "--client needs a name" >&2; exit 2; }
+      client="$1"
+      ;;
+    --url)
+      shift
+      [[ $# -ge 1 ]] || { echo "--url needs a connection URL" >&2; exit 2; }
+      url_override="$1"
+      ;;
+    -h|--help) usage; exit 0 ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      workspace="$1"
+      ;;
+  esac
+  shift
+done
+
+if [[ ! -d "$workspace" ]]; then
+  echo "Not a directory: $workspace" >&2
+  exit 2
+fi
+
+ws="$(dc_resolve_workspace "$workspace")" || exit 1
+
+emit_list_json() {
+  local secrets_flag="$1"
+  # Read TSV from fd 3 so the program heredoc can stay on stdin.
+  python3 - "$secrets_flag" 3<&0 <<'PY'
+import json, os, sys
+secrets = sys.argv[1] == "1"
+rows = []
+with os.fdopen(3) as fh:
+    for line in fh:
+        line = line.rstrip("\n")
+        if not line:
+            continue
+        p = line.split("\t")
+        while len(p) < 11:
+            p.append("")
+        rec = {
+            "id": p[0],
+            "service": p[1],
+            "image": p[2],
+            "driver": p[3],
+            "containerPort": int(p[4]) if p[4].isdigit() else p[4],
+            "declaredHost": int(p[5]) if p[5].isdigit() else None,
+            "liveHost": int(p[6]) if p[6].isdigit() else None,
+            "user": p[7],
+            "database": p[9],
+            "source": p[10],
+        }
+        if secrets and p[8] and p[8] != "-":
+            rec["password"] = p[8]
+        rows.append(rec)
+json.dump(rows, sys.stdout)
+sys.stdout.write("\n")
+PY
+}
+
+print_list() {
+  local n=0
+  local id svc image driver cport decl live user pass db src
+  if [[ "$json" -eq 1 ]]; then
+    dc_db_targets "$ws" | emit_list_json "$secrets"
+    return 0
+  fi
+  printf '%-12s  %-10s  %-8s  %-8s  %-12s  %-12s  %s\n' \
+    "SERVICE" "DRIVER" "DECLARED" "LIVE" "USER" "DB" "ID"
+  while IFS=$'\t' read -r id svc image driver cport decl live user pass db src; do
+    [[ -n "$id" ]] || continue
+    n=$((n + 1))
+    printf '%-12s  %-10s  %-8s  %-8s  %-12s  %-12s  %s\n' \
+      "$svc" "$driver" "${decl:--}" "${live:--}" "${user:--}" "${db:--}" "${id:0:12}"
+  done < <(dc_db_targets "$ws")
+  if [[ "$n" -eq 0 ]]; then
+    echo "no db service in this stack" >&2
+    return 1
+  fi
+  return 0
+}
+
+if [[ "$do_list" -eq 1 ]]; then
+  if [[ "$json" -eq 1 ]]; then
+    mapfile -t _rows < <(dc_db_targets "$ws")
+    if [[ ${#_rows[@]} -eq 0 || -z "${_rows[0]:-}" ]]; then
+      printf '[]\n'
+      exit 1
+    fi
+    printf '%s\n' "${_rows[@]}" | emit_list_json "$secrets"
+    exit 0
+  fi
+  print_list
+  exit $?
+fi
+
+mapfile -t rows < <(dc_db_targets "$ws")
+if [[ ${#rows[@]} -eq 0 || -z "${rows[0]:-}" ]]; then
+  echo "dc-db: no db service in this stack" >&2
+  exit 1
+fi
+
+pick=""
+if [[ -n "$service" ]]; then
+  for line in "${rows[@]}"; do
+    IFS=$'\t' read -r id svc _rest <<<"$line"
+    if [[ "$svc" == "$service" || "$id" == "$service"* ]]; then
+      pick="$line"
+      break
+    fi
+  done
+  if [[ -z "$pick" ]]; then
+    echo "dc-db: no database service \"$service\". Try: dc-db --list" >&2
+    exit 1
+  fi
+elif [[ ${#rows[@]} -eq 1 ]]; then
+  pick="${rows[0]}"
+else
+  names=()
+  for line in "${rows[@]}"; do
+    IFS=$'\t' read -r _id svc _r <<<"$line"
+    names+=("$svc")
+  done
+  echo "dc-db: ${#rows[@]} database services (${names[*]}). Pass --service NAME" >&2
+  exit 1
+fi
+
+IFS=$'\t' read -r id svc image driver cport decl live user pass db src <<<"$pick"
+[[ "$cport" == "-" ]] && cport=""
+[[ "$decl" == "-" ]] && decl=""
+[[ "$live" == "-" ]] && live=""
+[[ "$user" == "-" ]] && user=""
+[[ "$pass" == "-" ]] && pass=""
+[[ "$db" == "-" ]] && db=""
+[[ "$src" == "-" ]] && src=""
+
+if [[ -z "$decl" ]]; then
+  echo "dc-db: no declared host port for $svc." >&2
+  echo "Add compose $svc.ports (e.g. \"5433:5432\") or forwardPorts, then dc-up." >&2
+  exit 1
+fi
+
+dc_ensure_running "$id" || exit 1
+
+host="$decl"
+if [[ -n "$live" ]]; then
+  host="$live"
+else
+  set +e
+  fwd_out="$(dc-forward --id "$id" "$ws" "${decl}:${cport}" 2>&1)"
+  fwd_rc=$?
+  set -e
+  if [[ "$fwd_rc" -ne 0 ]]; then
+    printf '%s\n' "$fwd_out" >&2
+    echo "dc-db: could not publish ${decl}:${cport} on $svc (host port clash or forward failed)." >&2
+    while IFS=$'\t' read -r hid hname _c _f hports; do
+      [[ -n "$hid" ]] || continue
+      echo "  holder  ${hid:0:12}  ${hname}  ${hports}" >&2
+    done < <(dc_holders_of_host_port "$decl")
+    exit 1
+  fi
+  host="$decl"
+fi
+
+if [[ -n "$url_override" ]]; then
+  conn="$url_override"
+else
+  conn="$(dc_db_url "$driver" "$user" "$pass" "127.0.0.1" "$host" "$db")"
+fi
+
+shown="$conn"
+if [[ "$secrets" -eq 0 ]]; then
+  shown="$(dc_db_redact_url "$conn")"
+fi
+
+if [[ "$do_print" -eq 1 ]]; then
+  printf '%s\n' "$shown"
+  exit 0
+fi
+
+picked=""
+if [[ -n "$client" ]]; then
+  picked="$(dc_db_pick_client "$client" "$driver")" || exit 2
+else
+  picked="$(dc_db_pick_client "" "$driver" || true)"
+fi
+if [[ -z "$picked" ]]; then
+  echo "dc-db: no host DB client (install TablePlus, or dbeaver/rainfrog/lazysql on PATH)." >&2
+  echo "Or: dc-db --print" >&2
+  echo "opened ${driver} on 127.0.0.1:${host} (none)"
+  exit 0
+fi
+
+launch_rc=0
+case "$picked" in
+  tableplus)
+    open -a TablePlus "$conn" || launch_rc=$?
+    ;;
+  sequelace)
+    open -a "Sequel Ace" "$conn" || launch_rc=$?
+    ;;
+  dbeaver)
+    dbeaver -con "driver=${driver}|host=127.0.0.1|port=${host}|database=${db}|user=${user}|password=${pass}" || launch_rc=$?
+    ;;
+  rainfrog|lazysql)
+    if [[ -t 0 && -t 1 ]]; then
+      exec "$picked" --url "$conn"
+    fi
+    echo "dc-db: $picked needs a TTY. Run dc-db --client $picked from a terminal." >&2
+    echo "opened ${driver} on 127.0.0.1:${host} (${picked})"
+    exit 1
+    ;;
+esac
+
+if [[ "$launch_rc" -ne 0 ]]; then
+  echo "dc-db: failed to open $picked" >&2
+  echo "opened ${driver} on 127.0.0.1:${host} (failed)"
+  exit 1
+fi
+
+echo "opened ${driver} on 127.0.0.1:${host} (${picked})"
+exit 0

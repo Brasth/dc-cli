@@ -320,6 +320,8 @@ case "$cmd" in
     net="$(read_file "$dir/network")"
     ip="$(read_file "$dir/ip")"
     ports="$(read_file "$dir/ports")"
+    env="$(read_file "$dir/env")"
+    exposed="$(read_file "$dir/exposed")"
     hostp=""
     if [[ "$ports" =~ :([0-9]+)-\> ]]; then
       hostp="${BASH_REMATCH[1]}"
@@ -356,6 +358,14 @@ case "$cmd" in
       '{{range .Mounts}}{{.Source}}{{"\t"}}{{.Destination}}{{"\n"}}{{end}}')
         exit 0
         ;;
+      '{{range .Config.Env}}{{println .}}{{end}}')
+        printf '%s' "$env"
+        [[ -n "$env" && "$env" != *$'\n' ]] && printf '\n'
+        ;;
+      '{{range $p, $_ := .Config.ExposedPorts}}{{println $p}}{{end}}')
+        printf '%s' "$exposed"
+        [[ -n "$exposed" && "$exposed" != *$'\n' ]] && printf '\n'
+        ;;
       '')
         echo "{\"Id\":\"$id\",\"Name\":\"/${name:-$id}\"}"
         ;;
@@ -374,6 +384,56 @@ case "$cmd" in
         fi
         ;;
     esac
+    exit 0
+    ;;
+  exec)
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -i|-t|-it|-d) shift ;;
+        *) break ;;
+      esac
+    done
+    id="${1:-}"
+    shift || true
+    dir="$(cdir "$id")"
+    if [[ ! -d "$dir" ]]; then
+      echo "Error: No such container: $id" >&2
+      exit 1
+    fi
+    script=""
+    if [[ "${1:-}" == "sh" || "${1:-}" == "bash" ]]; then
+      if [[ "${2:-}" == "-lc" || "${2:-}" == "-c" ]]; then
+        script="${3:-}"
+      fi
+    fi
+    if [[ -z "$script" && "${1:-}" == "command" && "${2:-}" == "-v" ]]; then
+      script="command -v ${3:-}"
+    fi
+    if [[ "$script" == "exit 0" ]]; then
+      exit 0
+    fi
+    tool=""
+    if [[ "$script" =~ command[[:space:]]+-v[[:space:]]+([A-Za-z0-9._-]+) ]]; then
+      tool="${BASH_REMATCH[1]}"
+    elif [[ -n "${1:-}" && "$1" != "sh" && "$1" != "bash" && "$1" != "command" ]]; then
+      tool="$1"
+    fi
+    if [[ -n "$tool" ]]; then
+      if grep -Fxq "$tool" "$dir/bins" 2>/dev/null; then
+        if [[ "$script" == command* || "${1:-}" == "command" ]]; then
+          printf '/usr/bin/%s\n' "$tool"
+          exit 0
+        fi
+        printf '%s\n' "$*" >>"$STATE/exec.log"
+        printf '%s\n' "$*" >>"$dir/exec.log"
+        exit 0
+      fi
+      if [[ "$script" == command* || "${1:-}" == "command" ]]; then
+        exit 1
+      fi
+      echo "exec: \"$tool\": executable file not found" >&2
+      exit 127
+    fi
     exit 0
     ;;
   *)

@@ -159,7 +159,7 @@ elif [[ ! -f "$ROOT/bin/dc-up" ]]; then
   fetch_ref latest
 fi
 
-HELPERS=(dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor)
+HELPERS=(dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-db dc-files)
 
 semver_ge() {
   local a="$1" b="$2"

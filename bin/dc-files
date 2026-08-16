@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+# Open an in-container file manager if the image already has one.
+set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  exit 1
+fi
+
+workspace="."
+service=""
+explicit_id=""
+start_path=""
+tools=(yazi nnn lf mc ranger)
+
+usage() {
+  cat <<'EOF'
+dc-files — open a file manager already inside the container
+
+  dc-files [workspace]                 labeled app
+  dc-files --service NAME [workspace]  that compose service
+  dc-files --id NAME_OR_ID
+  dc-files --path DIR [...]            start directory inside the box
+
+Detects $DC_FILES_TOOL, then yazi, nnn, lf, mc, ranger.
+Does not install anything. Bind-mount files on the host: dc-open.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --service|-s)
+      shift
+      [[ $# -ge 1 ]] || { echo "--service needs a name" >&2; exit 2; }
+      service="$1"
+      ;;
+    --id)
+      shift
+      [[ $# -ge 1 ]] || { echo "--id needs a container" >&2; exit 2; }
+      explicit_id="$1"
+      ;;
+    --path)
+      shift
+      [[ $# -ge 1 ]] || { echo "--path needs a directory" >&2; exit 2; }
+      start_path="$1"
+      ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      workspace="$1"
+      ;;
+  esac
+  shift
+done
+
+if [[ -n "${DC_FILES_TOOL:-}" ]]; then
+  if [[ "${DC_FILES_TOOL}" == *[!A-Za-z0-9._-]* ]]; then
+    echo "dc-files: DC_FILES_TOOL must be a simple command name" >&2
+    exit 2
+  fi
+  tools=("$DC_FILES_TOOL" "${tools[@]}")
+fi
+
+resolve_id() {
+  local id name status svc image
+  if [[ -n "$explicit_id" ]]; then
+    if ! docker inspect "$explicit_id" >/dev/null 2>&1; then
+      echo "Container not found: $explicit_id" >&2
+      return 1
+    fi
+    printf '%s\n' "$explicit_id"
+    return 0
+  fi
+  if [[ -n "$service" ]]; then
+    while IFS=$'\t' read -r id name status svc image; do
+      [[ -n "$id" ]] || continue
+      if [[ "$svc" == "$service" || "$name" == "$service" || "$id" == "$service"* ]]; then
+        printf '%s\n' "$id"
+        return 0
+      fi
+    done < <(dc_stack_rows "$workspace")
+    echo "No compose service \"$service\" in this workspace stack. Try: dc-exec --list" >&2
+    return 1
+  fi
+  id="$(dc_ids_for_workspace "$workspace" | head -n1)"
+  if [[ -z "$id" ]]; then
+    echo "dc-files: no labeled app in $workspace (dc-up first)" >&2
+    return 1
+  fi
+  printf '%s\n' "$id"
+}
+
+# Labeled app: official dc-exec (remoteUser, cwd). Siblings: --id / --service.
+use_official=0
+target=""
+if [[ -z "$explicit_id" && -z "$service" ]]; then
+  use_official=1
+else
+  target="$(resolve_id)" || exit 1
+  dc_ensure_running "$target" || exit 1
+fi
+
+found=""
+for tool in "${tools[@]}"; do
+  [[ -n "$tool" ]] || continue
+  if [[ "$use_official" -eq 1 ]]; then
+    if dc-exec "$workspace" -- sh -lc "command -v ${tool}" >/dev/null 2>&1; then
+      found="$tool"
+      break
+    fi
+  elif dc-exec --id "$target" -- sh -lc "command -v ${tool}" >/dev/null 2>&1; then
+    found="$tool"
+    break
+  fi
+done
+
+if [[ -z "$found" ]]; then
+  echo "dc-files: no file manager in this container (tried ${tools[*]})." >&2
+  echo "Install in the image, or use dc-open for the bind-mount." >&2
+  exit 1
+fi
+
+if [[ "$use_official" -eq 1 ]]; then
+  if [[ -n "$start_path" ]]; then
+    exec dc-exec "$workspace" -- "$found" "$start_path"
+  fi
+  exec dc-exec "$workspace" -- "$found"
+fi
+if [[ -n "$start_path" ]]; then
+  exec dc-exec --id "$target" -- "$found" "$start_path"
+fi
+exec dc-exec --id "$target" -- "$found"

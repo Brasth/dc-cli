@@ -14,6 +14,8 @@ this folder
    ├─ dc-up           start the labeled app + publish ports
    ├─ dc-exec         shell in the app
    ├─ dc-exec --service NAME   start (if needed) + shell in another service
+   ├─ dc-db           host TablePlus on a declared db port
+   ├─ dc-files        in-container yazi/nnn if the image has one
    ├─ dc-forward      reconcile owned sidecars (Colima-safe)
    └─ dc-down         stop the app (sidecars go too)
 ```
@@ -24,7 +26,7 @@ this folder
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Always tracks the **latest GitHub release** (currently **v0.9.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start via the **official standalone** installer — not npm. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
+Always tracks the **latest GitHub release** (currently **v0.10.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start via the **official standalone** installer — not npm. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
 
 macOS/Linux via Homebrew (same kit, no Go required):
 
@@ -61,6 +63,9 @@ dc-exec                         # bash in the app (starts it if it is down)
 dc-exec --list                  # labeled app + other services in that compose project
 dc-exec --service NAME          # start that compose service if it is down, then bash
 dc-exec --service NAME -- cmd   # same, run a command (works without a TTY)
+dc-db --list                    # classify stack DBs (passwords redacted)
+dc-db                           # open TablePlus on the declared host port
+dc-files                        # yazi/nnn inside the app if the image has one
 dc-forward                      # reconcile owned sidecars (needs one app or --id)
 dc-down                         # stop FULL compose stack (app+db+mitm+…)
 dc-down --app                   # labeled app only (+ its sidecars)
@@ -106,6 +111,8 @@ Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `D
 | **ports** | `p` | `dc-forward` (Colima sidecar) |
 | **url** | `1`–`9` / click | open a published website (`http://127.0.0.1:PORT`) |
 | **logs** | `l` | `docker logs -f` on the app |
+| **db** | `b` | `dc-db` — host TablePlus (etc.) on a declared db port |
+| **files** | `m` | `dc-files` — yazi/nnn inside the app if present |
 | **fleet** | `f` | other workspaces |
 | **more** / **quit** | `?` / `q` | legend / exit |
 | **disk** | `d` | `dc-df` report (stays in TUI) |
@@ -116,6 +123,8 @@ Header shows a compact disk line from `dc-df`. Reclaim stays CLI-only (`dc-prune
 After **shell** / **logs** / **start**, the board comes back. A normal `exit` is not a crash.
 
 **open ≠ attach.** Open = files on the Mac/Linux host. `a` / `dc-open --attach` is the VS Code Remote URI into Linux. Zed attaches itself. Sublime cannot.
+
+**db ≠ url tiles.** `b` / `dc-db` opens TablePlus (or DBeaver / rainfrog) on the host port you already set on the db service. It never invents a port. No compose `ports` / matching `forwardPorts` → refuse. Two databases need `--service`. Bind-mount files stay `o`; `m` is a guest FM already in the image (never `apt-get`).
 
 ## Commands (all of them)
 
@@ -139,6 +148,8 @@ After **shell** / **logs** / **start**, the board comes back. A normal `exit` is
 | `dc-down --all --yes` | every labeled workspace stack |
 | `dc-ls [--json] [--all]` | labeled app list |
 | `dc-open` / `--attach` | host editor / VS Code attach |
+| `dc-db` / `--list` / `--print` | host DB client on a **declared** compose/`forwardPorts` port |
+| `dc-files` | in-container file manager if the image already has one |
 | `dc-forward` / `3000` / `9001:80` / `--stop` | reconcile owned sidecars (one app or `--id`) |
 | `dc-ps` | docker + labels |
 | `dc-df` / `--json` / `--volumes` | disk report (read-only) |

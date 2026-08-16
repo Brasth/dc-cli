@@ -39,6 +39,8 @@ Keys:
   s  stop    dc-down            stop, keep container
   x  rm      dc-down --rm       stop and delete
   l  logs    docker logs -f
+  b  db      dc-db (host TablePlus on a declared port)
+  m  files   dc-files (yazi/nnn inside the app if present)
   f  fleet   all labeled workspaces
   q  quit
 
@@ -83,7 +85,7 @@ choose_action() {
       echo "  $i) $item" >&2
       i=$((i + 1))
     done
-    printf 'number (or u/e/o/a/s/x/l/f/q): ' >&2
+    printf 'number (or u/e/o/a/s/x/l/b/m/f/q): ' >&2
     local k
     read -r k
     if [[ "$k" =~ ^[0-9]+$ ]]; then
@@ -102,6 +104,8 @@ choose_action() {
       s|S) echo "[s] stop" ;;
       x|X) echo "[x] rm" ;;
       l|L) echo "[l] logs" ;;
+      b|B) echo "[b] db" ;;
+      m|M) echo "[m] files" ;;
       f|F) echo "[f] fleet" ;;
       q|Q|"") echo "[q] quit" ;;
       *) echo "[q] quit" ;;
@@ -164,7 +168,7 @@ print("\t".join([
     local pick key
     pick="$(choose_action "workspace $ws" \
       "[u] start" "[e] shell" "[o] open host" "[a] attach vscode" \
-      "[p] ports" "[s] stop" "[x] rm" "[l] logs" "[f] fleet" "[q] quit")" || return 1
+      "[p] ports" "[b] db" "[m] files" "[s] stop" "[x] rm" "[l] logs" "[f] fleet" "[q] quit")" || return 1
     key="$(action_key "$pick")"
     case "$key" in
       u)
@@ -207,6 +211,14 @@ print("\t".join([
         fi
         echo "→ docker logs -f $id  (Ctrl-C back to TUI)"
         docker logs -f "$id" || true
+        ;;
+      b)
+        echo "→ dc-db $ws"
+        dc-db "$ws" || true
+        ;;
+      m)
+        echo "→ dc-files $ws"
+        dc-files "$ws" || true
         ;;
       f)
         fleet_screen

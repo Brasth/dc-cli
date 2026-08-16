@@ -43,6 +43,9 @@ fake_add_container() {
       ip=*) printf '%s\n' "${arg#ip=}" >"$dir/ip" ;;
       command=*) printf '%s\n' "${arg#command=}" >"$dir/command" ;;
       mount=*) printf '%s\n' "${arg#mount=}" >>"$dir/mounts" ;;
+      env=*) printf '%s\n' "${arg#env=}" >>"$dir/env" ;;
+      exposed=*) printf '%s\n' "${arg#exposed=}" >>"$dir/exposed" ;;
+      bin=*) printf '%s\n' "${arg#bin=}" >>"$dir/bins" ;;
       *) printf '%s\n' "$arg" >>"$dir/labels" ;;
     esac
   done

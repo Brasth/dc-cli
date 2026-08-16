@@ -118,6 +118,10 @@ func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 			return m.refuse("No container to log.")
 		}
 		return m.startLeave("logs", "l")
+	case "b":
+		return m.stayCmd("dc-db", m.workspace)
+	case "m":
+		return m.startLeave("files", "m")
 	default:
 		return m, nil
 	}
@@ -174,6 +178,8 @@ func (m model) runPending() (tea.Model, tea.Cmd) {
 			return m.refuse("No container to log.")
 		}
 		cmd = exec.Command("docker", "logs", "-f", m.rows[0].ID)
+	case "m":
+		cmd = exec.Command("dc-files", ws)
 	default:
 		m.leaving = ""
 		return m, nil

@@ -77,7 +77,7 @@ type leaveTickMsg struct{}
 
 type splashTickMsg struct{}
 
-const splashStep = 90 * time.Millisecond
+const splashStep = 70 * time.Millisecond
 
 func (m model) Init() tea.Cmd {
 	if m.splashOn {
@@ -161,6 +161,8 @@ func backStatus(action string) string {
 		return "back from start"
 	case action == "e" || strings.HasPrefix(action, "exec-"):
 		return "back from shell"
+	case action == "m":
+		return "back from files"
 	default:
 		return ""
 	}
@@ -215,7 +217,7 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 		return m.moveCursor(-1), nil
 	case "enter":
 		return m.activateRow()
-	case "u", "e", "o", "a", "s", "x", "l", "p":
+	case "u", "e", "o", "a", "s", "x", "l", "p", "b", "m":
 		if m.fleet {
 			return m.withStatus("open a folder (enter / click) to start / shell / stop"), nil
 		}

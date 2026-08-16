@@ -16,6 +16,8 @@ const meta = [
   { key: 'a', label: 'attach', cmd: 'dc-open --attach', run: 'VS Code Remote into the app', danger: false, meta: true },
   { key: 'p', label: 'ports', cmd: 'dc-forward', run: 'reconcile owned sidecars (Colima)', danger: false, meta: true },
   { key: 'l', label: 'logs', cmd: 'docker logs -f', run: 'follow app logs, then return', danger: false, meta: true },
+  { key: 'b', label: 'db', cmd: 'dc-db', run: 'open TablePlus on a declared db port', danger: false, meta: true },
+  { key: 'm', label: 'files', cmd: 'dc-files', run: 'yazi/nnn inside the app if present', danger: false, meta: true },
 ];
 
 const rest = [

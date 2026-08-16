@@ -64,7 +64,7 @@ const helpText = `dc-tui — this folder's devcontainer (click buttons or keys)
 Logo splash on start (any key skips). DC_TUI_NO_SPLASH=1 to skip.
 
 Primary: start (u)  shell (e)  stop (s)
-Meta:    open (o)  attach (a)  ports (p)  logs (l)  fleet (f)  more (?)  quit (q)
+Meta:    open (o)  attach (a)  ports (p)  logs (l)  db (b)  files (m)  fleet (f)  more (?)  quit (q)
 Danger:  rm (x)    asks y/n before dc-down --rm
 Urls:    click or 1-9  open a published website (http/https) in the browser
 Rows:    j/k or arrows, enter (fleet = open folder, stack = exec)

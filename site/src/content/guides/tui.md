@@ -1,6 +1,6 @@
 ---
 title: "dc-tui board and keys"
-description: "dc-tui is the clickable board for this folder. Primary keys: start, shell, stop. Click a published website URL or press 1-9 to open it. Meta: open, attach, ports, logs, fleet."
+description: "dc-tui is the clickable board for this folder. Primary keys: start, shell, stop. Click a published website URL or press 1-9 to open it. Meta: open, attach, ports, logs, db, files, fleet."
 h1: "The board is the product."
 updated: 2026-08-16
 howto: false
@@ -16,7 +16,9 @@ faq:
   - q: How do I move without the mouse?
     a: j/k or arrows move the cursor. Enter opens a fleet folder or execs the selected stack row.
   - q: How do I open the forwarded website?
-    a: After start, website ports (80, 443, 3000, 5173, 8000, 8080, 9001, …) become clickable http://127.0.0.1:PORT tiles. Keys 1–9 open the first nine. Databases stay off that row.
+    a: After start, website ports (80, 443, 3000, 5173, 8000, 8080, 9001, …) become clickable http://127.0.0.1:PORT tiles. Keys 1–9 open the first nine. Databases stay off that row — press b / dc-db.
+  - q: How do I open TablePlus on the stack database?
+    a: b or dc-db. Uses the host port you already set on the db service (compose ports or a well-known forwardPorts number). No declared map → refuse. Two DBs need dc-db --service NAME.
 ---
 
 ```bash
@@ -44,6 +46,8 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 | **ports** | `p` | `dc-forward` (Colima sidecar) |
 | **url** | `1`–`9` / click | open a published website in the host browser |
 | **logs** | `l` | `docker logs -f` on the app |
+| **db** | `b` | `dc-db` — host TablePlus on a declared db port |
+| **files** | `m` | `dc-files` — yazi/nnn inside the app if present |
 | **fleet** | `f` | other workspaces |
 | **more** / **quit** | `?` / `q` | legend / exit |
 | **disk** | `d` | `dc-df` report (stays in TUI) |

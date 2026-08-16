@@ -428,6 +428,38 @@ dc_container_net_ip() {
   return 1
 }
 
+# Config.Env as KEY=VAL lines. Fail closed (non-zero) on inspect error.
+dc_inspect_env() {
+  local id="$1" out rc
+  [[ -n "$id" ]] || return 1
+  set +e
+  out="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$id" 2>/dev/null)"
+  rc=$?
+  set -e
+  if [[ "$rc" -ne 0 ]]; then
+    return 1
+  fi
+  printf '%s' "$out"
+  [[ -n "$out" && "$out" != *$'\n' ]] && printf '\n'
+  return 0
+}
+
+# ExposedPorts keys (5432/tcp). Fail closed on inspect error.
+dc_inspect_exposed() {
+  local id="$1" out rc
+  [[ -n "$id" ]] || return 1
+  set +e
+  out="$(docker inspect -f '{{range $p, $_ := .Config.ExposedPorts}}{{println $p}}{{end}}' "$id" 2>/dev/null)"
+  rc=$?
+  set -e
+  if [[ "$rc" -ne 0 ]]; then
+    return 1
+  fi
+  printf '%s' "$out"
+  [[ -n "$out" && "$out" != *$'\n' ]] && printf '\n'
+  return 0
+}
+
 # Host ports already published on this container (not our sidecars).
 dc_published_host_ports() {
   dc_published_port_pairs "$1" | awk -F'|' '{print $1}'

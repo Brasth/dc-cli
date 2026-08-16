@@ -159,6 +159,8 @@ func leaveLine(kind string) string {
 		return "leaving to logs — Ctrl-C to return"
 	case "start":
 		return "leaving to start — board returns when it finishes"
+	case "files":
+		return "leaving to files — quit the manager to return"
 	default:
 		return "leaving to shell — exit to return"
 	}
@@ -205,6 +207,8 @@ func morePanel(editor string, width int) string {
 		"  stop     full compose stack — not app-only",
 		"  rm       compose down (remove stack containers) — asks y/n",
 		"  logs     follow docker logs — Ctrl-C returns here",
+		"  db       open TablePlus (etc.) on a declared db port (b)",
+		"  files    in-container yazi/nnn if present (m). Bind-mount: open",
 		"  fleet    list every labeled workspace",
 		"  disk     dc-df report (d key). Reclaim: dc-prune --yes (CLI)",
 		"",
@@ -247,6 +251,8 @@ func (m model) buttonGroups() [][]btnSpec {
 			{key: "a", label: "attach"},
 			{key: "p", label: "ports"},
 			{key: "l", label: "logs", disabled: len(m.rows) == 0 || m.rows[0].ID == ""},
+			{key: "b", label: "db"},
+			{key: "m", label: "files"},
 		},
 		{
 			{key: "f", label: "fleet"},

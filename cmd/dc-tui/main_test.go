@@ -166,6 +166,65 @@ func TestFleetKeyNotSilent(t *testing.T) {
 	if mm.status == "" {
 		t.Fatal("fleet leftover key must explain itself")
 	}
+	got, cmd = mm.handleKey("b")
+	mm = got.(model)
+	if cmd != nil {
+		t.Fatal("fleet b must not run dc-db")
+	}
+	got, cmd = mm.handleKey("m")
+	mm = got.(model)
+	if cmd != nil || mm.leaving != "" {
+		t.Fatal("fleet m must not leave to files")
+	}
+}
+
+func TestStayDbStubsRunStay(t *testing.T) {
+	old := runStay
+	t.Cleanup(func() { runStay = old })
+	var gotName string
+	var gotArgs []string
+	runStay = func(name string, args ...string) (string, error) {
+		gotName = name
+		gotArgs = append([]string{}, args...)
+		return "opened postgres on 127.0.0.1:5433 (tableplus)", nil
+	}
+	got, _ := model{workspace: "/tmp/app", hasConfig: true, hoverStack: -1}.handleKey("b")
+	mm := got.(model)
+	if mm.leaving != "" {
+		t.Fatalf("db stay must not leave the board, leaving=%q", mm.leaving)
+	}
+	if gotName != "dc-db" {
+		t.Fatalf("ran %q", gotName)
+	}
+	if len(gotArgs) != 1 || gotArgs[0] != "/tmp/app" {
+		t.Fatalf("args=%v", gotArgs)
+	}
+	if !strings.Contains(mm.status, "127.0.0.1:5433") {
+		t.Fatalf("status=%q", mm.status)
+	}
+	if strings.Contains(mm.status, "password") || strings.Contains(mm.err, "://") {
+		t.Fatalf("status leaked url/secret: %q %q", mm.status, mm.err)
+	}
+}
+
+func TestLeaveFiles(t *testing.T) {
+	got, cmd := model{workspace: "/tmp/app", hasConfig: true, hoverStack: -1}.handleKey("m")
+	mm := got.(model)
+	if mm.leaving != "files" {
+		t.Fatalf("leaving=%q", mm.leaving)
+	}
+	if mm.pending != "m" {
+		t.Fatalf("pending=%q", mm.pending)
+	}
+	if cmd == nil {
+		t.Fatal("expected leave tick")
+	}
+	if !strings.Contains(leaveLine("files"), "files") {
+		t.Fatalf("leaveLine=%q", leaveLine("files"))
+	}
+	if backStatus("m") != "back from files" {
+		t.Fatalf("back=%q", backStatus("m"))
+	}
 }
 
 func TestConfirmRmCancel(t *testing.T) {
@@ -395,6 +454,46 @@ func TestLogoMarkHasFrameAndPip(t *testing.T) {
 	}
 }
 
+func pipCell(s string) (row, col int) {
+	lines := strings.Split(ansi.Strip(s), "\n")
+	for i, l := range lines {
+		if j := strings.IndexRune(l, '●'); j >= 0 {
+			return i, j
+		}
+	}
+	return -1, -1
+}
+
+func TestPipPatrolsThenDocks(t *testing.T) {
+	if len(splashPipPath) < 4 {
+		t.Fatal("path too short to read as a lap")
+	}
+	seen := map[[2]int]int{}
+	for i := splashBuild + 1; i < splashLast; i++ {
+		r, c := pipCell(logoSplash(i, 0))
+		if r < 0 {
+			t.Fatalf("lap frame %d missing pip", i)
+		}
+		seen[[2]int{r, c}]++
+	}
+	if len(seen) < 6 {
+		t.Fatalf("pip should move around the frame, unique cells=%d", len(seen))
+	}
+	dockR, dockC := pipCell(logoSplash(splashLast, 0))
+	if dockR < 0 {
+		t.Fatal("docked splash missing pip")
+	}
+	// Dock sits on the inner guest, not still on the last outer cell.
+	last := splashPipPath[len(splashPipPath)-1]
+	if dockR == last[0] && dockC == last[1] {
+		t.Fatalf("dock should leave the patrol path, still at %d,%d", dockR, dockC)
+	}
+	cr, cc := pipCell(logoCompact(splashLast))
+	if cr < 0 || cc < 0 {
+		t.Fatal("header rest pose missing pip")
+	}
+}
+
 func TestSplashSkipsOnKey(t *testing.T) {
 	m := model{workspace: "/tmp/app", splashOn: true, splash: 2, hoverStack: -1}
 	got, cmd := m.handleKey(" ")
@@ -594,6 +693,9 @@ func TestHelpAndMoreTeachZedAttach(t *testing.T) {
 	}
 	if !strings.Contains(more, "Zed attaches itself") {
 		t.Fatalf("more must say Zed attaches itself:\n%s", more)
+	}
+	if !strings.Contains(more, "db") || !strings.Contains(more, "files") {
+		t.Fatalf("more must document db and files:\n%s", more)
 	}
 }
 

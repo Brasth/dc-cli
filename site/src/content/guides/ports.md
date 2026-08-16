@@ -30,6 +30,8 @@ dc-forward --stop
 
 `dc-up` runs this after a successful start (`--no-forward` / `DC_FORWARD=0` skips). `dc-down` removes workspace-owned sidecars.
 
+`dc-db` does **not** change that wanted set. It follows the host port you already wrote on the db service. If that pair is unpublished, it runs `dc-forward --id $db HOST:CONTAINER` (the **db**, not the app). No declared map → refuse. It never invents a port and never `--take-ports`.
+
 `dc-up --ports` is **not** “add 3000”. It **replaces** the whole `devcontainer.json`.
 
 ## Host port already allocated
