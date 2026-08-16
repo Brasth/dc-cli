@@ -1,8 +1,8 @@
 ---
 title: "Disk full: dc-df and dc-prune"
-description: "When dc-up fails with ENOSPC, run dc-df then dc-prune --yes. Never docker system prune -af --volumes."
+description: "When dc-up fails with ENOSPC, run dc-df then dc-prune --yes. Cache/images/nets are engine-wide. Never docker system prune -af --volumes."
 h1: "No space left. Do not nuke volumes."
-updated: 2026-08-15
+updated: 2026-08-16
 howto: true
 steps:
   - name: Report
@@ -24,9 +24,9 @@ dc-up                    # retry
 
 | Flag | Risk |
 |---|---|
-| `dc-prune --yes` | Low — build cache, dangling images, unused nets, orphan `dc-forward` sidecars |
-| `dc-prune --all --yes` | Medium — unused **tagged** images; parked stacks rebuild on next `dc-up` |
-| `dc-prune --volume NAME --yes` | **High** — named volume data (DBs). One name only; never bulk |
+| `dc-prune --yes` | **Engine-wide** build cache, dangling images, unused nets; **owned-only** orphan `dc-forward` sidecars (target proven absent) |
+| `dc-prune --all --yes` | **Engine-wide** unused **tagged** images; parked stacks rebuild on next `dc-up` |
+| `dc-prune --volume NAME --yes` | **High / owned-only** — named volume data (DBs). One name only; never bulk; mount inventory must succeed |
 | `docker system prune -af --volumes` | **Do not** — not wrapped; destroys named volumes |
 
 If Colima guest `/` is still ~100% after prune, the VM disk cap is full: `dc-prune --colima-hint`. Prune does **not** grow the qemu/VZ image.

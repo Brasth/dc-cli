@@ -48,6 +48,7 @@ class DcCli < Formula
         curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
       Explicit npm (exact pin only, never implied by --with-cli):
         bash install.sh --with-cli-npm
+      npm pin is empty until docs/qualification/devcontainer-cli-floor.md is signed.
 
       Port override example (dc-up --ports):
         #{pkgshare}/override.json

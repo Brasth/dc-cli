@@ -2,7 +2,7 @@
 title: "Install dc-cli"
 description: "Install dc-cli with one curl (--with-cli standalone) or Homebrew. Release kits include the clickable TUI. Clone with no flags is wrappers only."
 h1: "One curl. Then source your shell."
-updated: 2026-08-15
+updated: 2026-08-16
 howto: true
 steps:
   - name: Run the installer
@@ -40,7 +40,7 @@ brew install dc-cli
 | `--full` | `--with-cli` + `--with-skill` |
 | `--ref v0.4.3` / `main` | pin a tag or use HEAD |
 
-The advertised curl passes `--with-cli` so `devcontainer` is on PATH via the **upstream standalone** installer (bundled Node major, mutable patch). npm is **only** `--with-cli-npm` with an exact qualified pin. The compatibility floor is whatever `docs/qualification/devcontainer-cli-floor.md` records — current registry `0.88.0` / Node 20 is candidate evidence, not a pre-approved floor. Clone or `bash install.sh` with no flags stays wrappers only.
+The advertised curl passes `--with-cli` so `devcontainer` is on PATH via the **upstream standalone** installer (bundled Node major, mutable patch). npm is **only** `--with-cli-npm` with an exact qualified pin. The compatibility floor is unpublished (`DC_DEVCONTAINER_MIN_VERSION` / `DC_DEVCONTAINER_NPM_VERSION` empty) until `docs/qualification/devcontainer-cli-floor.md` has four platform `result: pass` rows — `--with-cli-npm` hard-rejects until then. Current registry `0.88.0` / Node 20 is candidate evidence, not a pre-approved floor. Clone or `bash install.sh` with no flags stays wrappers only.
 
 ## Skill
 
