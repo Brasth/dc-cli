@@ -24,7 +24,7 @@ this folder
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Always tracks the **latest GitHub release** (currently **v0.8.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start via the **official standalone** installer — not npm. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
+Always tracks the **latest GitHub release** (currently **v0.9.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start via the **official standalone** installer — not npm. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
 
 macOS/Linux via Homebrew (same kit, no Go required):
 
@@ -104,6 +104,7 @@ Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `D
 | **open** | `o` | host editor on the bind-mount |
 | **attach** | `a` | VS Code Remote URI; Zed prints Connect Dev Container steps |
 | **ports** | `p` | `dc-forward` (Colima sidecar) |
+| **url** | `1`–`9` / click | open a published website (`http://127.0.0.1:PORT`) |
 | **logs** | `l` | `docker logs -f` on the app |
 | **fleet** | `f` | other workspaces |
 | **more** / **quit** | `?` / `q` | legend / exit |

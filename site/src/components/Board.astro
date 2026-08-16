@@ -25,6 +25,11 @@ const rest = [
   { key: 'x', label: 'rm', cmd: 'dc-down --rm', run: 'asks y/n, then compose down', danger: true, meta: false },
 ];
 
+const urls = [
+  { key: '1', label: '1 http://127.0.0.1:9001', cmd: 'open http://127.0.0.1:9001', run: 'open published website in the host browser' },
+  { key: '2', label: '2 http://127.0.0.1:5173', cmd: 'open http://127.0.0.1:5173', run: 'open published website in the host browser' },
+];
+
 const stack = [
   { name: 'app-1', svc: 'app', status: 'up', img: 'node:22' },
   { name: 'db-1', svc: 'db', status: 'up', img: 'postgres:16' },
@@ -93,9 +98,18 @@ const stack = [
             ))
           }
         </div>
+        <div class="flex flex-wrap gap-1.5">
+          {
+            urls.map((b) => (
+              <button type="button" class="board-btn" data-key={b.key} data-cmd={b.cmd} data-run={b.run}>
+                {b.label}
+              </button>
+            ))
+          }
+        </div>
       </div>
       <p class="px-4 pt-2 font-mono text-[11px] text-mute" id="board-hint">
-        u start · e shell · s stop · j/k enter · x rm asks y/n · q quit
+        u start · e shell · s stop · 1-9 url · j/k enter · x rm asks y/n · q quit
       </p>
 
       <ul class="mt-4 border-t border-white/5" id="board-stack">
