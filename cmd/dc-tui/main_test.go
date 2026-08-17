@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -720,6 +721,186 @@ func TestHelpAndMoreTeachZedAttach(t *testing.T) {
 	}
 	if !strings.Contains(more, "db") || !strings.Contains(more, "files") {
 		t.Fatalf("more must document db and files:\n%s", more)
+	}
+	if !strings.Contains(more, "top") {
+		t.Fatalf("more must document top:\n%s", more)
+	}
+}
+
+func TestTopRefusesFleetAndEmpty(t *testing.T) {
+	got, cmd := model{fleet: true, hoverStack: -1}.handleKey("t")
+	mm := got.(model)
+	if cmd != nil || mm.topOpen {
+		t.Fatal("fleet t must not open top")
+	}
+	if mm.status != "top is this folder only." {
+		t.Fatalf("status=%q", mm.status)
+	}
+	got, cmd = model{hoverStack: -1}.handleKey("t")
+	mm = got.(model)
+	if cmd != nil || mm.topOpen {
+		t.Fatal("empty t must not open top")
+	}
+	if mm.status != "No container to sample." {
+		t.Fatalf("status=%q", mm.status)
+	}
+}
+
+func TestTopOpensAndQuits(t *testing.T) {
+	old := runStats
+	oldFollow := startStatsFollow
+	t.Cleanup(func() {
+		runStats = old
+		startStatsFollow = oldFollow
+	})
+	startStatsFollow = func([]string) (io.ReadCloser, func(), error) {
+		return nil, func() {}, errStr("skip")
+	}
+	runStats = func(args ...string) ([]byte, error) {
+		return []byte(`{"schemaVersion":1,"engine":"desktop","guest":{"label":"desktop","cpus":4,"memoryBytes":8589934592,"live":false},"containers":[{"id":"abc","name":"app-1","service":"app","cpuPct":12.4,"memUsedBytes":430000000,"memLimitBytes":0,"netRxBytes":1,"netTxBytes":2}]}`), nil
+	}
+	m := model{workspace: "/tmp/app", hoverStack: -1, rows: []container{{ID: "abc", Status: "running"}}}
+	got, cmd := m.handleKey("t")
+	mm := got.(model)
+	if !mm.topOpen {
+		t.Fatal("t must open top")
+	}
+	if cmd == nil {
+		t.Fatal("expected fetchStats")
+	}
+	got, _ = mm.Update(topMsg{snap: statsSnapshot{
+		Engine: "desktop",
+		Guest:  statsGuest{Label: "desktop", CPUs: 4, MemoryBytes: 8589934592, Live: false},
+		Containers: []statsBox{{
+			ID: "abc", Service: "app", CPUPct: 12.4, MemUsedBytes: 430000000,
+		}},
+	}})
+	mm = got.(model)
+	s := ansi.Strip(mm.View())
+	if !strings.Contains(s, "live n/a") {
+		t.Fatalf("desktop guest must say live n/a:\n%s", s)
+	}
+	if !strings.Contains(s, "12.4%") {
+		t.Fatalf("missing cpu:\n%s", s)
+	}
+	if !strings.Contains(s, " / —") {
+		t.Fatalf("unlimited mem must use emdash:\n%s", s)
+	}
+	got, _ = mm.handleKey("q")
+	mm = got.(model)
+	if mm.topOpen {
+		t.Fatal("q must close top")
+	}
+}
+
+func TestDiskKeyUnchanged(t *testing.T) {
+	old := runStay
+	t.Cleanup(func() { runStay = old })
+	var name string
+	runStay = func(n string, _ ...string) (string, error) {
+		name = n
+		return "ok", nil
+	}
+	_, _ = model{hoverStack: -1}.handleKey("d")
+	if name != "dc-df" {
+		t.Fatalf("d must stay dc-df, got %q", name)
+	}
+}
+
+func TestPulseKeepsStartErr(t *testing.T) {
+	m := model{hoverStack: -1, err: "dc-up failed"}
+	got, _ := m.Update(pulseMsg{line: "cpu 1.0%  mem 10M / —"})
+	mm := got.(model)
+	if mm.err != "dc-up failed" {
+		t.Fatalf("pulse wiped err: %q", mm.err)
+	}
+	if mm.pulse != "cpu 1.0%  mem 10M / —" {
+		t.Fatalf("pulse=%q", mm.pulse)
+	}
+}
+
+func TestPulseTickSkipsWhenBusy(t *testing.T) {
+	old := runStats
+	t.Cleanup(func() { runStats = old })
+	called := 0
+	runStats = func(_ ...string) ([]byte, error) {
+		called++
+		return nil, errStr("no")
+	}
+	m := model{logOpen: true, hoverStack: -1}
+	_, cmd := m.Update(pulseTickMsg{})
+	if cmd == nil {
+		t.Fatal("busy pulse must still reschedule")
+	}
+	if called != 0 {
+		t.Fatalf("must not fetch while logs open, called=%d", called)
+	}
+}
+
+func TestApplyTopLineUpdatesHist(t *testing.T) {
+	m := model{
+		topOpen: true,
+		topHist: map[string]sparkHist{},
+		topSnap: statsSnapshot{Containers: []statsBox{{ID: "abc123", Service: "app", Name: "app-1"}}},
+	}
+	got, _ := m.applyTopLine(`{"ID":"abc","CPUPerc":"20.00%","MemUsage":"100MiB / 0B","Name":"app-1","NetIO":"1B / 2B"}`)
+	mm := got
+	if mm.topSnap.Containers[0].CPUPct != 20 {
+		t.Fatalf("cpu=%v", mm.topSnap.Containers[0].CPUPct)
+	}
+	if mm.topSnap.Containers[0].MemLimitBytes != 0 {
+		t.Fatal("unlimited mem limit must stay 0")
+	}
+	h := mm.topHist["abc123"]
+	if len(h.cpu) != 1 || h.cpu[0] != 20 {
+		t.Fatalf("hist=%+v", h)
+	}
+}
+
+func TestCloseTopStopsStream(t *testing.T) {
+	stopped := false
+	m := model{topOpen: true, topStop: func() { stopped = true }}
+	m = m.closeTop()
+	if !stopped {
+		t.Fatal("close must stop stream")
+	}
+	if m.topOpen {
+		t.Fatal("top still open")
+	}
+}
+
+func TestSparklineClipsWidth(t *testing.T) {
+	vals := make([]float64, 80)
+	for i := range vals {
+		vals[i] = float64(i)
+	}
+	s := sparkline(vals, 8)
+	if ansi.StringWidth(s) > 8 {
+		t.Fatalf("spark width %d > 8 (%q)", ansi.StringWidth(s), s)
+	}
+	if sparkline(nil, 8) != "" {
+		t.Fatal("empty hist should paint nothing")
+	}
+}
+
+func TestDesktopTopViewNoFakeGuestLive(t *testing.T) {
+	m := model{
+		topOpen: true,
+		width:   80,
+		topSnap: statsSnapshot{
+			Engine: "desktop",
+			Guest:  statsGuest{Label: "desktop", CPUs: 4, MemoryBytes: 8 << 30, Live: false},
+			Containers: []statsBox{{
+				ID: "abc", Service: "app", CPUPct: 1, MemUsedBytes: 10,
+			}},
+		},
+	}
+	s := ansi.Strip(m.topView())
+	if strings.Contains(s, "cpu 0.0%") && strings.Contains(s, "GUEST") {
+		t.Fatalf("desktop guest must not invent 0%%:\n%s", s)
+	}
+	if !strings.Contains(s, "live n/a") {
+		t.Fatalf("want live n/a:\n%s", s)
 	}
 }
 

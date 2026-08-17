@@ -68,13 +68,14 @@ const helpText = `dc-tui — this folder's devcontainer (click buttons or keys)
 Logo splash on start (any key skips). DC_TUI_NO_SPLASH=1 to skip.
 
 Primary: start (u)  shell (e)  stop (s)
-Meta:    open (o)  attach (a)  ports (p)  logs (l)  db (b)  files (m)  fleet (f)  more (?)  quit (q)
+Meta:    open (o)  attach (a)  ports (p)  logs (l)  top (t)  db (b)  files (m)  fleet (f)  more (?)  quit (q)
 Danger:  rm (x)    asks y/n before dc-down --rm
 Urls:    click or 1-9  open a published website (http/https) in the browser
 Rows:    j/k or arrows, enter (fleet = open folder, stack = exec)
 Disk:    d  (stays in the board). Reclaim is CLI-only: dc-prune --yes
+Top:     t  live CPU/RAM for this folder (stays in the board). Fleet refuses.
 
-Shell / start / files leave the board and come back. Logs stay on the board (q back).
+Shell / start / files leave the board and come back. Logs and top stay on the board (q back).
 A normal exit is not a crash.
 
 Open vs attach: open = edit files on the Mac/Linux host.

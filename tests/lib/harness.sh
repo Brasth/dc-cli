@@ -49,6 +49,7 @@ fake_add_container() {
       env=*) printf '%s\n' "${arg#env=}" >>"$dir/env" ;;
       exposed=*) printf '%s\n' "${arg#exposed=}" >>"$dir/exposed" ;;
       bin=*) printf '%s\n' "${arg#bin=}" >>"$dir/bins" ;;
+      stats=*) printf '%s\n' "${arg#stats=}" >"$dir/stats" ;;
       *) printf '%s\n' "$arg" >>"$dir/labels" ;;
     esac
   done

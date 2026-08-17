@@ -16,6 +16,7 @@ const meta = [
   { key: 'a', label: 'attach', cmd: 'dc-open --attach', run: 'VS Code Remote into the app', danger: false, meta: true },
   { key: 'p', label: 'ports', cmd: 'dc-forward', run: 'reconcile owned sidecars (Colima)', danger: false, meta: true },
   { key: 'l', label: 'logs', cmd: 'docker logs -f', run: 'highlighted follow in the board, q back', danger: false, meta: true },
+  { key: 't', label: 'top', cmd: 'dc-stats', run: 'CPU / RAM for this folder, q back', danger: false, meta: true },
 ];
 
 const extras = [
@@ -54,7 +55,8 @@ const stack = [
         <div class="min-w-0 flex-1">
           <p class="font-mono text-sm font-semibold text-[#F4F1EA]">dc-cli <span class="font-normal text-[#8ecf7a]">app</span></p>
           <p class="font-mono text-[11px] text-mute">~/src/app</p>
-          <p class="font-mono text-[11px] text-mute" id="board-disk">disk  docker 42% · colima 61%</p>
+          <p class="font-mono text-[11px] text-mute" id="board-load">load  cpu 12.4%  mem 410M / —  t=top</p>
+          <p class="font-mono text-[11px] text-mute" id="board-disk">disk  docker 42% · colima 61%  d=df</p>
         </div>
       </header>
 
@@ -123,7 +125,7 @@ const stack = [
         </div>
       </div>
       <p class="px-4 pt-2 font-mono text-[11px] text-mute" id="board-hint">
-        u start · e shell · s stop · b db · m files · 1-9 url · j/k enter · x rm asks y/n · q quit
+        u start · e shell · s stop · t top · b db · m files · 1-9 url · j/k enter · x rm asks y/n · q quit
       </p>
 
       <ul class="mt-4 border-t border-white/5" id="board-stack">

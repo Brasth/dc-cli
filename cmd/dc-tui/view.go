@@ -45,6 +45,9 @@ func (m model) View() string {
 	if m.logOpen {
 		return m.logsView()
 	}
+	if m.topOpen {
+		return m.topView()
+	}
 	s, _, _ := m.layout()
 	return s
 }
@@ -89,6 +92,9 @@ func (m model) layout() (string, []button, int) {
 		}
 		info.WriteString(trunc(meta, infoW) + "\n")
 		info.WriteString(kv("editor", trunc(m.editor, max(8, infoW-12))) + "\n")
+		if m.pulse != "" {
+			info.WriteString(kv("load", trunc(m.pulse+"  t=top", max(8, infoW-12))) + "\n")
+		}
 		if m.disk != "" {
 			info.WriteString(kv("disk", trunc(m.disk+"  d=df", max(8, infoW-12))))
 		}
@@ -210,6 +216,7 @@ func morePanel(editor string, width int) string {
 		"  stop     full compose stack — not app-only",
 		"  rm       compose down (remove stack containers) — asks y/n",
 		"  logs     follow docker logs in the board — highlighted, q returns",
+		"  top      CPU / RAM for this folder (t). Disk stays d / dc-df",
 		"  db       open TablePlus (etc.) on a declared db port (b)",
 		"  files    yazi/nnn in the box, else Linux yazi copied into /tmp (m)",
 		"  fleet    list every labeled workspace",
@@ -254,6 +261,7 @@ func (m model) buttonGroups() [][]btnSpec {
 			{key: "a", label: "attach"},
 			{key: "p", label: "ports"},
 			{key: "l", label: "logs", disabled: len(m.rows) == 0 || m.rows[0].ID == ""},
+			{key: "t", label: "top", disabled: len(m.rows) == 0 || m.rows[0].ID == ""},
 		},
 		{
 			{key: "b", label: "db"},

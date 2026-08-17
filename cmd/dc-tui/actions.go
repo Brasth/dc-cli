@@ -115,6 +115,8 @@ func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 		return m.withStatus(""), nil
 	case "l":
 		return m.openLogs()
+	case "t":
+		return m.openTop()
 	case "b":
 		return m.stayCmd("dc-db", m.workspace)
 	case "m":

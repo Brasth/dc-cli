@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+# Read-only CPU / memory / net for this folder's running boxes + guest cap.
+# Usage:
+#   dc-stats [workspace]
+#   dc-stats --json [workspace]
+set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  exit 1
+fi
+if [[ -f "$_here/../lib/dc-stats.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-stats.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-stats.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-stats.sh"
+else
+  echo "dc-stats.sh not found" >&2
+  exit 1
+fi
+
+json=0
+workspace="."
+
+usage() {
+  cat <<'EOF'
+dc-stats — read-only CPU / RAM / net for this folder's running boxes
+
+  dc-stats [workspace]     human table
+  dc-stats --json [...]    machine-readable (TUI / agents)
+  dc-stats --help
+
+Guest is the Colima/Desktop VM, or the host on native Linux Docker.
+Desktop never invents live guest CPU/RAM (cap only). Disk stays dc-df.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --json) json=1 ;;
+    --version|-V) dc_cli_print_version "$(basename "$0")"; exit 0 ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      workspace="$1"
+      ;;
+  esac
+  shift
+done
+
+if [[ ! -d "$workspace" ]]; then
+  echo "Not a directory: $workspace" >&2
+  exit 2
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "docker not found" >&2
+  exit 1
+fi
+
+dir="$(dc_resolve_workspace "$workspace")" || exit 2
+
+engine="$(dc_stats_engine)"
+guest_line="$(dc_stats_guest_fields "$engine")"
+IFS=$'\t' read -r g_label g_cpus g_mem g_used g_cpu g_live <<<"$guest_line"
+[[ "$g_cpus" =~ ^[0-9]+$ ]] || g_cpus=0
+[[ "$g_mem" =~ ^[0-9]+$ ]] || g_mem=0
+[[ "$g_used" =~ ^[0-9]+$ ]] || g_used=""
+[[ "$g_live" == 1 ]] || g_live=0
+
+meta=""
+ids=()
+while IFS=$'\t' read -r id name service image; do
+  [[ -n "$id" ]] || continue
+  ids+=("$id")
+  meta+="${id}"$'\t'"${name}"$'\t'"${service}"$'\t'"${image}"$'\n'
+done < <(dc_stats_box_rows "$dir")
+
+cjson="[]"
+if [[ "${#ids[@]}" -gt 0 ]]; then
+  set +e
+  raw="$(dc_stats_run_deadline "$DC_STATS_TIMEOUT" docker stats --no-stream --format '{{json .}}' "${ids[@]}" 2>/dev/null)"
+  rc=$?
+  set -e
+  if [[ "$rc" -ne 0 ]]; then
+    echo "dc-stats: docker stats failed or timed out" >&2
+    exit 1
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    cjson="$(printf '%s\n' "$raw" | dc_stats_parse_docker "$meta")" || cjson="[]"
+    [[ -n "$cjson" ]] || cjson="[]"
+  fi
+fi
+
+if [[ "$json" -eq 1 ]]; then
+  printf '{"schemaVersion":1,"engine":"%s","guest":{' "$(dc_json_escape "$engine")"
+  printf '"label":"%s","cpus":%s,"memoryBytes":%s' \
+    "$(dc_json_escape "$g_label")" "$g_cpus" "$g_mem"
+  if [[ "$g_live" -eq 1 ]]; then
+    [[ "$g_used" =~ ^[0-9]+$ ]] || g_used=0
+    [[ -n "$g_cpu" ]] || g_cpu="0.0"
+    printf ',"cpuPct":%s,"memoryUsedBytes":%s,"live":true' "$g_cpu" "$g_used"
+  else
+    printf ',"live":false'
+  fi
+  printf '},"containers":%s}\n' "$cjson"
+  exit 0
+fi
+
+# Human table
+gcap="$(dc_stats_fmt_bytes "$g_mem")"
+if [[ "$g_live" -eq 1 ]]; then
+  gused="$(dc_stats_fmt_bytes "${g_used:-0}")"
+  printf 'GUEST  %s  %s cpu  %s / %s  cpu %s%%\n' \
+    "$g_label" "$g_cpus" "$gused" "$gcap" "${g_cpu:-0}"
+else
+  printf 'GUEST  %s  %s cpu  %s cap  live n/a\n' "$g_label" "$g_cpus" "$gcap"
+fi
+echo
+if [[ "$cjson" == "[]" ]]; then
+  echo "No running boxes in this folder."
+  exit 0
+fi
+python3 -c '
+import json, sys
+
+def fmt(n):
+    n = int(n or 0)
+    if n < 1024:
+        return "%dB" % n
+    if n < 1048576:
+        return "%.0fK" % (n / 1024)
+    if n < 1073741824:
+        return "%.0fM" % (n / 1048576)
+    return "%.1fG" % (n / 1073741824)
+
+rows = json.loads(sys.stdin.read() or "[]")
+print("%-16s  %7s  %-16s  %s" % ("SERVICE", "CPU", "MEM", "NET"))
+for r in rows:
+    svc = r.get("service") or r.get("name") or "-"
+    lim = int(r.get("memLimitBytes") or 0)
+    mem = fmt(r.get("memUsedBytes"))
+    if lim > 0:
+        mem = "%s / %s" % (mem, fmt(lim))
+    else:
+        mem = "%s / —" % mem
+    net = "%s / %s" % (fmt(r.get("netRxBytes")), fmt(r.get("netTxBytes")))
+    print("%-16s  %6.1f%%  %-16s  %s" % (svc[:16], float(r.get("cpuPct") or 0), mem, net))
+' <<<"$cjson"

@@ -62,7 +62,84 @@ case "$cmd" in
     exit 0
     ;;
   info)
+    fmt=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --format|-f)
+          fmt="${2:-}"
+          shift 2
+          ;;
+        --format=*)
+          fmt="${1#--format=}"
+          shift
+          ;;
+        *) shift ;;
+      esac
+    done
+    ncpu="$(read_file "$STATE/info_ncpu")"
+    ncpu="${ncpu:-4}"
+    mem="$(read_file "$STATE/info_mem")"
+    mem="${mem:-8589934592}"
+    os="$(read_file "$STATE/info_os")"
+    os="${os:-Docker Desktop}"
+    name="$(read_file "$STATE/info_name")"
+    name="${name:-docker-desktop}"
+    if [[ -n "$fmt" ]]; then
+      out="$fmt"
+      out="${out//\{\{.NCPU\}\}/$ncpu}"
+      out="${out//\{\{.MemTotal\}\}/$mem}"
+      out="${out//\{\{.OperatingSystem\}\}/$os}"
+      out="${out//\{\{.Name\}\}/$name}"
+      printf '%s\n' "$out"
+      exit 0
+    fi
     echo "Server Version: fake"
+    echo "NCPU: $ncpu"
+    echo "MemTotal: $mem"
+    echo "Operating System: $os"
+    echo "Name: $name"
+    exit 0
+    ;;
+  stats)
+    if [[ -f "$STATE/fail/stats_hang" ]]; then
+      sleep 8
+      exit 0
+    fi
+    if [[ -f "$STATE/fail/stats" ]]; then
+      echo "Error: stats failed" >&2
+      exit 1
+    fi
+    ids=()
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --no-stream|--no-trunc) shift ;;
+        --format|-f)
+          shift 2
+          ;;
+        --format=*) shift ;;
+        -*) shift ;;
+        *)
+          ids+=("$1")
+          shift
+          ;;
+      esac
+    done
+    if [[ "${#ids[@]}" -eq 0 ]]; then
+      while IFS= read -r id; do
+        [[ -n "$id" ]] || continue
+        ids+=("$id")
+      done < <(list_ids 0)
+    fi
+    for id in "${ids[@]+"${ids[@]}"}"; do
+      dir="$(cdir "$id")"
+      if [[ -f "$dir/stats" ]]; then
+        cat "$dir/stats"
+        [[ "$(tail -c1 "$dir/stats" 2>/dev/null || true)" == $'\n' ]] || printf '\n'
+        continue
+      fi
+      cname="$(read_file "$dir/name")"
+      printf '%s\n' "{\"BlockIO\":\"0B / 0B\",\"CPUPerc\":\"0.00%\",\"Container\":\"$id\",\"ID\":\"$id\",\"MemPerc\":\"0.50%\",\"MemUsage\":\"10MiB / 2GiB\",\"Name\":\"${cname:-$id}\",\"NetIO\":\"0B / 0B\",\"PIDs\":\"1\"}"
+    done
     exit 0
     ;;
   system)

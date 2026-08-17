@@ -11,6 +11,7 @@ this folder
    │
    ├─ dc-tui          clickable board (default)
    ├─ dc-doctor       read-only diagnose (human or --json)
+   ├─ dc-stats        read-only CPU / RAM / net (this folder)
    ├─ dc-up           start the labeled app + publish ports
    ├─ dc-exec         shell in the app
    ├─ dc-exec --service NAME   start (if needed) + shell in another service
@@ -26,7 +27,7 @@ this folder
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Always tracks the **latest GitHub release** (currently **v0.10.4**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start via the **official standalone** installer — not npm. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
+Always tracks the **latest GitHub release** (currently **v0.11.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start via the **official standalone** installer — not npm. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
 
 macOS/Linux via Homebrew (same kit, no Go required):
 
@@ -57,6 +58,7 @@ Run these from **your** project folder (the one with `.devcontainer`):
 cd /path/to/your/project
 dc-tui                          # or the CLI below
 dc-doctor                       # read-only; --json for agents
+dc-stats                        # this folder CPU / RAM / net (read-only)
 
 dc-up                           # start the labeled app, then publish ports
 dc-up --take-ports              # clash: stop labeled foreign holders only, retry
@@ -117,15 +119,27 @@ Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `D
 | **fleet** | `f` | other workspaces |
 | **more** / **quit** | `?` / `q` | legend / exit |
 | **disk** | `d` | `dc-df` report (stays in TUI) |
+| **top** | `t` | CPU / RAM for this folder (stays in TUI). Fleet refuses. |
 | **rows** | `j`/`k`, Enter | move cursor; fleet opens a folder, stack execs |
 
-Header shows a compact disk line from `dc-df`. Reclaim stays CLI-only (`dc-prune --yes`).
+Header shows a compact disk line from `dc-df` and an app load pulse from `dc-stats`. Reclaim stays CLI-only (`dc-prune --yes`).
 
-After **shell** / **start** / **files**, the board comes back. **logs** stays on the board (`q` back). A normal `exit` is not a crash.
+After **shell** / **start** / **files**, the board comes back. **logs** and **top** stay on the board (`q` back). A normal `exit` is not a crash.
 
 **open ≠ attach.** Open = files on the Mac/Linux host. `a` / `dc-open --attach` is the VS Code Remote URI into Linux. Zed attaches itself. Sublime cannot.
 
 **db ≠ url tiles.** `b` / `dc-db` opens TablePlus (or DBeaver / rainfrog) on the host port you already set on the db service. It never invents a port. No compose `ports` / matching `forwardPorts` → refuse. Two databases need `--service`. Bind-mount editor stays `o`; `m` / `dc-files` always runs **inside** the container (image FM, or a Linux yazi copied to `/tmp` — never `apt-get`). `e` / `dc-exec` is a color shell (`ls`, prompt, `hl` for access logs).
+
+## Stats
+
+`dc-stats` is read-only CPU / RAM / net for **this folder's** running boxes. Not the Mac Activity Monitor. Guest is the Colima or Docker Desktop VM (native Linux Docker = the host). Desktop never invents live guest CPU/RAM — cap only, `live n/a`. Disk stays `dc-df`.
+
+```bash
+dc-stats              # human table
+dc-stats --json       # TUI / agents
+```
+
+TUI key `t` opens the live overlay. Fleet refuses — this folder only. Sidecar `dc-forward` socat rows are omitted. Unlimited memory prints `used / —`, never a lonely healthy percent.
 
 ## Commands (all of them)
 
@@ -155,6 +169,7 @@ After **shell** / **start** / **files**, the board comes back. **logs** stays on
 | `dc-forward` / `3000` / `9001:80` / `--stop` | reconcile owned sidecars (one app or `--id`) |
 | `dc-ps` | docker + labels |
 | `dc-df` / `--json` / `--volumes` | disk report (read-only) |
+| `dc-stats` / `--json` | CPU / RAM / net for this folder (read-only) |
 | `dc-prune` / `--yes` | safe reclaim (cache, dangling, nets, orphan sidecars) |
 | `dc-prune --all --yes` | also unused tagged images |
 | `dc-prune --volume NAME --yes` | delete **one** named volume |

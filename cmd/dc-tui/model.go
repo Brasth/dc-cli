@@ -68,6 +68,16 @@ type model struct {
 	logFollow  bool
 	logStop    func()
 	logR       *bufio.Reader
+	topOpen    bool
+	topSnap    statsSnapshot
+	topErr     string
+	topCursor  int
+	topStop    func()
+	topR       *bufio.Reader
+	topHist    map[string]sparkHist
+	topLast    time.Time
+	topStale   bool
+	pulse      string
 }
 
 type reloadMsg struct {
@@ -91,11 +101,11 @@ const splashStep = 70 * time.Millisecond
 
 func (m model) Init() tea.Cmd {
 	if m.splashOn {
-		return tea.Batch(m.reload(), tea.Tick(splashStep, func(time.Time) tea.Msg {
+		return tea.Batch(m.reload(), m.pulseCmd(), tea.Tick(splashStep, func(time.Time) tea.Msg {
 			return splashTickMsg{}
 		}))
 	}
-	return m.reload()
+	return tea.Batch(m.reload(), m.pulseCmd())
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -105,6 +115,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 	case logLineMsg:
 		return m.applyLogLine(msg.line)
+	case topMsg:
+		return m.applyTopMsg(msg)
+	case topLineMsg:
+		return m.applyTopLine(msg.line)
+	case topDoneMsg:
+		if m.topOpen && msg.err != nil && !strings.Contains(strings.ToLower(msg.err.Error()), "eof") {
+			m.topStale = true
+		}
+		return m, nil
+	case pulseMsg:
+		return m.applyPulse(msg)
+	case pulseTickMsg:
+		if !m.idleForPulse() {
+			return m, m.pulseCmd()
+		}
+		return m, m.fetchPulse()
 	case logDoneMsg:
 		if m.logOpen {
 			m.logFollow = false
@@ -164,6 +190,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		if m.topOpen {
+			return m, nil
+		}
 		switch msg.Action {
 		case tea.MouseActionMotion:
 			m.hover = m.hitButton(msg.X, msg.Y)
@@ -215,6 +244,9 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 	if m.logOpen {
 		return m.handleLogKey(k)
 	}
+	if m.topOpen {
+		return m.handleTopKey(k)
+	}
 	if m.leaving != "" {
 		if k == "q" || k == "ctrl+c" {
 			m.quitting = true
@@ -244,6 +276,8 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 		return m.withStatus(""), m.reload()
 	case "d":
 		return m.stayCmd("dc-df")
+	case "t":
+		return m.openTop()
 	case "j", "down":
 		return m.moveCursor(1), nil
 	case "k", "up":
@@ -358,7 +392,7 @@ func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
 	if m.splashOn {
 		return m.skipSplash(), nil
 	}
-	if m.logOpen {
+	if m.logOpen || m.topOpen {
 		return m, nil
 	}
 	if m.leaving != "" {

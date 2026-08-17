@@ -1,8 +1,8 @@
 ---
 title: "dc-tui board and keys"
-description: "dc-tui is the clickable board for this folder. Primary keys: start, shell, stop. Click a published website URL or press 1-9 to open it. Meta: open, attach, ports, logs, db, files, fleet."
+description: "dc-tui is the clickable board for this folder. Primary keys: start, shell, stop. Click a published website URL or press 1-9 to open it. Meta: open, attach, ports, logs, top, db, files, fleet."
 h1: "The board is the product."
-updated: 2026-08-16
+updated: 2026-08-17
 howto: false
 faq:
   - q: What is the difference between open and attach?
@@ -19,6 +19,8 @@ faq:
     a: After start, website ports (80, 443, 3000, 5173, 8000, 8080, 9001, …) become clickable http://127.0.0.1:PORT tiles. Keys 1–9 open the first nine. Databases stay off that row — press b / dc-db.
   - q: How do I open TablePlus on the stack database?
     a: b or dc-db. Uses the host port you already set on the db service (compose ports or a well-known forwardPorts number). No declared map → refuse. Two DBs need dc-db --service NAME.
+  - q: What is the difference between d and t?
+    a: d dumps dc-df (disk document). t opens live CPU/RAM for this folder via dc-stats. Fleet refuses t. Desktop guest is cap only — it never invents a live percent. Reclaim stays dc-prune.
 ---
 
 ```bash
@@ -46,6 +48,7 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 | **ports** | `p` | `dc-forward` (Colima sidecar) |
 | **url** | `1`–`9` / click | open a published website in the host browser |
 | **logs** | `l` | follow docker logs in the board (highlighted; q back) |
+| **top** | `t` | CPU / RAM for this folder (stays in TUI). Fleet refuses. |
 | **db** | `b` | `dc-db` — host TablePlus on a declared db port |
 | **files** | `m` | `dc-files` — yazi/nnn in the box, else Linux yazi in /tmp |
 | **fleet** | `f` | other workspaces |
@@ -53,7 +56,7 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 | **disk** | `d` | `dc-df` report (stays in TUI) |
 | **rows** | `j`/`k`, Enter | cursor; fleet opens a folder, stack execs |
 
-Header shows a compact disk line from `dc-df`. Reclaim stays CLI-only (`dc-prune --yes`).
+Header shows a compact disk line from `dc-df` and an app load pulse from `dc-stats`. `d` is still the disk document. `t` is live CPU/RAM for this folder (`q` back). Fleet refuses `t`. Desktop guest is cap only. Reclaim stays CLI-only (`dc-prune --yes`). CLI twin: `dc-stats` / `--json`.
 
 ## App vs other services
 
