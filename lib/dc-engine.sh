@@ -66,11 +66,11 @@ dc_engine_realpath() {
   printf '%s\n' "$path"
 }
 
-# Device:inode of the target (follow symlink). Empty if unavailable.
-# GNU `stat -f` is --file-system — never use it for inode.
+# Device:inode of the target (must follow symlink). Empty if unavailable.
+# GNU `stat -f` is --file-system. GNU `stat -c` without -L is the link itself.
 dc_engine_inode() {
   local path="$1" out
-  out="$(stat -c '%d:%i' "$path" 2>/dev/null || true)"
+  out="$(stat -L -c '%d:%i' "$path" 2>/dev/null || true)"
   if [[ "$out" == [0-9]*:[0-9]* ]]; then
     printf '%s\n' "$out"
     return 0
