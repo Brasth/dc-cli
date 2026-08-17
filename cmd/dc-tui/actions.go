@@ -152,6 +152,33 @@ func (m model) execStack(i int) (tea.Model, tea.Cmd) {
 	return m.startLeave("shell", "stack:"+strconv.Itoa(i))
 }
 
+// restartSelected restarts the stack-cursor sibling. Labeled app row
+// (same id as dc-ls rows[0]) is refused — use u/s. Fleet is refused by the key handler.
+func (m model) restartSelected() (tea.Model, tea.Cmd) {
+	if len(m.stack) == 0 {
+		return m.refuse("No stack row to restart.")
+	}
+	m.clampCursor()
+	if m.cursor < 0 || m.cursor >= len(m.stack) {
+		return m.refuse("No stack row to restart.")
+	}
+	s := m.stack[m.cursor]
+	if s.ID == "" {
+		return m.refuse("No stack row to restart.")
+	}
+	if len(m.rows) > 0 && s.ID == m.rows[0].ID {
+		return m.refuse("restart is for stack siblings. Use u/s for the labeled app.")
+	}
+	svc := s.Service
+	if svc == "" {
+		svc = s.Name
+	}
+	if svc == "" {
+		return m.refuse("stack row has no service name")
+	}
+	return m.stayCmd("dc-exec", "--service", svc, "--restart", m.workspace)
+}
+
 func (m model) runPending() (tea.Model, tea.Cmd) {
 	pending := m.pending
 	m.pending = ""

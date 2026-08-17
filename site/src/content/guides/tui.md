@@ -13,6 +13,8 @@ faq:
     a: No. e and shell are always the labeled app. Click a stack row, or dc-exec --service NAME, for siblings.
   - q: Why does the TUI come back after shell or logs?
     a: A normal exit is not a crash. The board announces leave, then resumes so you can hit the next verb.
+  - q: What does R do versus r?
+    a: r reloads the board. R restarts the selected compose sibling (dc-exec --service NAME --restart). The labeled app row refuses — use u/s. Fleet refuses R. --id --restart is invalid.
   - q: How do I move without the mouse?
     a: j/k or arrows move the cursor. Enter opens a fleet folder or execs the selected stack row.
   - q: How do I open the forwarded website?
@@ -53,7 +55,8 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 | **attach** | `a` | VS Code Remote URI; Zed prints Connect Dev Container steps |
 | **ports** | `p` | `dc-forward` (Colima sidecar) |
 | **url** | `1`–`9` / click | open a published website in the host browser |
-| **logs** | `l` | follow docker logs in the board (highlighted; q back) |
+| **logs** | `l` | follow docker logs for the selected stack row (highlighted; q back). Fleet refuses. |
+| **restart** | `R` | restart the selected stack sibling. Labeled app row refuses (`u`/`s`). Fleet refuses. `r` still reloads. |
 | **top** | `t` | CPU / RAM for this folder (stays in TUI). Fleet refuses. |
 | **nets** | `n` | this folder's declared compose nets. `y` creates missing externals then start. Fleet refuses. |
 | **db** | `b` | `dc-db` — host TablePlus on a declared db port |

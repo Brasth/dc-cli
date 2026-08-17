@@ -190,6 +190,82 @@ dc_ensure_running() {
   return 1
 }
 
+# Resolve ref against dc_stack_rows. Three-pass: exact service, exact name,
+# then id prefix. Service names like "db" must not steal an app whose hex
+# id starts with db. Prints the matching TSV row. Miss → 1 (no inspect of strangers).
+dc_stack_resolve() {
+  local dir="${1:-.}" ref="${2:-}"
+  local id name status svc image line
+  local -a rows=()
+  if [[ -z "$ref" ]]; then
+    echo "dc_stack_resolve: need a service name" >&2
+    return 2
+  fi
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    rows+=("$line")
+  done < <(dc_stack_rows "$dir")
+
+  for line in "${rows[@]+"${rows[@]}"}"; do
+    IFS=$'\t' read -r id name status svc image <<<"$line"
+    if [[ "$svc" == "$ref" ]]; then
+      printf '%s\n' "$line"
+      return 0
+    fi
+  done
+  for line in "${rows[@]+"${rows[@]}"}"; do
+    IFS=$'\t' read -r id name status svc image <<<"$line"
+    if [[ "$name" == "$ref" ]]; then
+      printf '%s\n' "$line"
+      return 0
+    fi
+  done
+  for line in "${rows[@]+"${rows[@]}"}"; do
+    IFS=$'\t' read -r id name status svc image <<<"$line"
+    if [[ "$id" == "$ref"* ]]; then
+      printf '%s\n' "$line"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Restart a compose sibling that is already in dc_stack_rows.
+# Match via dc_stack_resolve. Miss → fail closed. Do not docker inspect strangers.
+dc_restart_in_stack() {
+  local dir="${1:-.}" ref="${2:-}"
+  local id name status svc image row
+  if [[ -z "$ref" ]]; then
+    echo "dc_restart_in_stack: need a service name" >&2
+    return 2
+  fi
+  row="$(dc_stack_resolve "$dir" "$ref")" || {
+    echo "No compose service \"$ref\" in this workspace stack. Try: dc-exec --list" >&2
+    return 1
+  }
+  IFS=$'\t' read -r id name status svc image <<<"$row"
+  if [[ -z "$id" ]]; then
+    echo "No compose service \"$ref\" in this workspace stack. Try: dc-exec --list" >&2
+    return 1
+  fi
+  echo "restart  ${svc:-$name}  ${name:-$id}  ${id:0:12}"
+  docker restart "$id" >/dev/null
+  local st i
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    st="$(docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo missing)"
+    if [[ "$st" == "running" ]]; then
+      return 0
+    fi
+    if [[ "$st" == "exited" || "$st" == "dead" || "$st" == "missing" ]]; then
+      echo "Container $id restarted then $st. Logs: docker logs $id" >&2
+      return 1
+    fi
+    sleep 0.3
+  done
+  echo "Container $id did not become running (status=$st)" >&2
+  return 1
+}
+
 dc_compose_project_for() {
   local id="$1"
   docker inspect -f "{{index .Config.Labels \"${DC_LABEL_COMPOSE}\"}}" "$id" 2>/dev/null || true

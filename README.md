@@ -116,7 +116,8 @@ Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `D
 | **attach** | `a` | VS Code Remote URI; Zed prints Connect Dev Container steps |
 | **ports** | `p` | `dc-forward` (Colima sidecar) |
 | **url** | `1`–`9` / click | open a published website (`http://127.0.0.1:PORT`) |
-| **logs** | `l` | follow docker logs in the board (highlighted; q back) |
+| **logs** | `l` | follow docker logs for the **selected stack row** (highlighted; q back). Fleet refuses. |
+| **restart** | `R` | `dc-exec --service NAME --restart` on the selected sibling. Labeled app row refuses (`u`/`s`). Fleet refuses. `r` still reloads. |
 | **db** | `b` | `dc-db` — host TablePlus (etc.) on a declared db port |
 | **files** | `m` | `dc-files` — yazi/nnn in the box, else Linux yazi in /tmp |
 | **fleet** | `f` | other workspaces |
@@ -128,7 +129,7 @@ Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `D
 
 Header shows a compact disk line from `dc-df`, an app load pulse from `dc-stats`, and declared compose nets when present. Reclaim stays CLI-only (`dc-prune --yes`).
 
-After **shell** / **start** / **files**, the board comes back. **logs**, **top**, and **nets** stay on the board (`q` back). A normal `exit` is not a crash.
+After **shell** / **start** / **files**, the board comes back. **logs**, **top**, and **nets** stay on the board (`q` back). **R** restarts the selected stack sibling without leaving. A normal `exit` is not a crash.
 
 **open ≠ attach.** Open = files on the Mac/Linux host. `a` / `dc-open --attach` is the VS Code Remote URI into Linux. Zed attaches itself. Sublime cannot.
 
@@ -161,6 +162,7 @@ TUI key `t` opens the live overlay. Fleet refuses — this folder only. Sidecar 
 | `dc-exec` | app shell |
 | `dc-exec --list` | stack table |
 | `dc-exec --service NAME` | other compose service (starts if down) |
+| `dc-exec --service NAME --restart` | `docker restart` that stack sibling (membership-checked). `--id --restart` is refused. |
 | `dc-exec --id NAME` | that container (starts if down) |
 | `dc-down` | **full compose stack** (app + db + mitm + … + sidecars) |
 | `dc-down --app` | labeled app only (+ sidecars) |

@@ -72,6 +72,7 @@ Meta:    open (o)  attach (a)  ports (p)  logs (l)  top (t)  nets (n)  db (b)  f
 Danger:  rm (x)    asks y/n before dc-down --rm
 Urls:    click or 1-9  open a published website (http/https) in the browser
 Rows:    j/k or arrows, enter (fleet = open folder, stack = exec)
+Restart: R  selected stack sibling only (not the labeled app). r still reloads. Fleet refuses.
 Disk:    d  (stays in the board). Reclaim is CLI-only: dc-prune --yes
 Top:     t  live CPU/RAM for this folder (stays in the board). Fleet refuses.
 Nets:    n  this folder's declared compose nets (stays in the board). y creates missing externals then start. Fleet refuses.

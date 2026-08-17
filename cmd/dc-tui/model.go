@@ -284,6 +284,11 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 		return m.withStatus(""), m.reload()
 	case "r":
 		return m.withStatus(""), m.reload()
+	case "R":
+		if m.fleet {
+			return m.withStatus("open a folder (enter / click) to start / shell / stop"), nil
+		}
+		return m.restartSelected()
 	case "d":
 		return m.stayCmd("dc-df")
 	case "t":

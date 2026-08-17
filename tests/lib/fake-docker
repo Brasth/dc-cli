@@ -327,6 +327,14 @@ case "$cmd" in
     echo "$id"
     exit 0
     ;;
+  restart)
+    id="${1:-}"
+    dir="$(cdir "$id")"
+    [[ -d "$dir" ]] || { echo "Error: No such container: $id" >&2; exit 1; }
+    echo running >"$dir/status"
+    echo "$id"
+    exit 0
+    ;;
   run)
     # Phase 4 creates sidecars. Record and create a container dir from --name / --label.
     name=""

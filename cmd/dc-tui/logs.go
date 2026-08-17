@@ -46,19 +46,56 @@ func dockerLogFollow(id string) (io.ReadCloser, func(), error) {
 	return pr, stop, nil
 }
 
+// logTarget is the selected stack sibling, else dc-ls rows[0]. Empty stack
+// falls back so a lone labeled app still has logs.
+func (m model) logTarget() (id, name string) {
+	if m.fleet {
+		return "", ""
+	}
+	if len(m.stack) > 0 {
+		i := m.cursor
+		if i < 0 {
+			i = 0
+		}
+		if i >= len(m.stack) {
+			i = len(m.stack) - 1
+		}
+		s := m.stack[i]
+		if s.ID != "" {
+			name = s.Name
+			if name == "" {
+				name = s.Service
+			}
+			return s.ID, name
+		}
+	}
+	if len(m.rows) > 0 && m.rows[0].ID != "" {
+		return m.rows[0].ID, m.rows[0].Name
+	}
+	return "", ""
+}
+
+func (m model) canFollowLogs() bool {
+	id, _ := m.logTarget()
+	return id != ""
+}
+
 func (m model) openLogs() (model, tea.Cmd) {
-	if len(m.rows) == 0 || m.rows[0].ID == "" {
+	if m.fleet {
+		return m.refuse("open a folder (enter / click) to start / shell / stop")
+	}
+	id, name := m.logTarget()
+	if id == "" {
 		return m.refuse("No container to log.")
 	}
 	m = m.closeLogs()
-	id := m.rows[0].ID
 	r, stop, err := startLogFollow(id)
 	if err != nil {
 		return m.refuse("logs: " + err.Error())
 	}
 	m.logOpen = true
 	m.logID = id
-	m.logName = m.rows[0].Name
+	m.logName = name
 	if m.logName == "" {
 		m.logName = shortID(id)
 	}

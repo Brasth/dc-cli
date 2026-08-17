@@ -54,6 +54,124 @@ func TestColorizeLogLevels(t *testing.T) {
 	}
 }
 
+func TestOpenLogsUsesStackCursor(t *testing.T) {
+	pr, pw := io.Pipe()
+	t.Cleanup(func() { _ = pw.Close(); _ = pr.Close() })
+	old := startLogFollow
+	t.Cleanup(func() { startLogFollow = old })
+	var saw string
+	startLogFollow = func(id string) (io.ReadCloser, func(), error) {
+		saw = id
+		return pr, func() { _ = pw.Close() }, nil
+	}
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		hoverStack: -1,
+		width:      80,
+		height:     24,
+		cursor:     1,
+		rows:       []container{{ID: "app1", Name: "app-1"}},
+		stack: []stackSvc{
+			{ID: "app1", Name: "app-1", Service: "app"},
+			{ID: "db1", Name: "db-1", Service: "db"},
+		},
+	}
+	got, cmd := m.handleKey("l")
+	mm := got.(model)
+	if saw != "db1" {
+		t.Fatalf("id=%s want db1", saw)
+	}
+	if mm.logName != "db-1" {
+		t.Fatalf("name=%s", mm.logName)
+	}
+	if mm.leaving != "" {
+		t.Fatalf("logs must stay on the board, leaving=%q", mm.leaving)
+	}
+	if !mm.logOpen {
+		t.Fatal("logOpen")
+	}
+	if cmd == nil {
+		t.Fatal("expected follow cmd")
+	}
+}
+
+func TestOpenLogsEmptyStackFallsBackToRows0(t *testing.T) {
+	pr, pw := io.Pipe()
+	t.Cleanup(func() { _ = pw.Close(); _ = pr.Close() })
+	old := startLogFollow
+	t.Cleanup(func() { startLogFollow = old })
+	startLogFollow = func(id string) (io.ReadCloser, func(), error) {
+		if id != "abc123" {
+			t.Fatalf("id=%s", id)
+		}
+		return pr, func() { _ = pw.Close() }, nil
+	}
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		hoverStack: -1,
+		width:      80,
+		height:     24,
+		cursor:     3,
+		rows:       []container{{ID: "abc123", Name: "app-1"}},
+	}
+	got, _ := m.handleKey("l")
+	mm := got.(model)
+	if !mm.logOpen || mm.logID != "abc123" {
+		t.Fatalf("fallback logID=%q open=%v", mm.logID, mm.logOpen)
+	}
+}
+
+func TestFleetLogsRefuse(t *testing.T) {
+	old := startLogFollow
+	t.Cleanup(func() { startLogFollow = old })
+	startLogFollow = func(id string) (io.ReadCloser, func(), error) {
+		t.Fatalf("fleet must not follow logs, id=%s", id)
+		return nil, nil, nil
+	}
+	m := model{
+		fleet:      true,
+		hoverStack: -1,
+		rows:       []container{{ID: "app1", Name: "app-1"}},
+		stack:      []stackSvc{{ID: "db1", Name: "db-1", Service: "db"}},
+	}
+	got, cmd := m.handleKey("l")
+	mm := got.(model)
+	if mm.logOpen {
+		t.Fatal("fleet l must not open logs")
+	}
+	if cmd != nil {
+		t.Fatal("fleet l must not start follow")
+	}
+	if mm.status == "" {
+		t.Fatal("fleet l must explain itself")
+	}
+}
+
+func TestLogsButtonEnabledFromStackCursor(t *testing.T) {
+	m := model{
+		hoverStack: -1,
+		stack:      []stackSvc{{ID: "db1", Name: "db-1", Service: "db"}},
+	}
+	disabled := true
+	found := false
+	for _, g := range m.buttonGroups() {
+		for _, s := range g {
+			if s.key == "l" {
+				found = true
+				disabled = s.disabled
+			}
+		}
+	}
+	if !found {
+		t.Fatal("logs button missing")
+	}
+	if disabled {
+		t.Fatal("logs should enable from stack cursor id, not only rows[0]")
+	}
+}
+
 func TestOpenLogsStaysOnBoard(t *testing.T) {
 	pr, pw := io.Pipe()
 	t.Cleanup(func() { _ = pw.Close(); _ = pr.Close() })

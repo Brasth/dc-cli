@@ -6,6 +6,7 @@
 #   dc-exec --service db            # docker exec into compose service
 #   dc-exec db                      # same if ./db is not a directory
 #   dc-exec --id NAME_OR_ID
+#   dc-exec --service NAME --restart
 #   dc-exec --list [workspace]
 set -euo pipefail
 
@@ -25,6 +26,7 @@ workspace="."
 service=""
 explicit_id=""
 do_list=0
+do_restart=0
 json=0
 cmd=()
 
@@ -35,6 +37,7 @@ dc-exec — shell into the app container, or another service in the same compose
   dc-exec [workspace]                 bash in the labeled app (devcontainer exec)
   dc-exec [workspace] -- cmd...
   dc-exec --service NAME [workspace]  docker exec into that compose service
+  dc-exec --service NAME --restart    docker restart that stack sibling
   dc-exec NAME                        same, if ./NAME is not a directory
   dc-exec --id NAME_OR_ID [-- cmd]
   dc-exec --list [workspace]          show the compose stack
@@ -44,6 +47,7 @@ dc-exec — shell into the app container, or another service in the same compose
 Other services share com.docker.compose.project with the labeled app.
 Sidecars from dc-forward are omitted. Default shell is bash, then sh.
 A stopped service is docker-started first, then exec.
+--restart is stack-membership only. --id --restart is refused.
 EOF
 }
 
@@ -60,6 +64,7 @@ while [[ $# -gt 0 ]]; do
       explicit_id="$1"
       ;;
     --list) do_list=1 ;;
+    --restart) do_restart=1 ;;
     --json) json=1 ;;
     --version|-V) dc_cli_print_version "$(basename "$0")"; exit 0 ;;
     -h|--help) usage; exit 0 ;;
@@ -86,6 +91,20 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+
+if [[ "$do_restart" -eq 1 ]]; then
+  if [[ -n "$explicit_id" ]]; then
+    echo "dc-exec: --id --restart is not allowed (restart is stack-only). Use --service NAME --restart." >&2
+    exit 2
+  fi
+  if [[ -z "$service" ]]; then
+    echo "dc-exec: --restart requires --service NAME" >&2
+    usage >&2
+    exit 2
+  fi
+  dc_restart_in_stack "$workspace" "$service" || exit 1
+  exit 0
+fi
 
 if [[ "$do_list" -eq 1 ]]; then
   if [[ "$json" -eq 1 ]]; then
@@ -158,16 +177,19 @@ if [[ -n "$explicit_id" ]]; then
 fi
 
 if [[ -n "$service" ]]; then
-  while IFS=$'\t' read -r id name status svc image; do
-    [[ -n "$id" ]] || continue
-    if [[ "$svc" == "$service" || "$name" == "$service" || "$id" == "$service"* ]]; then
-      echo "exec  ${svc:-$name}  $name  ${id:0:12}"
-      dc_ensure_running "$id" || exit 1
-      docker_shell "$id" "${cmd[@]+"${cmd[@]}"}"
-    fi
-  done < <(dc_stack_rows "$workspace")
-  echo "No compose service \"$service\" in this workspace stack. Try: dc-exec --list" >&2
-  exit 1
+  row=""
+  row="$(dc_stack_resolve "$workspace" "$service")" || {
+    echo "No compose service \"$service\" in this workspace stack. Try: dc-exec --list" >&2
+    exit 1
+  }
+  IFS=$'\t' read -r id name status svc image <<<"$row"
+  if [[ -z "$id" ]]; then
+    echo "No compose service \"$service\" in this workspace stack. Try: dc-exec --list" >&2
+    exit 1
+  fi
+  echo "exec  ${svc:-$name}  $name  ${id:0:12}"
+  dc_ensure_running "$id" || exit 1
+  docker_shell "$id" "${cmd[@]+"${cmd[@]}"}"
 fi
 
 # Default: official CLI into the labeled app (features, remoteUser, cwd).

@@ -904,6 +904,143 @@ func TestDesktopTopViewNoFakeGuestLive(t *testing.T) {
 	}
 }
 
+func TestRestartSiblingStay(t *testing.T) {
+	old := runStay
+	t.Cleanup(func() { runStay = old })
+	var gotName string
+	var gotArgs []string
+	runStay = func(name string, args ...string) (string, error) {
+		gotName = name
+		gotArgs = append([]string{}, args...)
+		return "restart db", nil
+	}
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		hoverStack: -1,
+		cursor:     1,
+		rows:       []container{{ID: "app1", Name: "app-1"}},
+		stack: []stackSvc{
+			{ID: "app1", Name: "app-1", Service: "app"},
+			{ID: "db1", Name: "db-1", Service: "db"},
+		},
+	}
+	got, _ := m.handleKey("R")
+	mm := got.(model)
+	if mm.leaving != "" {
+		t.Fatalf("restart stay must not leave, leaving=%q", mm.leaving)
+	}
+	if gotName != "dc-exec" {
+		t.Fatalf("ran %q", gotName)
+	}
+	want := []string{"--service", "db", "--restart", "/tmp/app"}
+	if strings.Join(gotArgs, " ") != strings.Join(want, " ") {
+		t.Fatalf("args=%v want %v", gotArgs, want)
+	}
+	if !strings.Contains(mm.status, "restart") {
+		t.Fatalf("status=%q", mm.status)
+	}
+}
+
+func TestRestartAppRowRefuse(t *testing.T) {
+	old := runStay
+	t.Cleanup(func() { runStay = old })
+	runStay = func(name string, args ...string) (string, error) {
+		t.Fatalf("must not restart app: %s %v", name, args)
+		return "", nil
+	}
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		hoverStack: -1,
+		cursor:     0,
+		rows:       []container{{ID: "app1", Name: "app-1"}},
+		stack:      []stackSvc{{ID: "app1", Name: "app-1", Service: "app"}},
+	}
+	got, cmd := m.handleKey("R")
+	mm := got.(model)
+	if cmd != nil {
+		t.Fatal("app-row R must not exec")
+	}
+	if !strings.Contains(mm.status, "u/s") {
+		t.Fatalf("status=%q", mm.status)
+	}
+}
+
+func TestRestartFleetRefuse(t *testing.T) {
+	old := runStay
+	t.Cleanup(func() { runStay = old })
+	runStay = func(name string, args ...string) (string, error) {
+		t.Fatalf("fleet must not restart: %s %v", name, args)
+		return "", nil
+	}
+	m := model{
+		fleet:      true,
+		hoverStack: -1,
+		cursor:     1,
+		rows:       []container{{ID: "app1"}},
+		stack: []stackSvc{
+			{ID: "app1", Service: "app"},
+			{ID: "db1", Service: "db"},
+		},
+	}
+	got, cmd := m.handleKey("R")
+	mm := got.(model)
+	if cmd != nil {
+		t.Fatal("fleet R must not exec")
+	}
+	if mm.status == "" {
+		t.Fatal("fleet R must explain itself")
+	}
+}
+
+func TestRestartEmptyStackRefuse(t *testing.T) {
+	old := runStay
+	t.Cleanup(func() { runStay = old })
+	runStay = func(name string, args ...string) (string, error) {
+		t.Fatalf("empty stack must not restart: %s %v", name, args)
+		return "", nil
+	}
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		hoverStack: -1,
+		rows:       []container{{ID: "app1"}},
+	}
+	got, _ := m.handleKey("R")
+	mm := got.(model)
+	if !strings.Contains(mm.status, "stack") {
+		t.Fatalf("status=%q", mm.status)
+	}
+}
+
+func TestReloadStillLowercaseR(t *testing.T) {
+	old := runStay
+	t.Cleanup(func() { runStay = old })
+	runStay = func(name string, args ...string) (string, error) {
+		t.Fatalf("r is reload, not stay: %s %v", name, args)
+		return "", nil
+	}
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		hoverStack: -1,
+		cursor:     1,
+		stack: []stackSvc{
+			{ID: "app1", Service: "app"},
+			{ID: "db1", Service: "db"},
+		},
+	}
+	got, cmd := m.handleKey("r")
+	mm := got.(model)
+	if mm.leaving != "" {
+		t.Fatalf("leaving=%q", mm.leaving)
+	}
+	if cmd == nil {
+		t.Fatal("r should reload")
+	}
+}
+
 type errStr string
 
 func (e errStr) Error() string { return string(e) }
