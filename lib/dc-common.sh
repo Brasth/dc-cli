@@ -5,6 +5,8 @@
 DC_LABEL_FOLDER="devcontainer.local_folder"
 DC_LABEL_COMPOSE="com.docker.compose.project"
 DC_LABEL_SERVICE="com.docker.compose.service"
+DC_LABEL_COMPOSE_WORKDIR="com.docker.compose.project.working_dir"
+DC_LABEL_COMPOSE_CONFIGS="com.docker.compose.project.config_files"
 
 _dc_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "$_dc_lib_dir/dc-floor.sh" ]]; then
@@ -58,6 +60,80 @@ dc_json_escape() {
 dc_has_devcontainer() {
   local dir="$1"
   [[ -f "$dir/.devcontainer/devcontainer.json" || -f "$dir/.devcontainer.json" ]]
+}
+
+dc_has_root_compose() {
+  local dir="$1"
+  [[ -f "$dir/compose.yaml" || -f "$dir/compose.yml" || -f "$dir/docker-compose.yaml" || -f "$dir/docker-compose.yml" ]]
+}
+
+# this-folder identity: devcontainer | compose | none
+# Both-present = devcontainer. Never invent labels.
+dc_workspace_kind() {
+  local dir="${1:-.}"
+  local abs
+  if [[ ! -d "$dir" ]]; then
+    printf '%s\n' none
+    return 0
+  fi
+  abs="$(cd "$dir" && pwd)"
+  if dc_has_devcontainer "$abs"; then
+    printf '%s\n' devcontainer
+    return 0
+  fi
+  if dc_has_root_compose "$abs"; then
+    printf '%s\n' compose
+    return 0
+  fi
+  printf '%s\n' none
+}
+
+# Engine-written proof that this compose container belongs to $dir.
+# working_dir same-workspace, else a config_files path in $dir.
+# Missing both → unknown (not owned). Name-alone never owns.
+dc_compose_proves_workspace() {
+  local id="$1" dir="$2"
+  local wd files f parent
+  [[ -n "$id" && -n "$dir" && -d "$dir" ]] || return 1
+  wd="$(dc_label "$id" "$DC_LABEL_COMPOSE_WORKDIR")"
+  if [[ -n "$wd" ]] && dc_same_workspace "$wd" "$dir" 2>/dev/null; then
+    return 0
+  fi
+  files="$(dc_label "$id" "$DC_LABEL_COMPOSE_CONFIGS")"
+  [[ -n "$files" ]] || return 1
+  IFS=',' read -ra _cf <<<"$files"
+  for f in "${_cf[@]+"${_cf[@]}"}"; do
+    [[ -n "$f" ]] || continue
+    parent="$(dirname "$f")"
+    if [[ -d "$parent" ]] && dc_same_workspace "$parent" "$dir" 2>/dev/null; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Compose-kind this-folder ids. Filter by declared project name, then prove
+# working_dir/config_files. Not a daemon-wide working_dir walk.
+dc_ids_for_compose_workspace() {
+  local dir="${1:-.}"
+  local name id abs
+  [[ -d "$dir" ]] || return 0
+  command -v docker >/dev/null 2>&1 || return 0
+  abs="$(cd "$dir" && pwd)"
+  name=""
+  if type dc_compose_declared_name >/dev/null 2>&1; then
+    name="$(dc_compose_declared_name "$abs" || true)"
+  fi
+  if [[ -z "$name" ]]; then
+    name="$(basename "$abs")"
+  fi
+  [[ -n "$name" ]] || return 0
+  while IFS= read -r id; do
+    [[ -n "$id" ]] || continue
+    if dc_compose_proves_workspace "$id" "$abs"; then
+      printf '%s\n' "$id"
+    fi
+  done < <(docker ps -aq --filter "label=${DC_LABEL_COMPOSE}=${name}" 2>/dev/null)
 }
 
 # Print abs path of $1 (default .). If no .devcontainer and git root differs, use git root.
@@ -158,6 +234,8 @@ dc_inspect_row() {
   status="$(docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo missing)"
   folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id" 2>/dev/null || true)"
   compose="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_COMPOSE}\"}}" "$id" 2>/dev/null || true)"
+  [[ "$folder" == "<no value>" ]] && folder=""
+  [[ "$compose" == "<no value>" ]] && compose=""
   ports="$(docker ps -a --filter "id=$id" --format '{{.Ports}}' 2>/dev/null || true)"
   printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$id" "$name" "$status" "$folder" "$compose" "$ports"
 }
@@ -355,8 +433,14 @@ dc_ls_json() {
     return 0
   fi
 
+  local row_kind="devcontainer"
   if [[ "$mode" == "workspace" ]]; then
-    mapfile -t ids < <(dc_ids_for_workspace "$dir")
+    if [[ "$(dc_workspace_kind "$dir")" == "compose" ]]; then
+      mapfile -t ids < <(dc_ids_for_compose_workspace "$dir")
+      row_kind="compose"
+    else
+      mapfile -t ids < <(dc_ids_for_workspace "$dir")
+    fi
   else
     mapfile -t ids < <(dc_labeled_ids)
   fi
@@ -369,13 +453,14 @@ dc_ls_json() {
     IFS=$'\t' read -r id name status folder compose ports < <(dc_inspect_row "$id") || continue
     [[ "$first" -eq 1 ]] || printf ','
     first=0
-    printf '{"id":"%s","name":"%s","status":"%s","local_folder":"%s","compose":"%s","ports":"%s"}' \
+    printf '{"id":"%s","name":"%s","status":"%s","local_folder":"%s","compose":"%s","ports":"%s","kind":"%s"}' \
       "$(dc_json_escape "$id")" \
       "$(dc_json_escape "$name")" \
       "$(dc_json_escape "$status")" \
       "$(dc_json_escape "$folder")" \
       "$(dc_json_escape "$compose")" \
-      "$(dc_json_escape "$ports")"
+      "$(dc_json_escape "$ports")" \
+      "$(dc_json_escape "$row_kind")"
   done
   printf ']\n'
 }
@@ -987,27 +1072,56 @@ dc_is_positive_dc_container() {
   [[ -n "$folder" ]]
 }
 
-# Distinct labeled workspace folders claiming compose project $1.
+# Distinct folders claiming compose project $1: labeled DC folders or
+# compose working_dir / config_files parents. Missing both engine paths → skip
+# (unknown, not owned). Name-alone never claims.
 dc_compose_claimants() {
-  local proj="$1" id folder p existing match
+  local proj="$1" id folder p existing match wd files first
   local -a out=()
   [[ -n "$proj" && "$proj" != "<no value>" ]] || return 0
-  while IFS= read -r id; do
-    [[ -n "$id" ]] || continue
-    p="$(dc_label "$id" "$DC_LABEL_COMPOSE")"
-    [[ "$p" == "$proj" ]] || continue
-    folder="$(dc_label "$id" "$DC_LABEL_FOLDER")"
-    [[ -n "$folder" ]] || continue
-    match=0
+  _dc_claimants_add() {
+    local folder="$1" existing match=0
+    [[ -n "$folder" ]] || return 0
     for existing in "${out[@]+"${out[@]}"}"; do
       if [[ "$existing" == "$folder" ]] || dc_same_workspace "$existing" "$folder" 2>/dev/null; then
         match=1
         break
       fi
     done
-    [[ "$match" -eq 1 ]] && continue
+    [[ "$match" -eq 1 ]] && return 0
     out+=("$folder")
+  }
+  while IFS= read -r id; do
+    [[ -n "$id" ]] || continue
+    p="$(dc_label "$id" "$DC_LABEL_COMPOSE")"
+    [[ "$p" == "$proj" ]] || continue
+    folder="$(dc_label "$id" "$DC_LABEL_FOLDER")"
+    [[ -n "$folder" ]] || continue
+    _dc_claimants_add "$folder"
   done < <(dc_labeled_ids)
+  if command -v docker >/dev/null 2>&1; then
+    while IFS= read -r id; do
+      [[ -n "$id" ]] || continue
+      # Labeled app already claimed via local_folder. Do not also add
+      # working_dir (.devcontainer vs project root) as a second folder.
+      if [[ -n "$(dc_label "$id" "$DC_LABEL_FOLDER")" ]]; then
+        continue
+      fi
+      wd="$(dc_label "$id" "$DC_LABEL_COMPOSE_WORKDIR")"
+      files="$(dc_label "$id" "$DC_LABEL_COMPOSE_CONFIGS")"
+      folder=""
+      if [[ -n "$wd" ]]; then
+        folder="$wd"
+      elif [[ -n "$files" ]]; then
+        first="${files%%,*}"
+        [[ -n "$first" ]] && folder="$(dirname "$first")"
+      else
+        continue
+      fi
+      _dc_claimants_add "$folder"
+    done < <(docker ps -aq --filter "label=${DC_LABEL_COMPOSE}=${proj}" 2>/dev/null)
+  fi
+  unset -f _dc_claimants_add
   for folder in "${out[@]+"${out[@]}"}"; do
     printf '%s\n' "$folder"
   done

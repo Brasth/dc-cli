@@ -68,6 +68,26 @@ for p in files:
 PY
 }
 
+# Resolved compose project name from `docker compose config` JSON `.name`.
+# Empty if compose is missing or unnamed. Callers may fall back to basename.
+dc_compose_declared_name() {
+  local ws="${1:-.}"
+  if ! command -v python3 >/dev/null 2>&1; then
+    return 1
+  fi
+  dc_net_compose_json "$ws" | python3 -c '
+import json, sys
+try:
+    data = json.loads(sys.stdin.read() or "{}")
+except json.JSONDecodeError:
+    raise SystemExit(1)
+name = data.get("name") or ""
+if not isinstance(name, str) or not name.strip():
+    raise SystemExit(1)
+print(name.strip())
+'
+}
+
 # Merged compose JSON (networks only needed). Empty object if none / fail.
 dc_net_compose_json() {
   local ws="$1"

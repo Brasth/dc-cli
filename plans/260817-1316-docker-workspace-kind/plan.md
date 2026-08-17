@@ -1,7 +1,7 @@
 ---
 title: "Owned stack verbs + compose-kind workspace"
 description: "Per-row logs and stack-membership restart now. Compose-kind identity next. Compose start stays gated."
-status: pending
+status: in-progress
 priority: P2
 effort: 3d
 branch: "main"
@@ -45,9 +45,9 @@ Brainstorm: [../reports/260817-1316-docker-scope-expansion.md](../reports/260817
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 1 | [Owned stack verbs](./phase-01-owned-stack-verbs.md) | Review concerns ([review](./reports/review-phase-01.md)) |
-| 2 | [Compose-kind identity](./phase-02-compose-kind-identity.md) | Pending |
-| 3 | [Compose-kind lifecycle and docs](./phase-03-compose-kind-lifecycle-and-docs.md) | Pending |
+| 1 | [Owned stack verbs](./phase-01-owned-stack-verbs.md) | Done ([review](./reports/review-phase-01.md) 7/10, High fixed; [tester](./reports/tester-phase-01.md); [closeout](./reports/project-manager-phase-01.md)) |
+| 2 | [Compose-kind identity](./phase-02-compose-kind-identity.md) | Review concerns ([review](./reports/review-phase-02.md) 7/10, High claimants; [tester](./reports/tester-phase-02.md) 114 pass) |
+| 3 | [Compose-kind lifecycle and docs](./phase-03-compose-kind-lifecycle-and-docs.md) | Pending (gated) |
 
 Sequential. Phase 3 does not start until Phase 2 is completed **and** explicitly un-gated.
 
@@ -64,9 +64,9 @@ lazydocker/Portainer clone, unlabeled TUI kill list, engine start/stop, `docker 
 ## Success criteria
 
 - [x] TUI logs follow the selected sibling; fleet still refuses `l`
-- [~] Restart only stack members; unlabeled/`--id` restart refused (membership holds; OR-per-row id-prefix can hit the wrong member — Phase 1 review High)
-- [ ] This-folder `dc-ls --json` includes `kind` on any running/exited compose containers; `--all` stays labeled-only
-- [ ] Phase 2 `dc-up` still cannot start a compose-only folder
+- [x] Restart only stack members; unlabeled/`--id` restart refused
+- [x] This-folder `dc-ls --json` includes `kind` on any running/exited compose containers; `--all` stays labeled-only
+- [x] Phase 2 `dc-up` still cannot start a compose-only folder
 - [ ] Phase 3 (if un-gated) starts that folder via `docker compose` and does not call official CLI
 - [ ] Unlabeled take-ports tests still refuse `stop`/`rm`
 
@@ -74,6 +74,7 @@ lazydocker/Portainer clone, unlabeled TUI kill list, engine start/stop, `docker 
 
 - `--id` outside workspace: refuse vs hatch (open since safety roadmap)
 - take-ports vs foreign compose-kind: locked to Phase 3 (predicate + `dc-down $working_dir`)
+- Phase 2 High (open): `dc_compose_claimants` n=2 when labeled `local_folder` ≠ own compose `working_dir` (`$ws/.devcontainer`). Fix before treating Phase 2 complete / before any Phase 3 take-ports work. Review: [review-phase-02.md](./reports/review-phase-02.md)
 
 ## Validation Log
 
@@ -100,7 +101,7 @@ Failed: `view.go:273` disables `l` when `rows[0]` empty — Phase 1 must enable 
 ### Action items
 
 - [x] Phase 1: `view.go` logs button + `openLogs` both key off stack cursor (not only `rows[0]`)
-- [ ] Phase 1 review High: three-pass match in `dc_restart_in_stack` + collision test (`db` vs app id `db12ffff`)
+- [x] Phase 1 review High: three-pass match in `dc_restart_in_stack` + collision test (`db` vs app id `db12ffff`)
 
 ### Whole-Plan Consistency Sweep
 

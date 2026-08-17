@@ -60,6 +60,9 @@ retry. Use --take-ports / --yes to skip the prompt (or answer n to abort).
 
 --ports / --override do NOT merge. Image, features, and mounts from the
 project file are dropped. Prefer dc-forward for extra ports.
+
+A folder with only a compose file (no .devcontainer) is compose-kind.
+dc-up refuses that path (start is not enabled). Use dc-ls / dc-doctor.
 EOF
 }
 
@@ -95,6 +98,18 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+
+if [[ ! -d "$workspace" ]]; then
+  echo "Not a directory: $workspace" >&2
+  exit 2
+fi
+_up_ws="$(dc_resolve_workspace "$workspace")" || exit 2
+_up_kind="$(dc_workspace_kind "$_up_ws")"
+if [[ "$_up_kind" == "compose" ]]; then
+  echo "dc-up: this folder is compose-kind (compose file, no .devcontainer). Start is not enabled." >&2
+  echo "Use dc-ls / dc-doctor to inspect. Do not run docker compose up here." >&2
+  exit 1
+fi
 
 if ! command -v devcontainer >/dev/null 2>&1; then
   echo "devcontainer CLI not found. Advertised install:" >&2

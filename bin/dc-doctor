@@ -168,6 +168,7 @@ fi
 req="$workspace"
 has_cfg=false
 cfg_path=""
+ws_kind="$(dc_workspace_kind "$resolved")"
 if [[ -f "$resolved/.devcontainer/devcontainer.json" ]]; then
   has_cfg=true
   cfg_path="$resolved/.devcontainer/devcontainer.json"
@@ -286,10 +287,15 @@ fi
 
 if [[ "$has_cfg" == true ]]; then
   add_rec workspace_config ok "config path present" "" \
-    "{\"hasConfig\":true,\"configPath\":$(json_str "$cfg_path")}"
+    "{\"hasConfig\":true,\"configPath\":$(json_str "$cfg_path"),\"kind\":$(json_str "$ws_kind")}"
+elif [[ "$ws_kind" == "compose" ]]; then
+  add_rec workspace_config warning "compose-kind; start disabled" "" \
+    "{\"hasConfig\":false,\"configPath\":null,\"kind\":\"compose\"}" \
+    "start is not enabled for compose-only folders"
 else
   add_rec workspace_config warning "no .devcontainer config path" "" \
-    "{\"hasConfig\":false,\"configPath\":null}" "add .devcontainer/devcontainer.json"
+    "{\"hasConfig\":false,\"configPath\":null,\"kind\":$(json_str "$ws_kind")}" \
+    "add .devcontainer/devcontainer.json"
 fi
 
 # 10 duplicate_labels
@@ -475,9 +481,10 @@ render_human() {
 
 render_json() {
   local rec id st sum det data rem ec em first=1 err
-  printf '{"schemaVersion":1,"command":"dc-doctor","workspace":{"requested":%s,"resolved":%s,"hasConfig":%s,"configPath":%s},"summary":{"status":%s,"blockerCount":%s,"warningCount":%s,"okCount":%s},"checks":[' \
+  printf '{"schemaVersion":1,"command":"dc-doctor","workspace":{"requested":%s,"resolved":%s,"hasConfig":%s,"configPath":%s,"kind":%s},"summary":{"status":%s,"blockerCount":%s,"warningCount":%s,"okCount":%s},"checks":[' \
     "$(json_str "$req")" "$(json_str "$resolved")" "$has_cfg" \
     "$( [[ -n "$cfg_path" ]] && json_str "$cfg_path" || echo null )" \
+    "$(json_str "${ws_kind:-none}")" \
     "$(json_str "$summary")" "$blockers" "$warnings" "$oks"
   for rec in "${RECORDS[@]}"; do
     IFS=$'\x1f' read -r id st sum det data rem ec em <<<"$rec"

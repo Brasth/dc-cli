@@ -52,6 +52,35 @@ EOF
   log_lacks 'stop unrelated'
 }
 
+case_take_labeled_compose_in_devcontainer() {
+  local a b
+  a="$(mktemp -d "$STATE/wsA.XXXX")"
+  b="$(mktemp -d "$STATE/wsB.XXXX")"
+  mkdir -p "$a/.devcontainer"
+  echo '{}' >"$a/.devcontainer/devcontainer.json"
+  fake_add_container appA app-a running \
+    "devcontainer.local_folder=$a" \
+    "com.docker.compose.project=projA" \
+    "com.docker.compose.project.working_dir=$a/.devcontainer" \
+    "ports=0.0.0.0:9001->9001/tcp"
+  cat >"$STATE/bin/devcontainer" <<'EOF'
+#!/usr/bin/env bash
+nfile="${DC_FAKE_STATE}/up.count"
+n=0
+[[ -f "$nfile" ]] && n="$(cat "$nfile")"
+n=$((n + 1))
+echo "$n" >"$nfile"
+if [[ "$n" -eq 1 ]]; then
+  echo "Bind for 0.0.0.0:9001 failed: port is already allocated" >&2
+  exit 1
+fi
+exit 0
+EOF
+  chmod +x "$STATE/bin/devcontainer"
+  dc-up --take-ports --no-forward "$b" >/dev/null
+  log_has 'compose -p projA stop'
+}
+
 case_take_unlabeled() {
   local b
   b="$(mktemp -d "$STATE/wsB.XXXX")"
@@ -406,6 +435,7 @@ EOF
 
 echo "== safety gates =="
 run_case "port takeover positive foreign" case_take_positive_foreign
+run_case "port takeover labeled compose-in-devcontainer" case_take_labeled_compose_in_devcontainer
 run_case "port takeover unlabeled" case_take_unlabeled
 run_case "port takeover / down ambiguous compose" case_take_ambiguous_compose
 run_case "port takeover same workspace" case_take_same_workspace

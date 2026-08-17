@@ -13,6 +13,13 @@ else
   echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
   exit 1
 fi
+if [[ -f "$_here/../lib/dc-net.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-net.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-net.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-net.sh"
+fi
 
 json=0
 mode="workspace"
