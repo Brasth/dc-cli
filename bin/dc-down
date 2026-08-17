@@ -21,6 +21,13 @@ else
   echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
   exit 1
 fi
+if [[ -f "$_here/../lib/dc-net.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-net.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-net.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-net.sh"
+fi
 
 remove=0
 volumes=0
@@ -119,6 +126,70 @@ if [[ -n "$explicit_id" && "$app_only" -eq 0 && "$stack" -eq 1 ]]; then
   stack=0
 fi
 
+dc_down_compose_workspace() {
+  local dir="${1:-.}"
+  local name f n claimants rc
+  local -a file_args=()
+  name="$(dc_compose_project_name "$dir")" || {
+    echo "dc-down: cannot resolve compose project name" >&2
+    return 1
+  }
+  n=0
+  claimants=""
+  while IFS= read -r f; do
+    [[ -n "$f" ]] || continue
+    n=$((n + 1))
+    claimants="${claimants}${claimants:+ }$f"
+  done < <(dc_compose_claimants "$name")
+  if [[ "$n" -gt 1 ]]; then
+    echo "dc-down: refuse compose-wide mutation for $name (claimants: $claimants)" >&2
+    return 1
+  fi
+  if [[ "$n" -eq 1 ]] && ! dc_same_workspace "$claimants" "$dir" 2>/dev/null && [[ "$claimants" != "$dir" ]]; then
+    echo "dc-down: compose $name belongs to $claimants, not $dir" >&2
+    return 1
+  fi
+  while IFS= read -r f; do
+    [[ -n "$f" ]] || continue
+    file_args+=(-f "$f")
+  done < <(dc_compose_file_args "$dir")
+  _dc_compose_down_locked() {
+    local d="$1" p="$2"
+    shift 2
+    if [[ "$remove" -eq 1 ]]; then
+      if [[ "$volumes" -eq 1 ]]; then
+        (cd "$d" && docker compose -p "$p" "$@" down -v)
+      else
+        (cd "$d" && docker compose -p "$p" "$@" down)
+      fi
+    else
+      if [[ "$app_only" -eq 1 ]]; then
+        local svc
+        svc="$(dc_compose_app_service "$d")" || {
+          echo "dc-down: --app needs a resolved app service (one / app / web)" >&2
+          return 1
+        }
+        (cd "$d" && docker compose -p "$p" "$@" stop "$svc")
+      else
+        (cd "$d" && docker compose -p "$p" "$@" stop)
+      fi
+    fi
+  }
+  dc_with_mutation_lock _dc_compose_down_locked "$dir" "$name" "${file_args[@]+"${file_args[@]}"}"
+  rc=$?
+  unset -f _dc_compose_down_locked
+  if [[ "$rc" -ne 0 ]]; then
+    echo "dc-down: compose $name failed" >&2
+    return "$rc"
+  fi
+  if [[ "$remove" -eq 1 ]]; then
+    echo "compose $name  down (compose-kind)"
+  else
+    echo "compose $name  stopped (compose-kind)"
+  fi
+  return 0
+}
+
 ids=()
 
 if [[ -n "$explicit_id" ]]; then
@@ -134,6 +205,10 @@ for id in "${ids[@]+"${ids[@]}"}"; do
   [[ -n "${id:-}" ]] && cleaned+=("$id")
 done
 if [[ ${#cleaned[@]} -eq 0 ]]; then
+  if [[ -z "$explicit_id" && "$all" -ne 1 && "$(dc_workspace_kind "$workspace")" == "compose" ]]; then
+    dc_down_compose_workspace "$workspace"
+    exit $?
+  fi
   echo "No matching devcontainer."
   exit 0
 fi

@@ -349,9 +349,52 @@ dc_compose_project_for() {
   docker inspect -f "{{index .Config.Labels \"${DC_LABEL_COMPOSE}\"}}" "$id" 2>/dev/null || true
 }
 
+# Engine working_dir or config_files parent for a compose container.
+# Empty if neither is present (name-alone → unknown).
+dc_compose_holder_folder() {
+  local id="$1" wd files first parent
+  wd="$(dc_label "$id" "$DC_LABEL_COMPOSE_WORKDIR")"
+  if [[ -n "$wd" && -d "$wd" ]]; then
+    printf '%s\n' "$wd"
+    return 0
+  fi
+  files="$(dc_label "$id" "$DC_LABEL_COMPOSE_CONFIGS")"
+  [[ -n "$files" ]] || return 1
+  first="${files%%,*}"
+  [[ -n "$first" ]] || return 1
+  parent="$(dirname "$first")"
+  if [[ -d "$parent" ]]; then
+    printf '%s\n' "$parent"
+    return 0
+  fi
+  return 1
+}
+
 # TSV: id<TAB>name<TAB>status<TAB>service<TAB>image  (compose siblings; skip our sidecars)
 dc_stack_rows() {
-  local dir="${1:-.}" id proj cid name status service image fwd
+  local dir="${1:-.}" id proj cid name status service image fwd abs
+  if [[ "$(dc_workspace_kind "$dir")" == "compose" ]]; then
+    [[ -d "$dir" ]] || return 0
+    command -v docker >/dev/null 2>&1 || return 0
+    abs="$(cd "$dir" && pwd)"
+    proj=""
+    if type dc_compose_project_name >/dev/null 2>&1; then
+      proj="$(dc_compose_project_name "$abs" || true)"
+    fi
+    [[ -n "$proj" ]] || return 0
+    while IFS= read -r cid; do
+      [[ -n "$cid" ]] || continue
+      fwd="$(docker inspect -f '{{index .Config.Labels "dc.forward.for"}}' "$cid" 2>/dev/null || true)"
+      [[ -z "$fwd" || "$fwd" == "<no value>" ]] || continue
+      dc_compose_proves_workspace "$cid" "$abs" || continue
+      name="$(docker inspect -f '{{.Name}}' "$cid" | sed 's#^/##')"
+      status="$(docker inspect -f '{{.State.Status}}' "$cid")"
+      service="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_SERVICE}\"}}" "$cid" 2>/dev/null || true)"
+      image="$(docker inspect -f '{{.Config.Image}}' "$cid" 2>/dev/null || true)"
+      printf '%s\t%s\t%s\t%s\t%s\n' "$cid" "$name" "$status" "$service" "$image"
+    done < <(docker ps -aq --filter "label=${DC_LABEL_COMPOSE}=${proj}" 2>/dev/null)
+    return 0
+  fi
   mapfile -t ids < <(dc_ids_for_workspace "$dir")
   id=""
   for cid in "${ids[@]+"${ids[@]}"}"; do
@@ -773,7 +816,7 @@ _dc_stop_port_holder_locked() {
       docker rm -f "$id" >/dev/null
       return 0
       ;;
-    app)
+    app|compose)
       if [[ -n "$folder" && -d "$folder" ]] && command -v dc-down >/dev/null 2>&1; then
         echo "stop holder stack via dc-down  $folder  ($name)"
         dc-down "$folder"
@@ -1177,16 +1220,21 @@ dc_classify_port_holder() {
     return 0
   fi
 
+  local holder_kind="app"
   if [[ -z "$folder" ]]; then
-    printf 'unlabeled|unlabeled||%s||\n' "$compose"
-    return 0
+    folder="$(dc_compose_holder_folder "$id" || true)"
+    if [[ -z "$folder" ]]; then
+      printf 'unlabeled|unlabeled||%s||\n' "$compose"
+      return 0
+    fi
+    holder_kind="compose"
   fi
   if [[ -n "$current_ws" ]] && dc_same_workspace "$folder" "$current_ws" 2>/dev/null; then
-    printf 'app|same-workspace|%s|%s||\n' "$folder" "$compose"
+    printf '%s|same-workspace|%s|%s||\n' "$holder_kind" "$folder" "$compose"
     return 0
   fi
   if [[ ! -d "$folder" ]]; then
-    printf 'app|folder-missing|%s|%s||\n' "$folder" "$compose"
+    printf '%s|folder-missing|%s|%s||\n' "$holder_kind" "$folder" "$compose"
     return 0
   fi
   if [[ -n "$compose" ]]; then
@@ -1200,7 +1248,7 @@ dc_classify_port_holder() {
       return 0
     fi
   fi
-  printf 'app|foreign|%s|%s||\n' "$folder" "$compose"
+  printf '%s|foreign|%s|%s||\n' "$holder_kind" "$folder" "$compose"
 }
 
 # Succeed-or-fail list of containers mounting volume NAME. Failure ≠ empty.

@@ -15,7 +15,7 @@ faq:
   - q: Does dc-doctor fix anything?
     a: No. It is read-only. install.sh Doctor lines are install-time presence only.
   - q: Missing .devcontainer — is that a blocker?
-    a: No. Missing config is a warning. Exit stays 0 if Docker and the official CLI are healthy.
+    a: No. Missing config is a warning. A compose-only folder is kind=compose (start via docker compose). Official CLI is required only for kind=devcontainer.
   - q: Should agents parse human text?
     a: No. Pass --json. schemaVersion 1. Same 18 check ids in fixed order.
 ---

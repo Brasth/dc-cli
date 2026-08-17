@@ -2,7 +2,13 @@
 
 Site: [dc.brasth.com](https://dc.brasth.com) · Guides: [dc.brasth.com/guide](https://dc.brasth.com/guide/) · Issues: [dc.brasth.com/issues](https://dc.brasth.com/issues/)
 
-Host-global helpers around official [`@devcontainers/cli`](https://github.com/devcontainers/cli). **No VS Code required. Does not edit** project `.devcontainer/devcontainer.json`. Folders with only a compose file are `kind=compose` (detect-only: `dc-ls` / `dc-doctor` report it; `dc-up` refuses until start is enabled).
+Host-global helpers around official [`@devcontainers/cli`](https://github.com/devcontainers/cli). **No VS Code required. Does not edit** project `.devcontainer/devcontainer.json`.
+
+| This folder | `kind` | Start / exec |
+|---|---|---|
+| `.devcontainer` present | `devcontainer` | official CLI (`dc-up` / `dc-exec`) |
+| else a root compose file | `compose` | `docker compose` via `dc-up` / `dc-exec` (no official CLI, no auto `dc-forward`) |
+| else | not a workspace | `dc-up` refuses |
 
 Upstream only has `up` / `exec`. This repo adds **stop**, **list**, **open**, **port publish**, **doctor**, and a **TUI**.
 
@@ -87,7 +93,8 @@ dc-prune --yes                  # cache + dangling images + nets + orphan sideca
 
 | Target | Command | How |
 |---|---|---|
-| labeled **app** | `dc-exec` | `devcontainer exec` (remoteUser, cwd, features) |
+| labeled **app** (`kind=devcontainer`) | `dc-exec` | official `devcontainer exec` (remoteUser, cwd, features) |
+| compose-kind **app** | `dc-exec` | `docker compose exec` of the resolved service (1 / `app` / `web` / refuse) |
 | any other compose **service** | `dc-exec --service NAME` | `docker start` if exited, then `docker exec` |
 
 `NAME` is whatever `docker compose` calls the service (`dc-exec --list`). Click a **stack row** in the TUI for the same path. `e` / **shell** is always the app.
@@ -108,7 +115,7 @@ Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `D
 
 | Button | Key | Does |
 |---|---|---|
-| **start** | `u` | `dc-up` + `dc-forward` (needs `.devcontainer`) |
+| **start** | `u` | `dc-up` (`.devcontainer` → official CLI + forward; compose-kind → `docker compose`, no forward) |
 | **shell** | `e` | `dc-exec` — **app** only |
 | **stop** | `s` | full stack `dc-down` |
 | **rm** | `x` | `dc-down --rm` after `y` |

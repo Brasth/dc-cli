@@ -40,6 +40,7 @@ type model struct {
 	fleet      bool
 	status     string
 	hasConfig  bool
+	hasCompose bool
 	editor     string
 	rows       []container
 	stack      []stackSvc
@@ -160,6 +161,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.net = msg.nets
 		}
 		m.hasConfig = hasDevcontainer(m.workspace)
+		m.hasCompose = hasRootCompose(m.workspace)
 		m.clampCursor()
 	case execDoneMsg:
 		m.leaving = ""

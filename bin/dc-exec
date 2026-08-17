@@ -21,6 +21,13 @@ else
   echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
   exit 1
 fi
+if [[ -f "$_here/../lib/dc-net.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-net.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-net.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-net.sh"
+fi
 
 workspace="."
 service=""
@@ -190,6 +197,38 @@ if [[ -n "$service" ]]; then
   echo "exec  ${svc:-$name}  $name  ${id:0:12}"
   dc_ensure_running "$id" || exit 1
   docker_shell "$id" "${cmd[@]+"${cmd[@]}"}"
+fi
+
+if [[ "$(dc_workspace_kind "$workspace")" == "compose" ]]; then
+  _exec_svc=""
+  _exec_svc="$(dc_compose_app_service "$workspace")" || {
+    echo "dc-exec: ambiguous compose app service. Use --list then --service NAME." >&2
+    exit 1
+  }
+  _exec_name="$(dc_compose_project_name "$workspace")" || {
+    echo "dc-exec: cannot resolve compose project name" >&2
+    exit 1
+  }
+  _exec_args=()
+  while IFS= read -r _f; do
+    [[ -n "$_f" ]] || continue
+    _exec_args+=(-f "$_f")
+  done < <(dc_compose_file_args "$workspace")
+  echo "exec  ${_exec_svc}  (compose-kind)"
+  (cd "$workspace" && docker compose -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" start "$_exec_svc") >/dev/null 2>&1 || true
+  _exec_flags=()
+  if [[ -t 0 && -t 1 ]]; then
+    _exec_flags+=(-it)
+  else
+    _exec_flags+=(-T)
+  fi
+  if [[ ${#cmd[@]} -eq 0 ]]; then
+    if docker compose -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" exec -T "$_exec_svc" bash -lc 'exit 0' >/dev/null 2>&1; then
+      exec docker compose -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" exec "${_exec_flags[@]+"${_exec_flags[@]}"}" "$_exec_svc" bash
+    fi
+    exec docker compose -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" exec "${_exec_flags[@]+"${_exec_flags[@]}"}" "$_exec_svc" sh
+  fi
+  exec docker compose -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" exec "${_exec_flags[@]+"${_exec_flags[@]}"}" "$_exec_svc" "${cmd[@]}"
 fi
 
 # Default: official CLI into the labeled app (features, remoteUser, cwd).

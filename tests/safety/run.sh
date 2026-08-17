@@ -25,10 +25,16 @@ run_case() {
 
 # --- cases ---
 
+seed_dc_ws() {
+  mkdir -p "$1/.devcontainer"
+  echo '{}' >"$1/.devcontainer/devcontainer.json"
+}
+
 case_take_positive_foreign() {
   local a b
   a="$(mktemp -d "$STATE/wsA.XXXX")"
   b="$(mktemp -d "$STATE/wsB.XXXX")"
+  seed_dc_ws "$b"
   fake_add_container appA app-a running \
     "devcontainer.local_folder=$a" \
     "com.docker.compose.project=projA" \
@@ -58,6 +64,7 @@ case_take_labeled_compose_in_devcontainer() {
   b="$(mktemp -d "$STATE/wsB.XXXX")"
   mkdir -p "$a/.devcontainer"
   echo '{}' >"$a/.devcontainer/devcontainer.json"
+  seed_dc_ws "$b"
   fake_add_container appA app-a running \
     "devcontainer.local_folder=$a" \
     "com.docker.compose.project=projA" \
@@ -84,6 +91,7 @@ EOF
 case_take_unlabeled() {
   local b
   b="$(mktemp -d "$STATE/wsB.XXXX")"
+  seed_dc_ws "$b"
   fake_add_container stray stray-box running "ports=0.0.0.0:9001->9001/tcp"
   cat >"$STATE/bin/devcontainer" <<'EOF'
 #!/usr/bin/env bash
@@ -106,6 +114,7 @@ case_take_ambiguous_compose() {
   a="$(mktemp -d "$STATE/wsA.XXXX")"
   c="$(mktemp -d "$STATE/wsC.XXXX")"
   b="$(mktemp -d "$STATE/wsB.XXXX")"
+  seed_dc_ws "$b"
   fake_add_container appA app-a running \
     "devcontainer.local_folder=$a" \
     "com.docker.compose.project=shared" \
@@ -138,6 +147,7 @@ EOF
 case_take_same_workspace() {
   local b
   b="$(mktemp -d "$STATE/wsB.XXXX")"
+  seed_dc_ws "$b"
   fake_add_container appB app-b running \
     "devcontainer.local_folder=$b" \
     "com.docker.compose.project=projB" \
@@ -161,6 +171,7 @@ case_take_sidecar() {
   local a b
   a="$(mktemp -d "$STATE/wsA.XXXX")"
   b="$(mktemp -d "$STATE/wsB.XXXX")"
+  seed_dc_ws "$b"
   fake_add_container appA app-a running \
     "devcontainer.local_folder=$a" \
     "com.docker.compose.project=projA"
@@ -189,6 +200,7 @@ EOF
 case_take_sidecar_inspect_unknown() {
   local b
   b="$(mktemp -d "$STATE/wsB.XXXX")"
+  seed_dc_ws "$b"
   fake_add_container fwdX dc-fwd-x-9001 running \
     "dc.forward.for=ghostA" \
     "dc.forward.host=9001" \
@@ -214,6 +226,7 @@ case_nontty_no_flag() {
   local a b
   a="$(mktemp -d "$STATE/wsA.XXXX")"
   b="$(mktemp -d "$STATE/wsB.XXXX")"
+  seed_dc_ws "$b"
   fake_add_container appA app-a running \
     "devcontainer.local_folder=$a" \
     "com.docker.compose.project=projA" \
@@ -406,6 +419,7 @@ case_partial_mixed() {
   local a b
   a="$(mktemp -d "$STATE/wsA.XXXX")"
   b="$(mktemp -d "$STATE/wsB.XXXX")"
+  seed_dc_ws "$b"
   fake_add_container appA app-a running \
     "devcontainer.local_folder=$a" \
     "com.docker.compose.project=projA" \

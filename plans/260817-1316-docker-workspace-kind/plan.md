@@ -1,6 +1,6 @@
 ---
 title: "Owned stack verbs + compose-kind workspace"
-description: "Per-row logs, stack restart, and compose-kind identity shipped. Compose start stays gated."
+description: "Per-row logs, stack restart, compose-kind identity, and compose start/stop/exec shipped. Review High on compose exec TTY/sh."
 status: in-progress
 priority: P2
 effort: 3d
@@ -19,7 +19,7 @@ source: skill
 
 dc-cli already talks to Docker. It does not own the daemon.
 
-This plan grows **folder identity**, not a Docker UI. Phase 1 added verbs on stacks we already own. Phase 2 taught `kind=compose` (detect, list, classify) with **no start**. Phase 3 may start/stop/exec compose-only folders. Unlabeled stays report-only.
+This plan grows **folder identity**, not a Docker UI. Phase 1 added verbs on stacks we already own. Phase 2 taught `kind=compose` (detect, list, classify). Phase 3 starts/stops/execs compose-only folders. Unlabeled stays report-only.
 
 Brainstorm: [../reports/260817-1316-docker-scope-expansion.md](../reports/260817-1316-docker-scope-expansion.md)
 
@@ -38,8 +38,8 @@ Brainstorm: [../reports/260817-1316-docker-scope-expansion.md](../reports/260817
 | Compose app | One service → that. Else service `app` then `web`. Else `dc-exec` lists and refuses. TUI `e` same refuse; Enter still execs the selected stack row. |
 | Fleet | `dc-ls --all` stays **labeled-only**. Compose-kind is this-folder only. No daemon scan for `working_dir`. |
 | `dc-ls` | Still a container list. Stopped compose-only folder → `[]`. Do not invent synthetic rows. Kind lives on doctor / this-folder detect. |
-| Manifesto site | Unchanged until Phase 3 ships. Phase 2 skill: detect-only. |
-| Phase 3 | Gated. Do not cook until Phase 2 tests land and user says start compose-kind. |
+| Manifesto site | Phase 3: never raw `docker exec NAME`; always `dc-exec`. |
+| Phase 3 | Un-gated 2026-08-17. Start/stop/exec compose-kind via `docker compose`. No auto `dc-forward`. |
 
 ## Phases
 
@@ -47,9 +47,9 @@ Brainstorm: [../reports/260817-1316-docker-scope-expansion.md](../reports/260817
 |-------|------|--------|
 | 1 | [Owned stack verbs](./phase-01-owned-stack-verbs.md) | Done ([review](./reports/review-phase-01.md) 7/10, High fixed; [tester](./reports/tester-phase-01.md); [closeout](./reports/project-manager-phase-01.md)) |
 | 2 | [Compose-kind identity](./phase-02-compose-kind-identity.md) | Done ([review](./reports/review-phase-02.md) 7/10, High fixed; [tester](./reports/tester-phase-02.md); [closeout](./reports/project-manager-phase-02.md)) |
-| 3 | [Compose-kind lifecycle and docs](./phase-03-compose-kind-lifecycle-and-docs.md) | Pending (gated) |
+| 3 | [Compose-kind lifecycle and docs](./phase-03-compose-kind-lifecycle-and-docs.md) | Review ([review](./reports/review-phase-03.md) 7/10, High: compose exec `-T` + bash-only; [tester](./reports/tester-phase-03.md)) |
 
-Sequential. Phase 3 does not start until Phase 2 is completed **and** explicitly un-gated.
+Sequential. Phase 3 un-gated 2026-08-17.
 
 ## Dependencies
 
@@ -66,15 +66,14 @@ lazydocker/Portainer clone, unlabeled TUI kill list, engine start/stop, `docker 
 - [x] TUI logs follow the selected sibling; fleet still refuses `l`
 - [x] Restart only stack members; unlabeled/`--id` restart refused
 - [x] This-folder `dc-ls --json` includes `kind` on any running/exited compose containers; `--all` stays labeled-only
-- [x] Phase 2 `dc-up` still cannot start a compose-only folder
-- [ ] Phase 3 (if un-gated) starts that folder via `docker compose` and does not call official CLI
+- [x] Phase 3 starts that folder via `docker compose` and does not call official CLI (`up-compose-kind-starts`; review High is exec TTY/sh, not the up fork)
 - [x] Unlabeled take-ports tests still refuse `stop`/`rm`
 
 ## Unresolved
 
 - `--id` outside workspace: refuse vs hatch (open since safety roadmap)
-- take-ports vs foreign compose-kind: locked to Phase 3 (predicate + `dc-down $working_dir`)
-- Phase 2 High (closed): `dc_compose_claimants` skips labeled container `working_dir`/`config_files`. Same-stack `$ws` + `$ws/.devcontainer` n=1; labeled + foreign n=2. Review hole was [review-phase-02.md](./reports/review-phase-02.md); re-test [tester-phase-02.md](./reports/tester-phase-02.md).
+- take-ports vs foreign compose-kind: **closed in Phase 3** — proven `working_dir`/`config_files` → `compose|foreign` → `dc-down $folder`; unlabeled/name-only still report-only
+- Phase 3 High (open): compose-kind `dc-exec` omits compose `-T` (non-TTY agents) and has no sh fallback (alpine `e`). See [review-phase-03.md](./reports/review-phase-03.md).
 
 ## Validation Log
 

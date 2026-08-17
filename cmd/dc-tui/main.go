@@ -44,6 +44,7 @@ func main() {
 		workspace:  ws,
 		fleet:      fleet,
 		hasConfig:  hasDevcontainer(ws),
+		hasCompose: hasRootCompose(ws),
 		editor:     pickEditor(),
 		hoverStack: -1,
 		splashOn:   os.Getenv("DC_TUI_NO_SPLASH") == "",
@@ -84,7 +85,8 @@ Open vs attach: open = edit files on the Mac/Linux host.
 Attach = VS Code Remote URI (a / dc-open --attach).
 Zed attaches itself (Project: Open Remote → Connect Dev Container). Sublime cannot.
 
-start is refused if this folder has no .devcontainer.
+start needs .devcontainer (official CLI) or a root compose file (docker compose).
+compose-kind does not attach (no VS Code Dev Container URI).
 Use CLI dc-up --ports only if you accept REPLACE of project config.
 `
 
@@ -98,6 +100,23 @@ func hasDevcontainer(dir string) bool {
 		}
 	}
 	return false
+}
+
+func hasRootCompose(dir string) bool {
+	for _, n := range []string{"compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml"} {
+		if st, err := os.Stat(filepath.Join(dir, n)); err == nil && !st.IsDir() {
+			return true
+		}
+	}
+	return false
+}
+
+func (m model) canStart() bool {
+	return m.hasConfig || m.hasCompose
+}
+
+func (m model) isComposeKind() bool {
+	return !m.hasConfig && m.hasCompose
 }
 
 func resolveWorkspace(dir string) (string, error) {

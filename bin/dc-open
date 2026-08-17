@@ -71,6 +71,11 @@ Zed attaches first-party:
 EOF
 }
 
+if [[ "$attach" -eq 1 && "$(dc_workspace_kind "$ws")" == "compose" ]]; then
+  echo "dc-open --attach is N/A for compose-kind (no Dev Container / VS Code URI)."
+  exit 0
+fi
+
 if [[ "$attach" -eq 1 ]]; then
   code_bin="$(dc_editor_bin code || true)"
   if [[ -z "$code_bin" ]]; then

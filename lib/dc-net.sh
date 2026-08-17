@@ -68,6 +68,54 @@ for p in files:
 PY
 }
 
+# Project name for this folder: compose config `.name`, else directory basename.
+dc_compose_project_name() {
+  local ws="${1:-.}" name abs
+  [[ -d "$ws" ]] || return 1
+  abs="$(cd "$ws" && pwd)"
+  name="$(dc_compose_declared_name "$abs" || true)"
+  if [[ -z "$name" ]]; then
+    name="$(basename "$abs")"
+  fi
+  [[ -n "$name" ]] || return 1
+  printf '%s\n' "$name"
+}
+
+# One service → that. Else `app`, then `web`. Else fail (ambiguous).
+dc_compose_app_service() {
+  local ws="${1:-.}"
+  if ! command -v python3 >/dev/null 2>&1; then
+    return 1
+  fi
+  dc_net_compose_json "$ws" | python3 -c '
+import json, sys
+try:
+    data = json.loads(sys.stdin.read() or "{}")
+except json.JSONDecodeError:
+    raise SystemExit(1)
+svcs = list((data.get("services") or {}).keys())
+if len(svcs) == 1:
+    print(svcs[0])
+    raise SystemExit(0)
+if "app" in svcs:
+    print("app")
+    raise SystemExit(0)
+if "web" in svcs:
+    print("web")
+    raise SystemExit(0)
+raise SystemExit(1)
+'
+}
+
+# Print docker compose -f FILE args for this folder (no project name).
+dc_compose_file_args() {
+  local ws="${1:-.}" f
+  while IFS= read -r f; do
+    [[ -n "$f" ]] || continue
+    printf '%s\n' "$f"
+  done < <(dc_net_compose_files "$ws")
+}
+
 # Resolved compose project name from `docker compose config` JSON `.name`.
 # Empty if compose is missing or unnamed. Callers may fall back to basename.
 dc_compose_declared_name() {

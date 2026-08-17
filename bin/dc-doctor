@@ -266,9 +266,14 @@ PY
     fi
   fi
 else
-  add_rec devcontainer_cli blocker "devcontainer not on PATH" "" "{}" \
-    "curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli" \
-    missing "devcontainer not found"
+  if [[ "$ws_kind" == "compose" ]]; then
+    add_rec devcontainer_cli warning "devcontainer not on PATH (not required for compose-kind)" "" "{}" \
+      "optional: install official CLI for kind=devcontainer folders"
+  else
+    add_rec devcontainer_cli blocker "devcontainer not on PATH" "" "{}" \
+      "curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli" \
+      missing "devcontainer not found"
+  fi
 fi
 
 # 8 read-configuration then 9 workspace_config (contract order)
@@ -289,9 +294,8 @@ if [[ "$has_cfg" == true ]]; then
   add_rec workspace_config ok "config path present" "" \
     "{\"hasConfig\":true,\"configPath\":$(json_str "$cfg_path"),\"kind\":$(json_str "$ws_kind")}"
 elif [[ "$ws_kind" == "compose" ]]; then
-  add_rec workspace_config warning "compose-kind; start disabled" "" \
-    "{\"hasConfig\":false,\"configPath\":null,\"kind\":\"compose\"}" \
-    "start is not enabled for compose-only folders"
+  add_rec workspace_config ok "compose-kind; start via docker compose" "" \
+    "{\"hasConfig\":false,\"configPath\":null,\"kind\":\"compose\"}"
 else
   add_rec workspace_config warning "no .devcontainer config path" "" \
     "{\"hasConfig\":false,\"configPath\":null,\"kind\":$(json_str "$ws_kind")}" \

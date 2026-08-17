@@ -70,9 +70,11 @@ func (m model) layout() (string, []button, int) {
 		var info strings.Builder
 		info.WriteString(logoWord.Render("dc-cli") + mutedStyle.Render("  "+cliVersion()) + "  " + headerStyle.Render(trunc(base, infoW)) + "\n")
 		info.WriteString(mutedStyle.Render(trunc(m.workspace, infoW)) + "\n")
-		cfg := badStyle.Render("no .devcontainer")
+		cfg := badStyle.Render("no workspace")
 		if m.hasConfig {
 			cfg = okStyle.Render("ready")
+		} else if m.hasCompose {
+			cfg = okStyle.Render("compose")
 		}
 		st, id, ports := warnStyle.Render("stopped"), "", ""
 		if len(m.rows) > 0 {
@@ -215,7 +217,7 @@ func formatFleetRow(r container, width int) string {
 func morePanel(editor string, width int) string {
 	lines := []string{
 		"more — what each action does",
-		"  start    create/start this folder (needs .devcontainer) then dc-forward",
+		"  start    create/start this folder (.devcontainer → official CLI; compose-kind → docker compose)",
 		"  shell    bash in the labeled app — color prompt, ls, hl for logs",
 		"  stack    j/k + enter or click — starts the box if down, then exec",
 		"  open     host editor on the bind-mount  now: " + editor,
@@ -263,7 +265,7 @@ func (m model) buttonGroups() [][]btnSpec {
 	}
 	groups := [][]btnSpec{
 		{
-			{key: "u", label: "start", primary: true, disabled: !m.hasConfig},
+			{key: "u", label: "start", primary: true, disabled: !m.canStart()},
 			{key: "e", label: "shell", primary: true},
 			{key: "s", label: "stop", primary: true},
 		},

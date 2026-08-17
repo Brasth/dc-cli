@@ -47,12 +47,12 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 
 | Button | Key | Does |
 |---|---|---|
-| **start** | `u` | `dc-up` + `dc-forward` (needs `.devcontainer`) |
+| **start** | `u` | `dc-up` — `.devcontainer` uses official CLI + forward; compose-kind uses `docker compose` (no forward) |
 | **shell** | `e` | `dc-exec` — **app** only |
 | **stop** | `s` | full stack `dc-down` |
 | **rm** | `x` | `dc-down --rm` after `y` |
 | **open** | `o` | host editor on the bind-mount |
-| **attach** | `a` | VS Code Remote URI; Zed prints Connect Dev Container steps |
+| **attach** | `a` | VS Code Remote URI; Zed prints Connect Dev Container steps. N/A for compose-kind. |
 | **ports** | `p` | `dc-forward` (Colima sidecar) |
 | **url** | `1`–`9` / click | open a published website in the host browser |
 | **logs** | `l` | follow docker logs for the selected stack row (highlighted; q back). Fleet refuses. |

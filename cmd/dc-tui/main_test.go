@@ -152,8 +152,38 @@ func TestDisabledStartReason(t *testing.T) {
 	if mm.status == "" {
 		t.Fatal("expected a reason")
 	}
-	if !strings.Contains(mm.status, ".devcontainer") {
+	if !strings.Contains(mm.status, "compose") && !strings.Contains(mm.status, ".devcontainer") {
 		t.Fatalf("reason=%q", mm.status)
+	}
+}
+
+func TestComposeKindStartAllowed(t *testing.T) {
+	m := model{workspace: "/tmp/app", hasCompose: true, hoverStack: -1}
+	got, cmd := m.handleKey("u")
+	mm := got.(model)
+	if mm.leaving != "start" {
+		t.Fatalf("compose-kind start should leave, leaving=%q", mm.leaving)
+	}
+	if cmd == nil {
+		t.Fatal("expected leave tick")
+	}
+}
+
+func TestComposeKindAttachNA(t *testing.T) {
+	old := runStay
+	t.Cleanup(func() { runStay = old })
+	runStay = func(name string, args ...string) (string, error) {
+		t.Fatalf("attach must not run: %s %v", name, args)
+		return "", nil
+	}
+	m := model{workspace: "/tmp/app", hasCompose: true, hoverStack: -1}
+	got, cmd := m.handleKey("a")
+	mm := got.(model)
+	if cmd != nil {
+		t.Fatal("compose-kind attach must not exec")
+	}
+	if !strings.Contains(mm.status, "N/A") {
+		t.Fatalf("status=%q", mm.status)
 	}
 }
 

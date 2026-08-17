@@ -13,7 +13,7 @@ steps:
     text: dc-tui --help, dc-up --help, dc-doctor --help, dc-stats --help, or dc-net --help should print usage.
 ---
 
-Needs bash 4+ and Docker (Colima or Desktop). Release kits and Homebrew include the clickable TUI (logo splash, start/shell/stop first). A source install builds it when Go is on PATH; otherwise you get the bash menu.
+Needs bash 4+ and Docker (Colima or Desktop). Official `@devcontainers/cli` is required only for `kind=devcontainer` folders. Compose-only folders start via `dc-up` → `docker compose` (no official CLI). Release kits and Homebrew include the clickable TUI (logo splash, start/shell/stop first). A source install builds it when Go is on PATH; otherwise you get the bash menu.
 
 Safer than piping curl: clone the repo, then `bash install.sh`. Each person needs their own Docker/Colima.
 

@@ -62,7 +62,7 @@ retry. Use --take-ports / --yes to skip the prompt (or answer n to abort).
 project file are dropped. Prefer dc-forward for extra ports.
 
 A folder with only a compose file (no .devcontainer) is compose-kind.
-dc-up refuses that path (start is not enabled). Use dc-ls / dc-doctor.
+dc-up starts it with docker compose (no official CLI, no dc-forward).
 EOF
 }
 
@@ -105,13 +105,93 @@ if [[ ! -d "$workspace" ]]; then
 fi
 _up_ws="$(dc_resolve_workspace "$workspace")" || exit 2
 _up_kind="$(dc_workspace_kind "$_up_ws")"
-if [[ "$_up_kind" == "compose" ]]; then
-  echo "dc-up: this folder is compose-kind (compose file, no .devcontainer). Start is not enabled." >&2
-  echo "Use dc-ls / dc-doctor to inspect. Do not run docker compose up here." >&2
+if [[ "$_up_kind" == "none" ]]; then
+  echo "dc-up: this folder is not a workspace (no .devcontainer, no compose file)." >&2
   exit 1
 fi
+if [[ "$_up_kind" == "compose" && -n "$override" ]]; then
+  echo "dc-up: --ports / --override are for Dev Container workspaces only." >&2
+  exit 2
+fi
 
-if ! command -v devcontainer >/dev/null 2>&1; then
+_dc_compose_up_locked() {
+  local dir="$1" name="$2"
+  shift 2
+  (cd "$dir" && docker compose -p "$name" "$@" up -d)
+}
+
+dc_up_compose_kind() {
+  local dir="$1"
+  local name f n claimants
+  local -a file_args=()
+  ws="$dir"
+  name="$(dc_compose_project_name "$dir")" || {
+    echo "dc-up: cannot resolve compose project name" >&2
+    return 1
+  }
+  n=0
+  claimants=""
+  while IFS= read -r f; do
+    [[ -n "$f" ]] || continue
+    n=$((n + 1))
+    claimants="${claimants}${claimants:+ }$f"
+  done < <(dc_compose_claimants "$name")
+  if [[ "$n" -gt 1 ]]; then
+    echo "dc-up: refuse compose $name (claimants: $claimants)" >&2
+    return 1
+  fi
+  if [[ "$n" -eq 1 ]] && ! dc_same_workspace "$claimants" "$dir" 2>/dev/null && [[ "$claimants" != "$dir" ]]; then
+    echo "dc-up: compose $name belongs to $claimants, not $dir" >&2
+    return 1
+  fi
+  while IFS= read -r f; do
+    [[ -n "$f" ]] || continue
+    file_args+=(-f "$f")
+  done < <(dc_compose_file_args "$dir")
+  if [[ ${#file_args[@]} -eq 0 ]]; then
+    echo "dc-up: no compose files in $dir" >&2
+    return 1
+  fi
+  if ! ensure_declared_nets; then
+    return 1
+  fi
+  tmp="$(mktemp)"
+  trap 'rm -f "$tmp"' EXIT
+  set +e
+  dc_with_mutation_lock _dc_compose_up_locked "$dir" "$name" "${file_args[@]}" >"$tmp" 2>&1
+  local rc=$?
+  set -e
+  cat "$tmp"
+  if [[ "$rc" -ne 0 ]]; then
+    handle_enospc "$tmp"
+    if dc_log_is_port_conflict "$tmp"; then
+      if resolve_port_conflict "$tmp"; then
+        echo >&2
+        echo "dc-up: retrying after freeing ports..." >&2
+        set +e
+        dc_with_mutation_lock _dc_compose_up_locked "$dir" "$name" "${file_args[@]}" >"$tmp" 2>&1
+        rc=$?
+        set -e
+        cat "$tmp"
+        if [[ "$rc" -ne 0 ]]; then
+          handle_enospc "$tmp"
+          if dc_log_is_port_conflict "$tmp"; then
+            echo "dc-up: still blocked after stopping holders. Check compose host ports." >&2
+          fi
+          return "$rc"
+        fi
+      else
+        return "$rc"
+      fi
+    else
+      return "$rc"
+    fi
+  fi
+  echo "dc-up: compose-kind $name (no dc-forward; official CLI unused)"
+  return 0
+}
+
+if [[ "$_up_kind" != "compose" ]] && ! command -v devcontainer >/dev/null 2>&1; then
   echo "devcontainer CLI not found. Advertised install:" >&2
   echo "  curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli" >&2
   echo "or: bash install.sh --with-cli-npm" >&2
@@ -312,6 +392,11 @@ ensure_declared_nets() {
   }
   return 0
 }
+
+if [[ "$_up_kind" == "compose" ]]; then
+  dc_up_compose_kind "$_up_ws"
+  exit $?
+fi
 
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT

@@ -102,8 +102,8 @@ func benignLeaveErr(action string, err error) bool {
 func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 	switch key {
 	case "u":
-		if !m.hasConfig {
-			return m.refuse("No .devcontainer in " + m.workspace + ". Add one, or use CLI: dc-up --ports (REPLACE).")
+		if !m.canStart() {
+			return m.refuse("No .devcontainer or compose file in " + m.workspace + ".")
 		}
 		return m.startLeave("start", "u")
 	case "e":
@@ -113,6 +113,9 @@ func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 	case "p":
 		return m.stayCmd("dc-forward", m.workspace)
 	case "a":
+		if m.isComposeKind() {
+			return m.refuse("attach is N/A for compose-kind (no Dev Container / VS Code URI).")
+		}
 		return m.stayCmd("dc-open", "--attach", m.workspace)
 	case "s":
 		return m.stayCmd("dc-down", m.workspace)
@@ -234,6 +237,7 @@ func (m model) openRow(i int) (tea.Model, tea.Cmd) {
 	m.fleet = false
 	m.workspace = folder
 	m.hasConfig = hasDevcontainer(folder)
+	m.hasCompose = hasRootCompose(folder)
 	m.cursor = 0
 	return m.withStatus(""), m.reload()
 }
