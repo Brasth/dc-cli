@@ -2,8 +2,8 @@
 const rows = [
   { cmd: 'dc-tui', does: 'Clickable board. Start / shell / stop first. t opens top. n lists this folder nets. --all for the fleet.' },
   { cmd: 'dc-doctor', does: 'Read-only diagnose. --json for agents. Exit 0 usable / 1 blocker / 2 bad argv.' },
-  { cmd: 'dc-up', does: 'Start the labeled app, then reconcile ports. --create-nets makes missing externals. --take-ports stops labeled holders only.' },
-  { cmd: 'dc-exec', does: 'Shell in the app. --service NAME for siblings.' },
+  { cmd: 'dc-up', does: 'Start this folder. DC = official CLI + forward. Compose-only = docker compose (no forward). --take-ports stops labeled or proven compose-kind holders.' },
+  { cmd: 'dc-exec', does: 'Shell in the app. DC = official CLI. Compose = compose exec. --service NAME for siblings. --restart is stack-only.' },
   { cmd: 'dc-down', does: 'Stop the full compose stack. --app for the labeled app only.' },
   { cmd: 'dc-forward', does: 'Reconcile owned sidecars. One app or --id. Pairs like 9001:80.' },
   { cmd: 'dc-db', does: 'Open TablePlus on a declared db port. --list to classify. Never invents a port.' },

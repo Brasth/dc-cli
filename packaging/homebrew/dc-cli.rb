@@ -3,7 +3,7 @@
 # Layout: bin/* + lib/*.sh so dirname $0/../lib resolves.
 # Do not symlink from libexec — that breaks the scripts' relative lib path.
 class DcCli < Formula
-  desc "Host-global helpers around @devcontainers/cli"
+  desc "Host-global helpers for Dev Containers and this-folder compose"
   homepage "https://dc.brasth.com"
   version "0.12.0"
   license "MIT"
@@ -46,7 +46,8 @@ class DcCli < Formula
 
   def caveats
     <<~EOS
-      Needs Docker (Colima or Desktop). Official CLI is separate.
+      Needs Docker (Colima or Desktop). Official CLI is required only for
+      Dev Container folders. Compose-only folders use docker compose via dc-up.
       Preferred: standalone via advertised curl --with-cli
         curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
       Explicit npm (exact pin only, never implied by --with-cli):

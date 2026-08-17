@@ -6,8 +6,8 @@ const fields = [
 ];
 
 const primary = [
-  { key: 'u', label: 'start', cmd: 'dc-up', run: 'start labeled app + publish ports', danger: false, meta: false },
-  { key: 'e', label: 'shell', cmd: 'dc-exec', run: 'exec into the app (never docker exec)', danger: false, meta: false },
+  { key: 'u', label: 'start', cmd: 'dc-up', run: 'start this folder (DC or compose)', danger: false, meta: false },
+  { key: 'e', label: 'shell', cmd: 'dc-exec', run: 'exec into the app (never raw docker exec)', danger: false, meta: false },
   { key: 's', label: 'stop', cmd: 'dc-down', run: 'stop full compose stack', danger: false, meta: false },
 ];
 
@@ -15,7 +15,7 @@ const meta = [
   { key: 'o', label: 'open', cmd: 'dc-open', run: 'open bind-mount in the host editor', danger: false, meta: true },
   { key: 'a', label: 'attach', cmd: 'dc-open --attach', run: 'VS Code Remote into the app', danger: false, meta: true },
   { key: 'p', label: 'ports', cmd: 'dc-forward', run: 'reconcile owned sidecars (Colima)', danger: false, meta: true },
-  { key: 'l', label: 'logs', cmd: 'docker logs -f', run: 'highlighted follow in the board, q back', danger: false, meta: true },
+  { key: 'l', label: 'logs', cmd: 'docker logs -f', run: 'follow selected stack row, q back', danger: false, meta: true },
   { key: 't', label: 'top', cmd: 'dc-stats', run: 'CPU / RAM for this folder, q back', danger: false, meta: true },
   { key: 'n', label: 'nets', cmd: 'dc-net', run: 'this folder declared compose nets, y create+start', danger: false, meta: true },
 ];

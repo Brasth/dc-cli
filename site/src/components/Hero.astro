@@ -1,7 +1,7 @@
 ---
 import { latestRelease } from '../lib/schema';
 
-const boot = ['docker  ok', 'devcontainer  ok', 'dc-doctor  usable', 'host  ready'];
+const boot = ['docker  ok', 'kind  this folder', 'dc-doctor  usable', 'host  ready'];
 ---
 
 <section class="relative px-4 pb-6 pt-20 md:px-6 md:pb-8 md:pt-24">
@@ -13,7 +13,7 @@ const boot = ['docker  ok', 'devcontainer  ok', 'dc-doctor  usable', 'host  read
       <h1
         class="mt-3 font-mono text-[clamp(2.6rem,6.4vw,5.2rem)] leading-[0.88] font-medium tracking-[-0.07em] text-ink"
       >
-        The missing<br />verbs for<br />devcontainers.
+        The missing<br />verbs for<br />this folder.
       </h1>
     </div>
     <div class="md:col-span-5 md:pb-2">
@@ -27,9 +27,9 @@ const boot = ['docker  ok', 'devcontainer  ok', 'dc-doctor  usable', 'host  read
         }
       </ol>
       <p class="mt-4 max-w-sm text-[14px] leading-relaxed text-mute">
-        Official CLI has <span class="text-ink">up</span> and <span class="text-ink">exec</span>.
-        This adds stop, ports, doctor, disk, stats, fleet, and a clickable TUI. Does not edit project
-        <span class="font-mono text-ink/80"> .devcontainer</span>.
+        Same keys. <span class="text-ink">.devcontainer</span> uses official CLI.
+        Compose-only uses <span class="text-ink">docker compose</span>. No daemon UI. Does not edit
+        project <span class="font-mono text-ink/80">.devcontainer</span>.
       </p>
       <div class="mt-5 flex flex-wrap gap-2">
         <a

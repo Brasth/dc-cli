@@ -12,7 +12,7 @@ interface Props {
 const title = Astro.props.title ?? 'dc-cli — host-global Dev Containers helpers';
 const description =
   Astro.props.description ??
-  'Start, exec, stop, ports, disk, and stats for official @devcontainers/cli. TUI key t opens top. No VS Code required. Does not edit project .devcontainer.';
+  'Start, exec, stop, ports, disk, and stats for this folder. Dev Container or compose. No VS Code required. Does not edit project .devcontainer.';
 const noindex = Astro.props.noindex ?? false;
 const site = 'https://dc.brasth.com';
 const rawPath = Astro.props.path ?? Astro.url.pathname;
@@ -87,13 +87,13 @@ const jsonLd =
     <meta property="og:image" content={ogImage} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="dc-cli — the missing verbs for devcontainers" />
+    <meta property="og:image:alt" content="dc-cli — the missing verbs for this folder" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
-    <meta name="twitter:image:alt" content="dc-cli — the missing verbs for devcontainers" />
+    <meta name="twitter:image:alt" content="dc-cli — the missing verbs for this folder" />
 
     {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
   </head>

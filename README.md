@@ -34,7 +34,7 @@ this folder
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Always tracks the **latest GitHub release** (currently **v0.12.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start via the **official standalone** installer — not npm. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
+Always tracks the **latest GitHub release** (currently **v0.13.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start **Dev Container** folders via the **official standalone** installer — not npm. Compose-only folders do not need that CLI. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
 
 macOS/Linux via Homebrew (same kit, no Go required):
 
@@ -59,7 +59,7 @@ Needs: bash 4+, Docker (Colima or Desktop). Official CLI floor is whatever `docs
 
 ## Daily flow
 
-Run these from **your** project folder (the one with `.devcontainer`):
+Run these from **this folder**. The kit detects kind: `.devcontainer` → official CLI; else a root compose file → `docker compose`; else `dc-up` refuses. Same keys either way.
 
 ```bash
 cd /path/to/your/project

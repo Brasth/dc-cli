@@ -51,11 +51,11 @@ The advertised curl passes `--with-cli` so `devcontainer` is on PATH via the **u
 
 Homes and the exact copy list live in the [README Skill](https://github.com/Brasth/dc-cli#skill) section.
 
-Confirm: `dc-tui --help`, `dc-up --help`, `dc-doctor --help`, `dc-stats --help`, or `dc-net --help` should print usage. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.12.0).
+Confirm: `dc-tui --help`, `dc-up --help`, `dc-doctor --help`, `dc-stats --help`, or `dc-net --help` should print usage. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.13.0).
 
 ## Daily start
 
-Run from **your** project folder (the one with `.devcontainer`):
+Run from **this folder**. `.devcontainer` → official CLI. Compose-only → `docker compose`. Same verbs.
 
 ```bash
 cd /path/to/your/project

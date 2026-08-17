@@ -2,15 +2,15 @@
 const tiles = [
   {
     k: 'dc-up',
-    title: 'Start the labeled app.',
-    body: 'Reads project config, brings the stack up, then reconciles ports. Clash? Labeled foreign stacks only.',
-    lines: ['$ dc-up', '→ labeled app up', '→ dc-forward pairs', 'ok  or forwarding incomplete'],
+    title: 'Start this folder.',
+    body: '.devcontainer → official CLI, then ports. Compose-only → docker compose. No official CLI. No auto-forward.',
+    lines: ['$ dc-up', '→ kind=devcontainer | compose', '→ up  (forward only on DC)', 'ok  or refuse kind=none'],
   },
   {
     k: 'dc-exec',
-    title: 'Never docker exec.',
-    body: 'App shell via official CLI. Other services: --service NAME. Stopped boxes start first.',
-    lines: ['$ dc-exec --service db', '→ start db (was exited)', '→ docker exec skipped', 'root@db:/#'],
+    title: 'Never raw docker exec.',
+    body: 'Always dc-exec. DC app = official CLI. Compose app = compose exec (1 / app / web / refuse).',
+    lines: ['$ dc-exec --service db', '→ start db (was exited)', '→ never docker exec NAME', 'root@db:/#'],
   },
   {
     k: 'dc-doctor',
