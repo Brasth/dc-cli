@@ -17,7 +17,9 @@ faq:
   - q: Does compose-kind publish Colima ports?
     a: Not automatically. dc-forward stays opt-in and still wants a labeled app or --id. Attach is N/A.
   - q: What if two folders share a compose project name?
-    a: Fail closed. We do not hash-rename. working_dir or config_files must prove this folder.
+    a: Fail closed. We do not hash-rename. working_dir or config_files must prove this folder. project and project/.devcontainer are the same workspace. /Users vs /Volumes of the same dir too.
+  - q: Why did dc-down --all refuse claimants?
+    a: It used to count the labeled app folder and a sibling working_dir under .devcontainer as two owners. That is one stack now. Retry dc-down --all --yes.
   - q: Can fleet start a compose-only project?
     a: No. dc-ls --all and the fleet picker stay labeled Dev Container workspaces.
 ---

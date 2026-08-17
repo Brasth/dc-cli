@@ -18,6 +18,8 @@ faq:
     a: No. Missing config is a warning. A compose-only folder is kind=compose (start via docker compose). Official CLI is required only for kind=devcontainer.
   - q: Should agents parse human text?
     a: No. Pass --json. schemaVersion 1. Same 18 check ids in fixed order.
+  - q: Desktop shows containers but dc-up fails?
+    a: Check docker_context. It reports the CLI engine and socket. Two live engines is a blocker (split_brain). Unset DOCKER_HOST, docker context use desktop-linux or colima, stop the extra engine.
 ---
 
 `dc-doctor` is the day-2 diagnostic. It never creates, starts, stops, or removes containers. It never edits `.devcontainer` or shell rc.
@@ -34,10 +36,10 @@ dc-doctor --json          # one JSON document on stdout
 | `1` | one or more blockers |
 | `2` | invalid invocation only (unknown flag, not a directory) |
 
-Checks are a closed list of 18 ids (bash, common library, Docker, Colima, official CLI, workspace path, duplicate labels, stack, desired/actual ports, required networks, stale owned sidecars, disk, dc-cli version/channel). Human and JSON are the same opinion. Doctor never creates a network.
+Checks are a closed list of 18 ids (bash, common library, Docker, Colima, official CLI, workspace path, duplicate labels, stack, desired/actual ports, required networks, stale owned sidecars, disk, dc-cli version/channel). `docker_context` is engine + socket + extra live engines — not the context name alone. Two live sockets is a blocker (`error.code=split_brain`). Human and JSON are the same opinion. Doctor never creates a network. Doctor never starts or stops an engine.
 
 When a **qualified floor** is recorded in `docs/qualification/devcontainer-cli-floor.md`, a present CLI below that floor is a **blocker**. The floor is unpublished in v0.8.0 — doctor reports the installed version and does not invent a minimum.
 
-Run this **before** `dc-prune --yes` or `dc-up --take-ports`.
+Run this **before** `dc-prune --yes`, `dc-up --take-ports`, or `dc-up` when the machine also has Docker Desktop.
 
 See [README doctor](https://github.com/Brasth/dc-cli#doctor).

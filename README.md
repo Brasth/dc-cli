@@ -34,7 +34,7 @@ this folder
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Always tracks the **latest GitHub release** (currently **v0.13.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start **Dev Container** folders via the **official standalone** installer — not npm. Compose-only folders do not need that CLI. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
+Always tracks the **latest GitHub release** (currently **v0.14.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start **Dev Container** folders via the **official standalone** installer — not npm. Compose-only folders do not need that CLI. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
 
 macOS/Linux via Homebrew (same kit, no Go required):
 
@@ -43,7 +43,7 @@ brew tap Brasth/dc-cli
 brew install dc-cli          # already tapped: brew update && brew upgrade dc-cli
 ```
 
-Each person needs their **own** Docker/Colima. Do not share one engine — fleet, prune, and `--take-ports` see the whole daemon.
+Each person needs their **own** Docker/Colima. One engine per machine — Colima **or** Docker Desktop, not both live. Do not export a Colima `DOCKER_HOST` onto a Desktop laptop. Fleet, prune, and `--take-ports` see the whole daemon the CLI currently points at.
 
 | Flag | What you get |
 |---|---|
@@ -166,6 +166,7 @@ TUI key `t` opens the live overlay. Fleet refuses — this folder only. Sidecar 
 | `dc-up --ports` | **REPLACE** project config (not a merge) |
 | `dc-up --take-ports` / `--yes` | clash: stop **labeled** foreign stacks/sidecars, retry once. `--yes` also creates missing nets |
 | `dc-up --create-nets` | create missing declared external nets (does not take ports) |
+| `dc-up` + `DC_UP_ALLOW_SPLIT=1` | hatch: continue when two engines are live (not recommended) |
 | `dc-exec` | app shell |
 | `dc-exec --list` | stack table |
 | `dc-exec --service NAME` | other compose service (starts if down) |
@@ -175,7 +176,7 @@ TUI key `t` opens the live overlay. Fleet refuses — this folder only. Sidecar 
 | `dc-down --app` | labeled app only (+ sidecars) |
 | `dc-down --rm` / `--volumes` | compose down / down -v |
 | `dc-down --compose` | alias for default full stack (scripts) |
-| `dc-down --all --yes` | every labeled workspace stack |
+| `dc-down --all --yes` | every labeled workspace stack (project and `.devcontainer` are one claimant) |
 | `dc-ls [--json] [--all]` | labeled app list |
 | `dc-open` / `--attach` | host editor / VS Code attach |
 | `dc-db` / `--list` / `--print` | host DB client on a **declared** compose/`forwardPorts` port |
@@ -194,7 +195,7 @@ There is **no** `dc` meta-binary. **Never** `docker system prune -af --volumes` 
 
 ## Doctor
 
-`dc-doctor` is read-only. It never starts, stops, prunes, or edits project files. Human text and `--json` share the same 18 checks.
+`dc-doctor` is read-only. It never starts, stops, prunes, or edits project files. Human text and `--json` share the same 18 checks. `docker_context` reports the **CLI engine + socket** (not just the context name). Two live engines (Colima + Desktop) is a blocker (`split_brain`). `dc-up` refuses the same case unless `DC_UP_ALLOW_SPLIT=1`.
 
 ```bash
 dc-doctor                 # this folder
@@ -208,7 +209,7 @@ dc-doctor --json          # agents: one document, schemaVersion 1
 | `1` | one or more blockers (no Docker, no `devcontainer`, below-floor CLI when a floor is set, …) |
 | `2` | invalid invocation only (unknown flag, not a directory) |
 
-Install-time `install.sh` “Doctor:” lines are still just presence smoke. Day-2 diagnosis is `dc-doctor`. Diagnose **before** `dc-prune --yes` or `--take-ports`.
+Install-time `install.sh` “Doctor:” lines are still just presence smoke. Day-2 diagnosis is `dc-doctor`. Diagnose **before** `dc-prune --yes`, `--take-ports`, or `dc-up` on a Docker Desktop machine.
 
 ## Ports (Colima)
 
@@ -294,7 +295,7 @@ dc-cli owns start / stop / ports / fleet. Zed owns the editor session. No Zed ex
 
 | OS | Status |
 |---|---|
-| macOS | Supported (Colima or Docker Desktop) |
+| macOS | Supported (Colima **or** Docker Desktop — one live engine) |
 | Linux | Supported |
 | WSL2 | Best-effort (run the installer **inside** WSL) |
 | Native Windows | **Not supported** |

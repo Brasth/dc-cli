@@ -5,27 +5,27 @@
 class DcCli < Formula
   desc "Host-global helpers for Dev Containers and this-folder compose"
   homepage "https://dc.brasth.com"
-  version "0.13.0"
+  version "0.14.0"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.13.0/dc-cli-0.13.0-darwin-arm64.tar.gz"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.14.0/dc-cli-0.14.0-darwin-arm64.tar.gz"
       sha256 "c40025fe74da2bfff98fe3f7eca0e398b18a401256af2dc047ca7d9060dc0b8f"
     end
     on_intel do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.13.0/dc-cli-0.13.0-darwin-amd64.tar.gz"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.14.0/dc-cli-0.14.0-darwin-amd64.tar.gz"
       sha256 "82c80d028c4440c58b7232b4f681f9b62e51706277a3995eb83ee2b41e5ea0af"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.13.0/dc-cli-0.13.0-linux-arm64.tar.gz"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.14.0/dc-cli-0.14.0-linux-arm64.tar.gz"
       sha256 "2a3443cb1373db9e1fd481a84d6729897f80cfdd5467953103c9b043466eb027"
     end
     on_intel do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.13.0/dc-cli-0.13.0-linux-amd64.tar.gz"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.14.0/dc-cli-0.14.0-linux-amd64.tar.gz"
       sha256 "fcd802ad944e6504b00a0a737221dfee0affb0261f093c18bc73cd99c89e64d2"
     end
   end
@@ -46,7 +46,7 @@ class DcCli < Formula
 
   def caveats
     <<~EOS
-      Needs Docker (Colima or Desktop). Official CLI is required only for
+      Needs Docker (Colima or Desktop — one live engine). Official CLI is required only for
       Dev Container folders. Compose-only folders use docker compose via dc-up.
       Preferred: standalone via advertised curl --with-cli
         curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli

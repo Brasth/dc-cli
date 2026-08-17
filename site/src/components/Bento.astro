@@ -15,8 +15,8 @@ const tiles = [
   {
     k: 'dc-doctor',
     title: 'Read-only diagnose.',
-    body: 'Human or --json. Never mutates Docker or project files. Run it before prune or take-ports.',
-    lines: ['$ dc-doctor --json', 'schemaVersion  1', 'summary  usable', 'exit  0'],
+    body: 'Human or --json. Reports the CLI engine and socket. Two live engines (Colima + Desktop) is a blocker. Never mutates.',
+    lines: ['$ dc-doctor --json', 'engine  colima', 'extraLive  []', 'exit  0'],
   },
   {
     k: 'dc-forward',
