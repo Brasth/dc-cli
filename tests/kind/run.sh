@@ -212,6 +212,73 @@ case_claimants_same_stack_not_double() {
   assert_eq "$n" 1
 }
 
+case_claimants_sibling_devcontainer_workdir() {
+  local ws n claimants
+  ws="$(mktemp -d "$STATE/ws.XXXX")"
+  mkdir -p "$ws/.devcontainer"
+  echo '{}' >"$ws/.devcontainer/devcontainer.json"
+  fake_add_container app1 app-1 running \
+    "devcontainer.local_folder=$ws" \
+    "com.docker.compose.project=projA" \
+    "com.docker.compose.service=app"
+  fake_add_container db1 db-1 running \
+    "com.docker.compose.project=projA" \
+    "com.docker.compose.project.working_dir=$ws/.devcontainer" \
+    "com.docker.compose.service=db"
+  n=0
+  claimants=""
+  while IFS= read -r cfolder; do
+    [[ -n "$cfolder" ]] || continue
+    n=$((n + 1))
+    claimants="${claimants}${claimants:+ }$cfolder"
+  done < <(dc_compose_claimants projA)
+  assert_eq "$n" 1
+  assert_eq "$claimants" "$ws"
+}
+
+case_claimants_symlink_volume_path() {
+  local root vol users n
+  root="$(mktemp -d "$STATE/root.XXXX")"
+  mkdir -p "$root/volume/proj/.devcontainer"
+  echo '{}' >"$root/volume/proj/.devcontainer/devcontainer.json"
+  mkdir -p "$root/users"
+  ln -s "$root/volume/proj" "$root/users/proj"
+  vol="$root/volume/proj"
+  users="$root/users/proj"
+  fake_add_container app1 app-1 running \
+    "devcontainer.local_folder=$vol" \
+    "com.docker.compose.project=projV" \
+    "com.docker.compose.service=app"
+  fake_add_container db1 db-1 running \
+    "com.docker.compose.project=projV" \
+    "com.docker.compose.project.working_dir=$users/.devcontainer" \
+    "com.docker.compose.service=db"
+  n=0
+  while IFS= read -r _; do
+    [[ -n "${_:-}" ]] && n=$((n + 1))
+  done < <(dc_compose_claimants projV)
+  assert_eq "$n" 1
+}
+
+case_down_all_sibling_devcontainer() {
+  local ws out
+  ws="$(mktemp -d "$STATE/ws.XXXX")"
+  mkdir -p "$ws/.devcontainer"
+  echo '{}' >"$ws/.devcontainer/devcontainer.json"
+  fake_add_container app1 app-1 running \
+    "devcontainer.local_folder=$ws" \
+    "com.docker.compose.project=projA" \
+    "com.docker.compose.service=app"
+  fake_add_container db1 db-1 running \
+    "com.docker.compose.project=projA" \
+    "com.docker.compose.project.working_dir=$ws/.devcontainer" \
+    "com.docker.compose.service=db"
+  out="$(dc-down --all --yes 2>&1)"
+  printf '%s\n' "$out" | grep -qv 'refuse compose-wide'
+  log_has 'compose -p projA'
+  log_has ' stop$'
+}
+
 case_claimants_labeled_plus_foreign_compose() {
   local a other n
   a="$(mktemp -d "$STATE/wsA.XXXX")"
@@ -260,6 +327,9 @@ run_case exec-compose-app case_exec_compose_app
 run_case exec-compose-ambiguous case_exec_compose_ambiguous
 run_case take-foreign-compose-kind case_take_foreign_compose_kind
 run_case claimants-same-stack case_claimants_same_stack_not_double
+run_case claimants-sibling-devcontainer case_claimants_sibling_devcontainer_workdir
+run_case claimants-symlink-volume case_claimants_symlink_volume_path
+run_case down-all-sibling-devcontainer case_down_all_sibling_devcontainer
 run_case claimants-labeled-plus-foreign case_claimants_labeled_plus_foreign_compose
 run_case doctor-compose-kind case_doctor_compose_kind
 

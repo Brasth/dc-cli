@@ -190,10 +190,24 @@ dc_workspace_candidates() {
   dc_path_forms "$resolved" | awk 'NF && !seen[$0]++'
 }
 
-# Same project even when one path is a symlink (/Users -> /Volumes).
+# Compose working_dir is often <project>/.devcontainer. Same project as parent.
+dc_claimant_root() {
+  local folder="${1:-}"
+  folder="${folder%/}"
+  [[ -n "$folder" ]] || return 1
+  if [[ "${folder##*/}" == ".devcontainer" ]]; then
+    folder="${folder%/.devcontainer}"
+  fi
+  printf '%s\n' "$folder"
+}
+
+# Same project even when one path is a symlink (/Users -> /Volumes) or
+# one side is the compose working_dir under .devcontainer.
 dc_same_workspace() {
   local a="$1" b="$2" pa pb
   [[ -n "$a" && -n "$b" ]] || return 1
+  a="$(dc_claimant_root "$a")" || return 1
+  b="$(dc_claimant_root "$b")" || return 1
   if [[ "$a" == "$b" ]]; then
     return 0
   fi
@@ -1125,6 +1139,7 @@ dc_compose_claimants() {
   _dc_claimants_add() {
     local folder="$1" existing match=0
     [[ -n "$folder" ]] || return 0
+    folder="$(dc_claimant_root "$folder")" || return 0
     for existing in "${out[@]+"${out[@]}"}"; do
       if [[ "$existing" == "$folder" ]] || dc_same_workspace "$existing" "$folder" 2>/dev/null; then
         match=1
