@@ -159,6 +159,11 @@ if [[ -f "$NETLIB" ]]; then
   # shellcheck source=/dev/null
   source "$NETLIB"
 fi
+ENGLIB="$(dirname "$COMMON")/dc-engine.sh"
+if [[ -f "$ENGLIB" ]]; then
+  # shellcheck source=/dev/null
+  source "$ENGLIB"
+fi
 
 resolved="."
 if ! resolved="$(dc_resolve_workspace "$workspace")"; then
@@ -207,9 +212,44 @@ else
 fi
 
 # 5 docker_context
-if [[ "${daemon_ok:-0}" -eq 1 ]]; then
+if [[ "${daemon_ok:-0}" -eq 1 ]] && type dc_engine_report >/dev/null 2>&1; then
+  _eng=""; _ctx=""; _host=""; _dset=0; _extra=""
+  IFS=$'\t' read -r _eng _ctx _host _dset _extra < <(dc_engine_report)
+  _live_json="[$(json_str "$_eng")]"
+  _extra_json="[]"
+  if [[ -n "$_extra" ]]; then
+    _extra_json="["
+    _ef=1
+    IFS=',' read -ra _xs <<<"$_extra"
+    for _x in "${_xs[@]+"${_xs[@]}"}"; do
+      [[ -n "$_x" ]] || continue
+      [[ "$_ef" -eq 1 ]] || _extra_json+=","
+      _ef=0
+      _extra_json+="$(json_str "$_x")"
+    done
+    _extra_json+="]"
+    if [[ "$_extra_json" != "[]" ]]; then
+      _live_json="[$(json_str "$_eng")"
+      for _x in "${_xs[@]+"${_xs[@]}"}"; do
+        [[ -n "$_x" && "$_x" != "$_eng" ]] || continue
+        _live_json+=",$(json_str "$_x")"
+      done
+      _live_json+="]"
+    fi
+  fi
+  _dh="false"
+  [[ "$_dset" == "1" ]] && _dh="true"
+  _cdata="{\"name\":$(json_str "$_ctx"),\"engine\":$(json_str "$_eng"),\"socket\":$(json_str "$_host"),\"dockerHostSet\":$_dh,\"live\":$_live_json,\"extraLive\":$_extra_json}"
+  if [[ -n "$_extra" ]]; then
+    add_rec docker_context blocker "split-brain: CLI=$_eng extra=$_extra" "socket=$_host" "$_cdata" \
+      "$(dc_engine_remediation)" split_brain "more than one Docker engine is live"
+  else
+    add_rec docker_context ok "engine $_eng  context=$_ctx  socket=$_host" "" "$_cdata"
+  fi
+elif [[ "${daemon_ok:-0}" -eq 1 ]]; then
   ctx="$(docker context show 2>/dev/null || docker context inspect --format '{{.Name}}' 2>/dev/null || echo unknown)"
-  add_rec docker_context ok "context $ctx" "" "{\"name\":$(json_str "$ctx")}"
+  add_rec docker_context warning "engine helper missing; context $ctx" "" "{\"name\":$(json_str "$ctx")}" \
+    "reinstall helpers via install.sh" engine_helper_missing "dc-engine.sh not sourced"
 elif [[ "$docker_ok" -eq 1 ]]; then
   add_rec docker_context warning "context unread" "" "{}" "" docker_unavailable "daemon down"
 else

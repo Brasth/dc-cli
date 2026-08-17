@@ -58,10 +58,61 @@ shift || true
 
 case "$cmd" in
   context)
-    echo "unix:///var/run/docker.sock"
-    exit 0
+    _ctx_name="$(read_file "$STATE/context_name")"
+    _ctx_name="${_ctx_name:-default}"
+    _ctx_host="$(read_file "$STATE/context_host")"
+    _ctx_host="${_ctx_host:-unix:///var/run/docker.sock}"
+    _csub="${1:-}"
+    shift || true
+    case "$_csub" in
+      show)
+        printf '%s\n' "$_ctx_name"
+        exit 0
+        ;;
+      inspect)
+        _fmt=""
+        while [[ $# -gt 0 ]]; do
+          case "$1" in
+            --format|-f)
+              _fmt="${2:-}"
+              shift 2
+              ;;
+            --format=*)
+              _fmt="${1#--format=}"
+              shift
+              ;;
+            *) shift ;;
+          esac
+        done
+        case "$_fmt" in
+          '{{.Endpoints.docker.Host}}') printf '%s\n' "$_ctx_host" ;;
+          '{{.Name}}') printf '%s\n' "$_ctx_name" ;;
+          *) printf '%s\n' "$_ctx_name" ;;
+        esac
+        exit 0
+        ;;
+      ls)
+        printf '%s\n' "$_ctx_name"
+        exit 0
+        ;;
+      *)
+        printf '%s\n' "$_ctx_host"
+        exit 0
+        ;;
+    esac
     ;;
   info)
+    _info_host="${DOCKER_HOST:-}"
+    if [[ -n "$_info_host" && -f "$STATE/info_dead" ]] && grep -Fxq "$_info_host" "$STATE/info_dead" 2>/dev/null; then
+      echo "Error: Cannot connect to the Docker daemon" >&2
+      exit 1
+    fi
+    if [[ -f "$STATE/info_hang" ]]; then
+      sleep 8
+    fi
+    if [[ -n "$_info_host" && -f "$STATE/info_hang_hosts" ]] && grep -Fxq "$_info_host" "$STATE/info_hang_hosts" 2>/dev/null; then
+      sleep 8
+    fi
     fmt=""
     while [[ $# -gt 0 ]]; do
       case "$1" in

@@ -15,6 +15,9 @@ harness_setup() {
   chmod +x "$ROOT/tests/lib/fake-docker"
   export PATH="$STATE/bin:$ROOT/bin:$PATH"
   export DC_FILES_NO_INJECT=1
+  export DC_ENGINE_HOME="$STATE/home"
+  mkdir -p "$DC_ENGINE_HOME"
+  unset DOCKER_HOST
   : >"$FAKE_DOCKER_LOG"
 }
 

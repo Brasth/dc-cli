@@ -25,6 +25,16 @@ else
   echo "dc-net.sh not found" >&2
   exit 1
 fi
+if [[ -f "$_here/../lib/dc-engine.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-engine.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-engine.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-engine.sh"
+else
+  echo "dc-engine.sh not found" >&2
+  exit 1
+fi
 
 workspace="."
 override=""
@@ -63,6 +73,9 @@ project file are dropped. Prefer dc-forward for extra ports.
 
 A folder with only a compose file (no .devcontainer) is compose-kind.
 dc-up starts it with docker compose (no official CLI, no dc-forward).
+
+If more than one Docker engine is live (Colima + Desktop, etc.),
+dc-up refuses. Fix the CLI target, or DC_UP_ALLOW_SPLIT=1 to continue.
 EOF
 }
 
@@ -112,6 +125,10 @@ fi
 if [[ "$_up_kind" == "compose" && -n "$override" ]]; then
   echo "dc-up: --ports / --override are for Dev Container workspaces only." >&2
   exit 2
+fi
+
+if ! dc_engine_guard_up; then
+  exit 1
 fi
 
 _dc_compose_up_locked() {
@@ -188,6 +205,7 @@ dc_up_compose_kind() {
     fi
   fi
   echo "dc-up: compose-kind $name (no dc-forward; official CLI unused)"
+  dc_engine_up_line
   return 0
 }
 
@@ -433,6 +451,7 @@ fi
 
 if [[ "$no_forward" -eq 1 || "${DC_FORWARD:-1}" == "0" ]]; then
   echo "dc-up: skipped port forward (DC_FORWARD=0 / --no-forward)"
+  dc_engine_up_line
   exit 0
 fi
 
@@ -449,3 +468,4 @@ if [[ -n "$fwd" ]]; then
 else
   echo "dc-up: dc-forward not on PATH; host browser may not reach the app" >&2
 fi
+dc_engine_up_line
