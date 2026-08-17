@@ -131,8 +131,11 @@ jobs:
       - name: dc-up missing CLI prints advertised curl
         run: |
           line='curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli'
+          ws="$RUNNER_TEMP/need-cli"
+          mkdir -p "$ws/.devcontainer"
+          echo '{}' >"$ws/.devcontainer/devcontainer.json"
           set +e
-          out="$(PATH="/usr/bin:/bin" HOME="$RUNNER_TEMP/no-cli" ./bin/dc-up /tmp 2>&1)"
+          out="$(PATH="/usr/bin:/bin" HOME="$RUNNER_TEMP/no-cli" ./bin/dc-up "$ws" 2>&1)"
           rc=$?
           set -e
           test "$rc" -eq 1
