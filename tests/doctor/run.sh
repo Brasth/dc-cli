@@ -195,6 +195,40 @@ assert "desktop" in c["data"]["extraLive"], c["data"]
   harness_teardown
 }
 
+case_linux_desktop_context_ok() {
+  harness_setup
+  unset DOCKER_HOST
+  ws="$(mktemp -d "$STATE/ws.XXXX")"
+  mkdir -p "$ws/.devcontainer"
+  echo '{}' >"$ws/.devcontainer/devcontainer.json"
+  printf '%s\n' "desktop-linux" >"$STATE/context_name"
+  printf '%s\n' "unix://${DC_ENGINE_HOME}/.docker/desktop/docker.sock" >"$STATE/context_host"
+  mkdir -p "${DC_ENGINE_HOME}/.docker/desktop"
+  : >"${DC_ENGINE_HOME}/.docker/desktop/docker.sock"
+  cat >"$STATE/bin/devcontainer" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "--version" ]]; then echo "0.88.0"; exit 0; fi
+if [[ "$1" == "read-configuration" ]]; then echo '{}'; exit 0; fi
+exit 0
+EOF
+  chmod +x "$STATE/bin/devcontainer"
+  out="$("$DOC" --json "$ws")"
+  python3 -c '
+import json,sys
+d=json.loads(sys.argv[1])
+c=next(x for x in d["checks"] if x["id"]=="docker_context")
+assert c["status"]=="ok", c
+assert c["data"]["engine"]=="desktop", c["data"]
+assert c["data"]["name"]=="desktop-linux", c["data"]
+assert ".docker/desktop/" in c["data"]["socket"], c["data"]
+assert c["data"]["extraLive"]==[]
+assert c["data"].get("extraSockets")==[]
+' "$out"
+  human="$("$DOC" "$ws")"
+  ! printf '%s\n' "$human" | grep -q split-brain
+  harness_teardown
+}
+
 case_secret_noleak() {
   harness_setup
   ws="$(mktemp -d "$STATE/ws.XXXX")"
@@ -230,6 +264,7 @@ run_case "missing config reported" case_missing_config
 run_case "secrets not leaked" case_secret_noleak
 run_case "docker_context engine fields" case_context_engine_fields
 run_case "split-brain blocker" case_split_brain_blocker
+run_case "linux desktop context ok" case_linux_desktop_context_ok
 
 echo
 if [[ "$FAILED" -ne 0 ]]; then

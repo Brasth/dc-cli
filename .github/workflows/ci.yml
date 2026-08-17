@@ -18,7 +18,7 @@ jobs:
           bash -n lib/dc-common.sh lib/dc-floor.sh lib/dc-install-yazi.sh lib/dc-exec-color.sh lib/dc-net.sh lib/dc-engine.sh
           bash -n scripts/pack-release.sh scripts/print-release-shas.sh scripts/check-floor-qual.sh
           bash -n bin/dc-up bin/dc-exec bin/dc-down bin/dc-ps bin/dc-forward
-          bash -n bin/dc-ls bin/dc-open bin/dc-tui bin/dc-df bin/dc-prune bin/dc-doctor bin/dc-net
+          bash -n bin/dc-ls bin/dc-open bin/dc-tui bin/dc-df bin/dc-prune bin/dc-doctor bin/dc-engine bin/dc-net
           bash -n tests/lib/fake-docker tests/lib/harness.sh tests/safety/run.sh tests/install/run.sh tests/doctor/run.sh tests/forward/run.sh tests/files/run.sh tests/exec/run.sh tests/net/run.sh tests/engine/run.sh
       - name: safety gates
         run: bash tests/safety/run.sh

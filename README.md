@@ -17,6 +17,7 @@ this folder
    │
    ├─ dc-tui          clickable board (default)
    ├─ dc-doctor       read-only diagnose (human or --json)
+   ├─ dc-engine       which Docker engine; --fix prints recovery
    ├─ dc-stats        read-only CPU / RAM / net (this folder)
    ├─ dc-net          this folder's declared compose nets
    ├─ dc-up           start the labeled app + publish ports
@@ -34,7 +35,7 @@ this folder
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Always tracks the **latest GitHub release** (currently **v0.14.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start **Dev Container** folders via the **official standalone** installer — not npm. Compose-only folders do not need that CLI. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
+Always tracks the **latest GitHub release** (currently **v0.14.1**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start **Dev Container** folders via the **official standalone** installer — not npm. Compose-only folders do not need that CLI. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
 
 macOS/Linux via Homebrew (same kit, no Go required):
 
@@ -65,6 +66,7 @@ Run these from **this folder**. The kit detects kind: `.devcontainer` → offici
 cd /path/to/your/project
 dc-tui                          # or the CLI below
 dc-doctor                       # read-only; --json for agents
+dc-engine                       # which engine; dc-engine --fix if split
 dc-stats                        # this folder CPU / RAM / net (read-only)
 dc-net                          # this folder declared compose nets
 
@@ -161,6 +163,7 @@ TUI key `t` opens the live overlay. Fleet refuses — this folder only. Sidecar 
 | `dc-tui --all` | fleet |
 | `dc-tui --version` / `dc-up --version` | print kit version |
 | `dc-doctor [dir] [--json]` | read-only diagnostics (exit 0 usable / 1 blocker / 2 bad argv) |
+| `dc-engine` / `--json` / `--fix` | which Docker engine the CLI talks to; `--fix` prints recovery (`--yes` only runs `docker context use`) |
 | `dc-up [dir]` | project config, then `dc-forward` |
 | `dc-up --no-forward` | skip sidecars (`DC_FORWARD=0`) |
 | `dc-up --ports` | **REPLACE** project config (not a merge) |
@@ -195,7 +198,7 @@ There is **no** `dc` meta-binary. **Never** `docker system prune -af --volumes` 
 
 ## Doctor
 
-`dc-doctor` is read-only. It never starts, stops, prunes, or edits project files. Human text and `--json` share the same 18 checks. `docker_context` reports the **CLI engine + socket** (not just the context name). Two live engines (Colima + Desktop) is a blocker (`split_brain`). `dc-up` refuses the same case unless `DC_UP_ALLOW_SPLIT=1`.
+`dc-doctor` is read-only. It never starts, stops, prunes, or edits project files. Human text and `--json` share the same 18 checks. `docker_context` reports the **CLI engine + socket** (not just the context name). Two live engines (Colima + Desktop, or Desktop + leftover native `dockerd`) is a blocker (`split_brain`). Same daemon on two paths is **not** a split — Linux Docker Desktop (`~/.docker/desktop/docker.sock`) plus a proxy `/var/run/docker.sock` collapse when `docker info` IDs match. `dc-up` refuses a real split unless `DC_UP_ALLOW_SPLIT=1`. Recover with `dc-engine --fix` (print commands) or `dc-engine --fix --yes` (`docker context use` only — never sudo, never stop an engine).
 
 ```bash
 dc-doctor                 # this folder
@@ -296,7 +299,7 @@ dc-cli owns start / stop / ports / fleet. Zed owns the editor session. No Zed ex
 | OS | Status |
 |---|---|
 | macOS | Supported (Colima **or** Docker Desktop — one live engine) |
-| Linux | Supported |
+| Linux | Supported (Docker Engine **or** Docker Desktop — one live engine). Desktop socket is `~/.docker/desktop/docker.sock`. |
 | WSL2 | Best-effort (run the installer **inside** WSL) |
 | Native Windows | **Not supported** |
 

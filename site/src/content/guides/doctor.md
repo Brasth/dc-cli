@@ -10,7 +10,7 @@ steps:
   - name: Read the summary
     text: usable (exit 0, warnings allowed) or blocked (exit 1). Exit 2 is a bad flag or path only.
   - name: Then recover
-    text: Use existing commands — dc-up, dc-up --create-nets, dc-net --ensure, dc-forward --status, dc-df, dc-prune. Doctor does not run them.
+    text: Use existing commands — dc-engine --fix, dc-up, dc-up --create-nets, dc-net --ensure, dc-forward --status, dc-df, dc-prune. Doctor does not run them.
 faq:
   - q: Does dc-doctor fix anything?
     a: No. It is read-only. install.sh Doctor lines are install-time presence only.
@@ -19,7 +19,7 @@ faq:
   - q: Should agents parse human text?
     a: No. Pass --json. schemaVersion 1. Same 18 check ids in fixed order.
   - q: Desktop shows containers but dc-up fails?
-    a: Check docker_context. It reports the CLI engine and socket. Two live engines is a blocker (split_brain). Unset DOCKER_HOST, docker context use desktop-linux or colima, stop the extra engine.
+    a: Check docker_context. It reports the CLI engine and socket. Two live engines is a blocker (split_brain). Same daemon on two paths is not a split (Linux Desktop ~/.docker/desktop/docker.sock plus a proxy /var/run). Run dc-engine --fix for the exact recovery commands. Doctor stays read-only.
 ---
 
 `dc-doctor` is the day-2 diagnostic. It never creates, starts, stops, or removes containers. It never edits `.devcontainer` or shell rc.
@@ -36,7 +36,7 @@ dc-doctor --json          # one JSON document on stdout
 | `1` | one or more blockers |
 | `2` | invalid invocation only (unknown flag, not a directory) |
 
-Checks are a closed list of 18 ids (bash, common library, Docker, Colima, official CLI, workspace path, duplicate labels, stack, desired/actual ports, required networks, stale owned sidecars, disk, dc-cli version/channel). `docker_context` is engine + socket + extra live engines — not the context name alone. Two live sockets is a blocker (`error.code=split_brain`). Human and JSON are the same opinion. Doctor never creates a network. Doctor never starts or stops an engine.
+Checks are a closed list of 18 ids (bash, common library, Docker, Colima, official CLI, workspace path, duplicate labels, stack, desired/actual ports, required networks, stale owned sidecars, disk, dc-cli version/channel). `docker_context` is engine + socket + extra live engines — not the context name alone. Two live daemons is a blocker (`error.code=split_brain`). Two paths to the same daemon (inode, Colima default dual sock, or matching `docker info` ID) are one engine. Human output prints a Fix block on split. `dc-engine --fix` prints the same recipe; `--yes` only runs `docker context use`. Doctor never creates a network. Doctor never starts or stops an engine.
 
 When a **qualified floor** is recorded in `docs/qualification/devcontainer-cli-floor.md`, a present CLI below that floor is a **blocker**. The floor is unpublished in v0.8.0 — doctor reports the installed version and does not invent a minimum.
 

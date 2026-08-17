@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+# Show the Docker engine the CLI talks to. Optional safe context switch.
+# Never sudo. Never stop Colima / Desktop / dockerd.
+set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  exit 1
+fi
+if [[ -f "$_here/../lib/dc-engine.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-engine.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-engine.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-engine.sh"
+else
+  echo "dc-engine.sh not found" >&2
+  exit 1
+fi
+
+json=0
+fix=0
+yes=0
+
+usage() {
+  cat <<'EOF'
+dc-engine — show or recover the Docker engine this CLI talks to
+
+  dc-engine              human report
+  dc-engine --json       machine-readable
+  dc-engine --fix        print exact recovery commands (no mutate)
+  dc-engine --fix --yes  docker context use <recommended> only
+  dc-engine --help
+
+Never sudo. Never stop Desktop / Colima / dockerd. Doctor stays read-only.
+One engine per machine. Linux Docker Desktop uses ~/.docker/desktop/docker.sock;
+a leftover native /var/run/docker.sock is a real extra engine.
+EOF
+}
+
+json_str() {
+  local s="$1"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import json,sys; sys.stdout.write(json.dumps(sys.argv[1]))' "$s"
+    return
+  fi
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  printf '"%s"' "$s"
+}
+
+json_arr() {
+  local csv="$1" first=1 item
+  printf '['
+  if [[ -n "$csv" ]]; then
+    IFS=',' read -ra items <<<"$csv"
+    for item in "${items[@]+"${items[@]}"}"; do
+      [[ -n "$item" ]] || continue
+      [[ "$first" -eq 1 ]] || printf ','
+      first=0
+      json_str "$item"
+    done
+  fi
+  printf ']'
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --json) json=1 ;;
+    --fix) fix=1 ;;
+    --yes|-y) yes=1 ;;
+    --version|-V) dc_cli_print_version "$(basename "$0")"; exit 0 ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      echo "Unexpected arg: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+if [[ "$yes" -eq 1 && "$fix" -ne 1 ]]; then
+  echo "dc-engine: --yes requires --fix" >&2
+  exit 2
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "dc-engine: docker not on PATH" >&2
+  exit 1
+fi
+
+dc_engine_refresh
+
+if [[ "$json" -eq 1 ]]; then
+  split=false
+  [[ -n "${DC_ENGINE_LAST_EXTRA:-}" ]] && split=true
+  dh=false
+  [[ "${DC_ENGINE_LAST_DSET:-0}" == "1" ]] && dh=true
+  printf '{"schemaVersion":1,"command":"dc-engine","engine":%s,"context":%s,"socket":%s,"dockerHostSet":%s,"extraLive":%s,"extraSockets":%s,"split":%s}\n' \
+    "$(json_str "${DC_ENGINE_LAST_ENGINE:-unknown}")" \
+    "$(json_str "${DC_ENGINE_LAST_CONTEXT:-unknown}")" \
+    "$(json_str "${DC_ENGINE_LAST_HOST:-}")" \
+    "$dh" \
+    "$(json_arr "${DC_ENGINE_LAST_EXTRA:-}")" \
+    "$(json_arr "${DC_ENGINE_LAST_EXTRA_HOSTS:-}")" \
+    "$split"
+  if [[ "$fix" -eq 1 && "$yes" -ne 1 ]]; then
+    :
+  elif [[ -n "${DC_ENGINE_LAST_EXTRA:-}" && "$yes" -ne 1 ]]; then
+    exit 1
+  fi
+  if [[ "$yes" -eq 1 ]]; then
+    dc_engine_apply_fix
+    exit $?
+  fi
+  [[ -n "${DC_ENGINE_LAST_EXTRA:-}" ]] && exit 1
+  exit 0
+fi
+
+if [[ "$fix" -eq 1 ]]; then
+  dc_engine_fix_text
+  if [[ "$yes" -eq 1 ]]; then
+    echo
+    dc_engine_apply_fix
+    exit $?
+  fi
+  [[ -n "${DC_ENGINE_LAST_EXTRA:-}" ]] && exit 1
+  exit 0
+fi
+
+echo "engine  ${DC_ENGINE_LAST_ENGINE:-unknown}"
+echo "context ${DC_ENGINE_LAST_CONTEXT:-unknown}"
+echo "socket  ${DC_ENGINE_LAST_HOST:-}"
+if [[ "${DC_ENGINE_LAST_DSET:-0}" == "1" ]]; then
+  echo "DOCKER_HOST is set"
+fi
+if [[ -n "${DC_ENGINE_LAST_EXTRA:-}" ]]; then
+  echo "extra   ${DC_ENGINE_LAST_EXTRA}  ${DC_ENGINE_LAST_EXTRA_HOSTS:-}"
+  echo "split   yes  — run: dc-engine --fix"
+  exit 1
+fi
+echo "split   no"
+exit 0

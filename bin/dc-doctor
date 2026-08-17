@@ -214,7 +214,12 @@ fi
 # 5 docker_context
 if [[ "${daemon_ok:-0}" -eq 1 ]] && type dc_engine_report >/dev/null 2>&1; then
   _eng=""; _ctx=""; _host=""; _dset=0; _extra=""
-  IFS=$'\t' read -r _eng _ctx _host _dset _extra < <(dc_engine_report)
+  dc_engine_refresh
+  _eng="${DC_ENGINE_LAST_ENGINE:-unknown}"
+  _ctx="${DC_ENGINE_LAST_CONTEXT:-unknown}"
+  _host="${DC_ENGINE_LAST_HOST:-}"
+  _dset="${DC_ENGINE_LAST_DSET:-0}"
+  _extra="${DC_ENGINE_LAST_EXTRA:-}"
   _live_json="[$(json_str "$_eng")]"
   _extra_json="[]"
   if [[ -n "$_extra" ]]; then
@@ -239,9 +244,22 @@ if [[ "${daemon_ok:-0}" -eq 1 ]] && type dc_engine_report >/dev/null 2>&1; then
   fi
   _dh="false"
   [[ "$_dset" == "1" ]] && _dh="true"
-  _cdata="{\"name\":$(json_str "$_ctx"),\"engine\":$(json_str "$_eng"),\"socket\":$(json_str "$_host"),\"dockerHostSet\":$_dh,\"live\":$_live_json,\"extraLive\":$_extra_json}"
+  _socks_json="[]"
+  if [[ -n "${DC_ENGINE_LAST_EXTRA_HOSTS:-}" ]]; then
+    _socks_json="["
+    _sf=1
+    IFS=',' read -ra _shs <<<"${DC_ENGINE_LAST_EXTRA_HOSTS}"
+    for _s in "${_shs[@]+"${_shs[@]}"}"; do
+      [[ -n "$_s" ]] || continue
+      [[ "$_sf" -eq 1 ]] || _socks_json+=","
+      _sf=0
+      _socks_json+="$(json_str "$_s")"
+    done
+    _socks_json+="]"
+  fi
+  _cdata="{\"name\":$(json_str "$_ctx"),\"engine\":$(json_str "$_eng"),\"socket\":$(json_str "$_host"),\"dockerHostSet\":$_dh,\"live\":$_live_json,\"extraLive\":$_extra_json,\"extraSockets\":$_socks_json}"
   if [[ -n "$_extra" ]]; then
-    add_rec docker_context blocker "split-brain: CLI=$_eng extra=$_extra" "socket=$_host" "$_cdata" \
+    add_rec docker_context blocker "split-brain: CLI=$_eng extra=$_extra" "socket=$_host extra=${DC_ENGINE_LAST_EXTRA_HOSTS:-}" "$_cdata" \
       "$(dc_engine_remediation)" split_brain "more than one Docker engine is live"
   else
     add_rec docker_context ok "engine $_eng  context=$_ctx  socket=$_host" "" "$_cdata"
@@ -520,6 +538,17 @@ render_human() {
     echo "Summary: blocked ($blockers blockers, $warnings warnings)"
   else
     echo "Summary: usable ($blockers blockers, $warnings warnings)"
+  fi
+  if [[ "$summary" == "blocker" ]] && type dc_engine_fix_text >/dev/null 2>&1; then
+    for rec in "${RECORDS[@]}"; do
+      IFS=$'\x1f' read -r id st _ <<<"$rec"
+      if [[ "$id" == "docker_context" && "$st" == "blocker" ]]; then
+        echo
+        dc_engine_fix_text
+        echo "  or: dc-engine --fix"
+        break
+      fi
+    done
   fi
 }
 

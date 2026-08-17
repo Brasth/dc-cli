@@ -136,11 +136,19 @@ case "$cmd" in
     name="$(read_file "$STATE/info_name")"
     name="${name:-docker-desktop}"
     if [[ -n "$fmt" ]]; then
+      _id=""
+      if [[ -n "$_info_host" && -f "$STATE/info_ids" ]]; then
+        _id="$(awk -F'\t' -v h="$_info_host" '$1==h {print $2; exit}' "$STATE/info_ids" 2>/dev/null || true)"
+      fi
+      if [[ -z "$_id" ]]; then
+        _id="$(read_file "$STATE/info_id")"
+      fi
       out="$fmt"
       out="${out//\{\{.NCPU\}\}/$ncpu}"
       out="${out//\{\{.MemTotal\}\}/$mem}"
       out="${out//\{\{.OperatingSystem\}\}/$os}"
       out="${out//\{\{.Name\}\}/$name}"
+      out="${out//\{\{.ID\}\}/$_id}"
       printf '%s\n' "$out"
       exit 0
     fi

@@ -5,27 +5,27 @@
 class DcCli < Formula
   desc "Host-global helpers for Dev Containers and this-folder compose"
   homepage "https://dc.brasth.com"
-  version "0.14.0"
+  version "0.14.1"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.14.0/dc-cli-0.14.0-darwin-arm64.tar.gz"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.14.1/dc-cli-0.14.1-darwin-arm64.tar.gz"
       sha256 "1768e7139a29ec91009fa65d6ef84a30419f0c3176a3a8638f2165f79e953a49"
     end
     on_intel do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.14.0/dc-cli-0.14.0-darwin-amd64.tar.gz"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.14.1/dc-cli-0.14.1-darwin-amd64.tar.gz"
       sha256 "56189b2e92df1dd0dae5338a84419ae4374856af50425de128fd530186e404de"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.14.0/dc-cli-0.14.0-linux-arm64.tar.gz"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.14.1/dc-cli-0.14.1-linux-arm64.tar.gz"
       sha256 "1d22b829a4579e2a929bd5cebe680e23a510f537104ab23d68c3cd958da73838"
     end
     on_intel do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.14.0/dc-cli-0.14.0-linux-amd64.tar.gz"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.14.1/dc-cli-0.14.1-linux-amd64.tar.gz"
       sha256 "b2b0cca707651f1d3efb95b614894a5f0ddb5794c7a90b34ee013e577f41c837"
     end
   end
@@ -42,6 +42,7 @@ class DcCli < Formula
     assert_match "dc-doctor", shell_output("#{bin}/dc-doctor --help")
     assert_match "dc-stats", shell_output("#{bin}/dc-stats --help")
     assert_match "dc-net", shell_output("#{bin}/dc-net --help")
+    assert_match "dc-engine", shell_output("#{bin}/dc-engine --help")
   end
 
   def caveats

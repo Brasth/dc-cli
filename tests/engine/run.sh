@@ -37,6 +37,7 @@ mk_sock() {
 case_classify_matrix() {
   assert_eq "$(dc_engine_classify 'unix:///x/.colima/default/docker.sock')" colima
   assert_eq "$(dc_engine_classify 'unix:///x/.docker/run/docker.sock')" desktop
+  assert_eq "$(dc_engine_classify 'unix:///x/.docker/desktop/docker.sock')" desktop
   assert_eq "$(dc_engine_classify 'unix:///x/.orbstack/run/docker.sock')" orbstack
   assert_eq "$(dc_engine_classify desktop-linux)" desktop
   local got
@@ -169,6 +170,76 @@ EOF
   log_lacks 'up -d'
 }
 
+case_linux_desktop_sock_no_split() {
+  export DOCKER_HOST="unix://${DC_ENGINE_HOME}/.docker/desktop/docker.sock"
+  mk_sock "${DC_ENGINE_HOME}/.docker/desktop/docker.sock"
+  assert_eq "$(dc_engine_classify "$DOCKER_HOST")" desktop
+  extra="$(dc_engine_report | awk -F'\t' '{print $5}')"
+  assert_eq "$extra" ""
+  if dc_engine_split; then
+    echo "linux desktop socket counted as split" >&2
+    return 1
+  fi
+}
+
+case_same_daemon_id_no_split() {
+  export DOCKER_HOST="unix://${DC_ENGINE_HOME}/.docker/desktop/docker.sock"
+  mk_sock "${DC_ENGINE_HOME}/.docker/desktop/docker.sock"
+  mk_sock "${DC_ENGINE_HOME}/.docker/run/docker.sock"
+  printf '%s\t%s\n' \
+    "unix://${DC_ENGINE_HOME}/.docker/desktop/docker.sock" "AAAA:BBBB" \
+    "unix://${DC_ENGINE_HOME}/.docker/run/docker.sock" "AAAA:BBBB" \
+    >"$STATE/info_ids"
+  extra="$(dc_engine_report | awk -F'\t' '{print $5}')"
+  assert_eq "$extra" ""
+  if dc_engine_split; then
+    echo "same daemon ID counted as split" >&2
+    return 1
+  fi
+}
+
+case_different_daemon_id_split() {
+  export DOCKER_HOST="unix://${DC_ENGINE_HOME}/.docker/desktop/docker.sock"
+  mk_sock "${DC_ENGINE_HOME}/.docker/desktop/docker.sock"
+  mk_sock "${DC_ENGINE_HOME}/.docker/run/docker.sock"
+  printf '%s\t%s\n' \
+    "unix://${DC_ENGINE_HOME}/.docker/desktop/docker.sock" "DESK:TOP" \
+    "unix://${DC_ENGINE_HOME}/.docker/run/docker.sock" "NATIVE:DOCK" \
+    >"$STATE/info_ids"
+  extra="$(dc_engine_report | awk -F'\t' '{print $5}')"
+  assert_eq "$extra" desktop
+  dc_engine_split
+}
+
+case_engine_cmd_report() {
+  export DOCKER_HOST="unix://${DC_ENGINE_HOME}/.docker/desktop/docker.sock"
+  mk_sock "${DC_ENGINE_HOME}/.docker/desktop/docker.sock"
+  printf '%s\n' "desktop-linux" >"$STATE/context_name"
+  printf '%s\n' "$DOCKER_HOST" >"$STATE/context_host"
+  out="$(dc-engine --json)"
+  python3 -c '
+import json,sys
+d=json.loads(sys.argv[1])
+assert d["command"]=="dc-engine", d
+assert d["engine"]=="desktop", d
+assert d["split"] is False, d
+assert d["extraLive"]==[], d
+' "$out"
+}
+
+case_engine_cmd_fix_split() {
+  export DOCKER_HOST="unix://${DC_ENGINE_HOME}/.colima/default/docker.sock"
+  mk_sock "${DC_ENGINE_HOME}/.colima/default/docker.sock"
+  mk_sock "${DC_ENGINE_HOME}/.docker/run/docker.sock"
+  set +e
+  out="$(dc-engine --fix 2>&1)"
+  rc=$?
+  set -e
+  assert_eq "$rc" 1
+  printf '%s\n' "$out" | grep -q "Two live Docker engines"
+  printf '%s\n' "$out" | grep -q "colima stop"
+}
+
 case_up_hatch_proceeds() {
   local ws rc
   ws="$(mktemp -d "$STATE/ws.XXXX")"
@@ -201,6 +272,11 @@ run_case dead-extra-not-split case_dead_extra_not_split
 run_case probe-timeout-not-live case_probe_timeout_not_live
 run_case up-refuses-split case_up_refuses_split
 run_case up-hatch-proceeds case_up_hatch_proceeds
+run_case linux-desktop-sock case_linux_desktop_sock_no_split
+run_case same-daemon-id-no-split case_same_daemon_id_no_split
+run_case different-daemon-id-split case_different_daemon_id_split
+run_case engine-cmd-report case_engine_cmd_report
+run_case engine-cmd-fix-split case_engine_cmd_fix_split
 
 echo
 if [[ "$FAILED" -gt 0 ]]; then

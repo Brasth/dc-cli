@@ -10,12 +10,12 @@ steps:
   - name: Reload the shell
     text: Open a new terminal, or source ~/.zshrc / ~/.bashrc so generation current/bin is on PATH.
   - name: Confirm
-    text: dc-tui --help, dc-up --help, dc-doctor --help, dc-stats --help, or dc-net --help should print usage.
+    text: dc-tui --help, dc-up --help, dc-doctor --help, dc-engine --help, dc-stats --help, or dc-net --help should print usage.
 ---
 
 Needs bash 4+ and Docker (Colima **or** Desktop — one live engine). Official `@devcontainers/cli` is required only for `kind=devcontainer` folders. Compose-only folders start via `dc-up` → `docker compose` (no official CLI). Release kits and Homebrew include the clickable TUI (logo splash, start/shell/stop first). A source install builds it when Go is on PATH; otherwise you get the bash menu.
 
-Safer than piping curl: clone the repo, then `bash install.sh`. Each person needs their own Docker/Colima. Do not copy `export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` onto a laptop that uses Docker Desktop. `dc-doctor` reports the CLI engine and socket; two live engines block `dc-up`.
+Safer than piping curl: clone the repo, then `bash install.sh`. Each person needs their own Docker/Colima. Do not copy `export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` onto a laptop that uses Docker Desktop. `dc-doctor` reports the CLI engine and socket; two live engines block `dc-up`. `dc-engine --fix` prints how to pick one.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
@@ -51,7 +51,7 @@ The advertised curl passes `--with-cli` so `devcontainer` is on PATH via the **u
 
 Homes and the exact copy list live in the [README Skill](https://github.com/Brasth/dc-cli#skill) section.
 
-Confirm: `dc-tui --help`, `dc-up --help`, `dc-doctor --help`, `dc-stats --help`, or `dc-net --help` should print usage. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.14.0).
+Confirm: `dc-tui --help`, `dc-up --help`, `dc-doctor --help`, `dc-engine --help`, `dc-stats --help`, or `dc-net --help` should print usage. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.14.1).
 
 ## Daily start
 

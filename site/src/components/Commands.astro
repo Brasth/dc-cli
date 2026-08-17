@@ -1,7 +1,8 @@
 ---
 const rows = [
   { cmd: 'dc-tui', does: 'Clickable board. Start / shell / stop first. t opens top. n lists this folder nets. --all for the fleet.' },
-  { cmd: 'dc-doctor', does: 'Read-only diagnose. --json for agents. docker_context is engine + socket. Two live engines = split_brain blocker.' },
+  { cmd: 'dc-doctor', does: 'Read-only diagnose. --json for agents. docker_context is engine + socket. Two live daemons = split_brain blocker.' },
+  { cmd: 'dc-engine', does: 'Which Docker engine the CLI talks to. --fix prints recovery. --yes only runs docker context use. Never sudo.' },
   { cmd: 'dc-up', does: 'Start this folder. DC = official CLI + forward. Compose-only = docker compose (no forward). Refuses when two engines are live. --take-ports stops labeled or proven compose-kind holders.' },
   { cmd: 'dc-exec', does: 'Shell in the app. DC = official CLI. Compose = compose exec. --service NAME for siblings. --restart is stack-only.' },
   { cmd: 'dc-down', does: 'Stop the full compose stack. --app for the labeled app only. --all --yes stops every labeled stack. project and .devcontainer are one claimant.' },
