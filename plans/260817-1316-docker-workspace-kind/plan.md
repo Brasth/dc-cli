@@ -1,7 +1,7 @@
 ---
 title: "Owned stack verbs + compose-kind workspace"
-description: "Per-row logs, stack restart, compose-kind identity, and compose start/stop/exec shipped. Review High on compose exec TTY/sh."
-status: in-progress
+description: "Per-row logs, stack restart, compose-kind identity, and compose start/stop/exec shipped. Review High on compose exec TTY/sh closed."
+status: completed
 priority: P2
 effort: 3d
 branch: "main"
@@ -47,9 +47,9 @@ Brainstorm: [../reports/260817-1316-docker-scope-expansion.md](../reports/260817
 |-------|------|--------|
 | 1 | [Owned stack verbs](./phase-01-owned-stack-verbs.md) | Done ([review](./reports/review-phase-01.md) 7/10, High fixed; [tester](./reports/tester-phase-01.md); [closeout](./reports/project-manager-phase-01.md)) |
 | 2 | [Compose-kind identity](./phase-02-compose-kind-identity.md) | Done ([review](./reports/review-phase-02.md) 7/10, High fixed; [tester](./reports/tester-phase-02.md); [closeout](./reports/project-manager-phase-02.md)) |
-| 3 | [Compose-kind lifecycle and docs](./phase-03-compose-kind-lifecycle-and-docs.md) | Review ([review](./reports/review-phase-03.md) 7/10, High: compose exec `-T` + bash-only; [tester](./reports/tester-phase-03.md)) |
+| 3 | [Compose-kind lifecycle and docs](./phase-03-compose-kind-lifecycle-and-docs.md) | Done ([review](./reports/review-phase-03.md) 7/10, High `-T`+bash/sh fixed; [tester](./reports/tester-phase-03.md); [closeout](./reports/project-manager-phase-03.md)) |
 
-Sequential. Phase 3 un-gated 2026-08-17.
+Sequential. Phase 3 un-gated 2026-08-17. All phases complete.
 
 ## Dependencies
 
@@ -66,14 +66,14 @@ lazydocker/Portainer clone, unlabeled TUI kill list, engine start/stop, `docker 
 - [x] TUI logs follow the selected sibling; fleet still refuses `l`
 - [x] Restart only stack members; unlabeled/`--id` restart refused
 - [x] This-folder `dc-ls --json` includes `kind` on any running/exited compose containers; `--all` stays labeled-only
-- [x] Phase 3 starts that folder via `docker compose` and does not call official CLI (`up-compose-kind-starts`; review High is exec TTY/sh, not the up fork)
+- [x] Phase 3 starts that folder via `docker compose` and does not call official CLI (`up-compose-kind-starts`; CLI stub unused; compose-kind `dc-up` skips `command -v devcontainer`)
 - [x] Unlabeled take-ports tests still refuse `stop`/`rm`
 
 ## Unresolved
 
-- `--id` outside workspace: refuse vs hatch (open since safety roadmap)
+- `--id` outside workspace: refuse vs hatch (open since safety roadmap; not this plan)
 - take-ports vs foreign compose-kind: **closed in Phase 3** — proven `working_dir`/`config_files` → `compose|foreign` → `dc-down $folder`; unlabeled/name-only still report-only
-- Phase 3 High (open): compose-kind `dc-exec` omits compose `-T` (non-TTY agents) and has no sh fallback (alpine `e`). See [review-phase-03.md](./reports/review-phase-03.md).
+- Phase 3 High: **closed** — compose-kind `dc-exec` uses `-T` when non-TTY; default shell bash then sh. `exec-compose-app` asserts `exec -T`.
 
 ## Validation Log
 
