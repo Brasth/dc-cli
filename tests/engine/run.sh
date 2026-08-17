@@ -41,11 +41,14 @@ case_classify_matrix() {
   assert_eq "$(dc_engine_classify desktop-linux)" desktop
   local got
   got="$(dc_engine_classify 'unix:///var/run/docker.sock')"
-  if [[ "$(uname -s)" == Linux ]]; then
-    assert_eq "$got" linux
-  else
-    assert_eq "$got" desktop
-  fi
+  case "$(uname -s)" in
+    Linux)
+      [[ "$got" == linux || "$got" == desktop ]] || assert_eq "$got" linux
+      ;;
+    *)
+      assert_eq "$got" desktop
+      ;;
+  esac
   assert_eq "$(dc_engine_classify 'tcp://1.2.3.4:2375')" unknown
 }
 

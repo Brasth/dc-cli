@@ -67,14 +67,17 @@ dc_engine_realpath() {
 }
 
 # Device:inode of the target (follow symlink). Empty if unavailable.
+# GNU `stat -f` is --file-system — never use it for inode.
 dc_engine_inode() {
-  local path="$1"
-  if stat -L -f '%d:%i' "$path" >/dev/null 2>&1; then
-    stat -L -f '%d:%i' "$path"
+  local path="$1" out
+  out="$(stat -c '%d:%i' "$path" 2>/dev/null || true)"
+  if [[ "$out" == [0-9]*:[0-9]* ]]; then
+    printf '%s\n' "$out"
     return 0
   fi
-  if stat -c '%d:%i' "$path" >/dev/null 2>&1; then
-    stat -c '%d:%i' "$path"
+  out="$(stat -L -f '%d:%i' "$path" 2>/dev/null || true)"
+  if [[ "$out" == [0-9]*:[0-9]* ]]; then
+    printf '%s\n' "$out"
     return 0
   fi
   return 1
@@ -159,7 +162,7 @@ dc_engine_classify() {
     printf '%s\n' orbstack
     return 0
   fi
-  if [[ "$path" == /var/run/docker.sock ]]; then
+  if [[ "$path" == /var/run/docker.sock || "$path" == /run/docker.sock ]]; then
     if [[ "$(uname -s 2>/dev/null || true)" == Linux ]]; then
       printf '%s\n' linux
     else
