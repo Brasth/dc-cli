@@ -47,7 +47,13 @@ func (m model) reload() tea.Cmd {
 			}
 		}
 		fwd := mergePairs(listFwdMaps(ws), listStackPorts(stack))
-		return reloadMsg{rows: rows, stack: stack, fwdMaps: fwd, disk: disk}
+		var nets netReport
+		if nout, err := runNet("--json", ws); err == nil {
+			if parsed, err := parseNet(nout); err == nil {
+				nets = parsed
+			}
+		}
+		return reloadMsg{rows: rows, stack: stack, fwdMaps: fwd, disk: disk, nets: nets}
 	}
 }
 
@@ -76,7 +82,7 @@ func benignLeaveErr(action string, err error) bool {
 	if err == nil {
 		return true
 	}
-	if action == "u" {
+	if action == "u" || action == "create-nets" {
 		s := strings.ToLower(err.Error())
 		switch {
 		case strings.Contains(s, "exit status 130"),
@@ -117,6 +123,8 @@ func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 		return m.openLogs()
 	case "t":
 		return m.openTop()
+	case "n":
+		return m.openNets()
 	case "b":
 		return m.stayCmd("dc-db", m.workspace)
 	case "m":
@@ -169,6 +177,8 @@ func (m model) runPending() (tea.Model, tea.Cmd) {
 	switch pending {
 	case "u":
 		cmd = exec.Command("dc-up", ws)
+	case "create-nets":
+		cmd = exec.Command("dc-up", "--create-nets", ws)
 	case "e":
 		cmd = exec.Command("dc-exec", ws)
 	case "m":

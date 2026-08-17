@@ -2,7 +2,7 @@
 title: "Colima ports and host clashes"
 description: "dc-forward reconciles owned sidecars (one app or --id). --take-ports stops labeled holders only; unlabeled is report-only."
 h1: "The app is up. The Mac has nothing on :3000."
-updated: 2026-08-16
+updated: 2026-08-17
 howto: true
 steps:
   - name: Start the project
@@ -50,7 +50,8 @@ dc-up
 | Mode | Behavior |
 |---|---|
 | TTY | lists holder → ask y/N → stop **labeled** foreign holders → retry once |
-| `dc-up --take-ports` / `--yes` | same without prompt; only **positively labeled** foreign stacks/sidecars |
+| `dc-up --create-nets` | create missing declared `external: true` nets as a default bridge (does not take ports) |
+| `dc-up --take-ports` / `--yes` | same without prompt; only **positively labeled** foreign stacks/sidecars. `--yes` also creates missing nets |
 | non-TTY without flag | lists holder + how to re-run; does **not** stop |
 
 Stops **other** labeled workspaces only. Unlabeled, ambiguous, or inspect-unknown holders are **report-only** — they are not stopped. Prefer stopping a sibling stack over editing project compose ports.

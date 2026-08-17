@@ -1,0 +1,171 @@
+#!/usr/bin/env bash
+# This folder's declared compose networks. List or ensure missing externals.
+set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  exit 1
+fi
+if [[ -f "$_here/../lib/dc-net.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-net.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-net.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-net.sh"
+else
+  echo "dc-net.sh not found" >&2
+  exit 1
+fi
+
+json=0
+ensure=0
+yes=0
+workspace="."
+
+usage() {
+  cat <<'EOF'
+dc-net — this folder's declared compose networks
+
+  dc-net [workspace]       human table
+  dc-net --json [...]      machine-readable (TUI / agents)
+  dc-net --ensure [...]    create missing external:true bridge nets
+  dc-net --ensure --yes    same, no prompt (agents / CI)
+  dc-net --help
+
+This folder only. Creates missing declared external nets as a default
+bridge. Compose-managed nets are listed, never created. Overlay,
+macvlan, custom IPAM, and inspect-unknown are refused.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --json) json=1 ;;
+    --ensure) ensure=1 ;;
+    --yes|-y) yes=1 ;;
+    --list) ;;
+    --version|-V) dc_cli_print_version "$(basename "$0")"; exit 0 ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      workspace="$1"
+      ;;
+  esac
+  shift
+done
+
+if [[ ! -d "$workspace" ]]; then
+  echo "Not a directory: $workspace" >&2
+  exit 2
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "docker not found" >&2
+  exit 1
+fi
+
+ws="$(dc_resolve_workspace "$workspace")" || exit 2
+
+emit_json() {
+  dc_net_report_tsv "$ws" | dc_net_report_json "$ws"
+}
+
+emit_human() {
+  local name kind present creatable driver reason st any=0
+  printf '%-22s %-10s %-10s %s\n' NAME KIND STATE NOTE
+  while IFS='|' read -r name kind present creatable driver reason; do
+    [[ -n "$name" ]] || continue
+    any=1
+    if [[ "$present" == "1" ]]; then
+      st=present
+    else
+      st=missing
+    fi
+    printf '%-22s %-10s %-10s %s\n' "$name" "$kind" "$st" "$reason"
+  done < <(dc_net_report_tsv "$ws")
+  if [[ "$any" -eq 0 ]]; then
+    echo "(no declared compose networks in $ws)"
+  fi
+}
+
+collect_missing() {
+  local name kind present creatable driver reason
+  MISSING_C=()
+  MISSING_B=()
+  while IFS='|' read -r name kind present creatable driver reason; do
+    [[ -n "$name" ]] || continue
+    if [[ "$present" != "1" && "$creatable" == "1" ]]; then
+      MISSING_C+=("$name")
+    elif [[ "$present" != "1" && "$reason" != "compose-managed" ]]; then
+      MISSING_B+=("$name|$reason")
+    fi
+  done < <(dc_net_report_tsv "$ws")
+}
+
+if [[ "$json" -eq 1 && "$ensure" -eq 0 ]]; then
+  emit_json
+  exit 0
+fi
+
+if [[ "$ensure" -eq 0 ]]; then
+  emit_human
+  exit 0
+fi
+
+collect_missing
+if [[ ${#MISSING_B[@]} -gt 0 ]]; then
+  echo "dc-net: cannot create blocked network(s):" >&2
+  for row in "${MISSING_B[@]}"; do
+    echo "  ${row%%|*}  (${row#*|})" >&2
+  done
+  exit 1
+fi
+if [[ ${#MISSING_C[@]} -eq 0 ]]; then
+  echo "dc-net: nothing to create"
+  [[ "$json" -eq 1 ]] && emit_json
+  exit 0
+fi
+
+echo "dc-net: missing external network(s): ${MISSING_C[*]}" >&2
+ans="n"
+if [[ "$yes" -eq 1 ]]; then
+  ans="y"
+  echo "  --yes: creating..." >&2
+elif [[ -t 0 && -t 1 ]]; then
+  printf 'Create missing external network(s) as default bridge? [y/N] ' >&2
+  read -r ans || ans="n"
+else
+  echo "  non-interactive: re-run with  dc-net --ensure --yes" >&2
+  echo "  or:  dc-up --create-nets" >&2
+  exit 1
+fi
+case "$ans" in
+  y|Y|yes|YES) ;;
+  *)
+    echo "  aborted (networks left as-is)." >&2
+    exit 1
+    ;;
+esac
+
+created="$(dc_net_create_missing "$ws")" || {
+  echo "dc-net: create failed" >&2
+  exit 1
+}
+if [[ -n "$created" ]]; then
+  echo "dc-net: created ${created//$'\n'/ }"
+else
+  echo "dc-net: nothing to create"
+fi
+[[ "$json" -eq 1 ]] && emit_json
+exit 0

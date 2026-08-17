@@ -53,7 +53,7 @@ case_json_schema() {
   printf '%s\n' "$out" | grep -q '"schemaVersion": 1\|"schemaVersion":1'
   for id in platform_bash common_library docker_cli docker_daemon docker_context colima \
     devcontainer_cli devcontainer_read_configuration workspace_config duplicate_labels \
-    stack_identity desired_ports actual_ports stale_owned_sidecars disk dc_cli_version dc_cli_channel; do
+    stack_identity desired_ports required_networks actual_ports stale_owned_sidecars disk dc_cli_version dc_cli_channel; do
     printf '%s\n' "$out" | grep -q "\"$id\""
   done
   harness_teardown
@@ -155,7 +155,7 @@ echo "== doctor gates =="
 run_case "help exit 0" case_help
 run_case "unknown flag exit 2" case_bad_flag
 run_case "non-dir exit 2" case_not_dir
-run_case "json schema + 17 ids" case_json_schema
+run_case "json schema + 18 ids" case_json_schema
 run_case "missing common valid json" case_missing_common
 run_case "fake-docker zero mutation" case_zero_mutation
 run_case "below-floor blocker" case_below_floor

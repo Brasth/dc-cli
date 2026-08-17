@@ -162,7 +162,7 @@ elif [[ ! -f "$ROOT/bin/dc-up" ]]; then
   fetch_ref latest
 fi
 
-HELPERS=(dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-db dc-files dc-stats)
+HELPERS=(dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-db dc-files dc-stats dc-net)
 
 if [[ -f "$ROOT/lib/dc-install-yazi.sh" ]]; then
   # shellcheck source=/dev/null
@@ -559,6 +559,7 @@ echo "  dc-tui --help     # this folder"
 echo "  dc-tui --all      # fleet"
 echo "  dc-doctor         # read-only diagnostics"
 echo "  dc-stats          # this folder CPU / RAM / net"
+echo "  dc-net            # this folder declared compose nets"
 if ! command -v devcontainer >/dev/null 2>&1; then
   echo "Official CLI not installed. Need it (standalone):"
   echo "  ${ADVERTISED_CURL}"

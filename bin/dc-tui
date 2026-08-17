@@ -40,6 +40,7 @@ Keys:
   x  rm      dc-down --rm       stop and delete
   l  logs    docker logs -f
   t  top     dc-stats (CPU / RAM / net for this folder)
+  n  nets    dc-net (this folder declared compose nets; y create+start)
   b  db      dc-db (host TablePlus on a declared port)
   m  files   dc-files (yazi/nnn inside the app if present)
   f  fleet   all labeled workspaces
@@ -87,7 +88,7 @@ choose_action() {
       echo "  $i) $item" >&2
       i=$((i + 1))
     done
-    printf 'number (or u/e/o/a/s/x/l/t/b/m/f/q): ' >&2
+    printf 'number (or u/e/o/a/s/x/l/t/n/b/m/f/q): ' >&2
     local k
     read -r k
     if [[ "$k" =~ ^[0-9]+$ ]]; then
@@ -107,6 +108,7 @@ choose_action() {
       x|X) echo "[x] rm" ;;
       l|L) echo "[l] logs" ;;
       t|T) echo "[t] top" ;;
+      n|N) echo "[n] nets" ;;
       b|B) echo "[b] db" ;;
       m|M) echo "[m] files" ;;
       f|F) echo "[f] fleet" ;;
@@ -171,7 +173,7 @@ print("\t".join([
     local pick key
     pick="$(choose_action "workspace $ws" \
       "[u] start" "[e] shell" "[o] open host" "[a] attach vscode" \
-      "[p] ports" "[b] db" "[m] files" "[s] stop" "[x] rm" "[l] logs" "[t] top" "[f] fleet" "[q] quit")" || return 1
+      "[p] ports" "[b] db" "[m] files" "[s] stop" "[x] rm" "[l] logs" "[t] top" "[n] nets" "[f] fleet" "[q] quit")" || return 1
     key="$(action_key "$pick")"
     case "$key" in
       u)
@@ -218,6 +220,17 @@ print("\t".join([
       t)
         echo "→ dc-stats $ws"
         dc-stats "$ws" || true
+        ;;
+      n)
+        echo "→ dc-net $ws"
+        dc-net "$ws" || true
+        printf 'Create missing externals and start (dc-up --create-nets)? [y/N] '
+        local nans
+        read -r nans || nans="n"
+        if [[ "$nans" == "y" || "$nans" == "Y" ]]; then
+          echo "→ dc-up --create-nets $ws"
+          dc-up --create-nets "$ws" || true
+        fi
         ;;
       b)
         echo "→ dc-db $ws"

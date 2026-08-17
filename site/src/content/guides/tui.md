@@ -1,6 +1,6 @@
 ---
 title: "dc-tui board and keys"
-description: "dc-tui is the clickable board for this folder. Primary keys: start, shell, stop. Click a published website URL or press 1-9 to open it. Meta: open, attach, ports, logs, top, db, files, fleet."
+description: "dc-tui is the clickable board for this folder. Primary keys: start, shell, stop. Click a published website URL or press 1-9 to open it. Meta: open, attach, ports, logs, top, nets, db, files, fleet."
 h1: "The board is the product."
 updated: 2026-08-17
 howto: false
@@ -21,6 +21,8 @@ faq:
     a: b or dc-db. Uses the host port you already set on the db service (compose ports or a well-known forwardPorts number). No declared map → refuse. Two DBs need dc-db --service NAME.
   - q: What is the difference between d and t?
     a: d dumps dc-df (disk document). t opens live CPU/RAM for this folder via dc-stats. Fleet refuses t. Desktop guest is cap only — it never invents a live percent. Reclaim stays dc-prune.
+  - q: What does n / nets do?
+    a: n lists this folder's declared compose networks. Missing external:true names can be created as a default bridge (y then dc-up --create-nets). Compose-managed nets are shown, not created. Overlay, custom IPAM, and inspect-unknown are refused. Fleet refuses n.
 ---
 
 ```bash
@@ -53,6 +55,7 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 | **url** | `1`–`9` / click | open a published website in the host browser |
 | **logs** | `l` | follow docker logs in the board (highlighted; q back) |
 | **top** | `t` | CPU / RAM for this folder (stays in TUI). Fleet refuses. |
+| **nets** | `n` | this folder's declared compose nets. `y` creates missing externals then start. Fleet refuses. |
 | **db** | `b` | `dc-db` — host TablePlus on a declared db port |
 | **files** | `m` | `dc-files` — yazi/nnn in the box, else Linux yazi in /tmp |
 | **fleet** | `f` | other workspaces |
@@ -60,7 +63,7 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 | **disk** | `d` | `dc-df` report (stays in TUI) |
 | **rows** | `j`/`k`, Enter | cursor; fleet opens a folder, stack execs |
 
-Header shows a compact disk line from `dc-df` and an app load pulse from `dc-stats`. `d` is still the disk document. `t` is live CPU/RAM for this folder (`q` back). Fleet refuses `t`. Desktop guest is cap only. Reclaim stays CLI-only (`dc-prune --yes`). CLI twin: `dc-stats` / `--json`.
+Header shows a compact disk line from `dc-df`, an app load pulse from `dc-stats`, and declared compose nets when present. `d` is still the disk document. `t` is live CPU/RAM for this folder (`q` back). `n` lists this folder's required nets (`y` creates missing `external: true` bridge nets, then `dc-up --create-nets`). Fleet refuses `t` and `n`. Desktop guest is cap only. Reclaim stays CLI-only (`dc-prune --yes`). CLI twins: `dc-stats` / `dc-net`.
 
 ## App vs other services
 

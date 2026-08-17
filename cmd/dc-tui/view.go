@@ -48,6 +48,9 @@ func (m model) View() string {
 	if m.topOpen {
 		return m.topView()
 	}
+	if m.netOpen {
+		return m.netView()
+	}
 	s, _, _ := m.layout()
 	return s
 }
@@ -97,6 +100,12 @@ func (m model) layout() (string, []button, int) {
 		}
 		if m.disk != "" {
 			info.WriteString(kv("disk", trunc(m.disk+"  d=df", max(8, infoW-12))))
+		}
+		if line := netHeaderLine(m.net); line != "" {
+			if m.disk != "" {
+				info.WriteString("\n")
+			}
+			info.WriteString(kv("nets", trunc(line+"  n=nets", max(8, infoW-12))))
 		}
 		b.WriteString(clipBlock(joinLogo(m.headerLogo(), strings.TrimRight(info.String(), "\n"), w), w) + "\n\n")
 	}
@@ -155,9 +164,9 @@ func (m model) layout() (string, []button, int) {
 	if m.confirm == "rm" {
 		b.WriteString("\n" + hintStyle.Render("y confirm  n/esc cancel  q quit") + "\n")
 	} else if !m.fleet && len(m.webLinks()) > 0 {
-		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  b db  m files  1-9 url  j/k  enter  ? more  q quit") + "\n")
+		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  b db  m files  n nets  1-9 url  j/k  enter  ? more  q quit") + "\n")
 	} else {
-		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  b db  m files  j/k  enter  ? more  q quit") + "\n")
+		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  b db  m files  n nets  j/k  enter  ? more  q quit") + "\n")
 	}
 	return clipBlock(b.String(), w), buttons, rowY0
 }
@@ -217,6 +226,7 @@ func morePanel(editor string, width int) string {
 		"  rm       compose down (remove stack containers) — asks y/n",
 		"  logs     follow docker logs in the board — highlighted, q returns",
 		"  top      CPU / RAM for this folder (t). Disk stays d / dc-df",
+		"  nets     this folder's declared compose nets (n). y creates missing externals then start",
 		"  db       open TablePlus (etc.) on a declared db port (b)",
 		"  files    yazi/nnn in the box, else Linux yazi copied into /tmp (m)",
 		"  fleet    list every labeled workspace",
@@ -262,6 +272,7 @@ func (m model) buttonGroups() [][]btnSpec {
 			{key: "p", label: "ports"},
 			{key: "l", label: "logs", disabled: len(m.rows) == 0 || m.rows[0].ID == ""},
 			{key: "t", label: "top", disabled: len(m.rows) == 0 || m.rows[0].ID == ""},
+			{key: "n", label: "nets"},
 		},
 		{
 			{key: "b", label: "db"},

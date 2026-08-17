@@ -41,6 +41,7 @@ class DcCli < Formula
     assert_match "dc-up", shell_output("#{bin}/dc-up --help")
     assert_match "dc-doctor", shell_output("#{bin}/dc-doctor --help")
     assert_match "dc-stats", shell_output("#{bin}/dc-stats --help")
+    assert_match "dc-net", shell_output("#{bin}/dc-net --help")
   end
 
   def caveats

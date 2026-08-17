@@ -15,12 +15,23 @@ else
   echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
   exit 1
 fi
+if [[ -f "$_here/../lib/dc-net.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-net.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-net.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-net.sh"
+else
+  echo "dc-net.sh not found" >&2
+  exit 1
+fi
 
 workspace="."
 override=""
 ports=0
 no_forward=0
 take_ports=0
+create_nets=0
 yes=0
 
 usage() {
@@ -32,11 +43,16 @@ dc-up — start a workspace with official @devcontainers/cli
   dc-up --override FILE [dir]    REPLACE config with FILE
   dc-up --no-forward             skip sidecar port publish after up
   dc-up --take-ports             if host ports clash, stop holders and retry (non-interactive)
-  dc-up --yes                    same as --take-ports for agents / CI
+  dc-up --create-nets            create missing declared external nets (does not take ports)
+  dc-up --yes                    --take-ports + --create-nets for agents / CI
   dc-up --help
 
 After a successful up, dc-up runs dc-forward (sidecar) so localhost:3000
 works on Colima. DC_FORWARD=0 also skips that.
+
+If a declared external network is missing, dc-up asks (TTY) or refuses
+(non-TTY). --create-nets / --yes / DC_UP_CREATE_NETS=1 create default
+bridge nets only. --create-nets does not take ports.
 
 If compose fails with "port is already allocated", dc-up lists the container
 holding that host port. On a TTY it asks whether to stop the holder and
@@ -55,9 +71,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-forward) no_forward=1 ;;
     --take-ports) take_ports=1 ;;
+    --create-nets) create_nets=1 ;;
     --yes|-y)
       yes=1
       take_ports=1
+      create_nets=1
       ;;
     --override)
       shift
@@ -229,8 +247,63 @@ _dc_up_stop_foreign() {
   done
 }
 
+# Create missing declared external nets before official CLI up.
+ensure_declared_nets() {
+  local name kind present creatable driver reason ans
+  local -a miss_c=() miss_b=()
+  while IFS='|' read -r name kind present creatable driver reason; do
+    [[ -n "$name" ]] || continue
+    if [[ "$present" != "1" && "$creatable" == "1" ]]; then
+      miss_c+=("$name")
+    elif [[ "$present" != "1" && "$reason" != "compose-managed" ]]; then
+      miss_b+=("$name|$reason")
+    fi
+  done < <(dc_net_report_tsv "$ws")
+
+  if [[ ${#miss_b[@]} -gt 0 ]]; then
+    echo "dc-up: cannot create blocked network(s):" >&2
+    for name in "${miss_b[@]}"; do
+      echo "  ${name%%|*}  (${name#*|})" >&2
+    done
+    return 1
+  fi
+  if [[ ${#miss_c[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  echo "dc-up: missing external network(s): ${miss_c[*]}" >&2
+  ans="n"
+  if [[ "$create_nets" -eq 1 || "$yes" -eq 1 || "${DC_UP_CREATE_NETS:-}" == "1" ]]; then
+    ans="y"
+    echo "  --create-nets / --yes: creating..." >&2
+  elif [[ -t 0 && -t 1 ]]; then
+    printf 'Create missing external network(s) as default bridge and continue dc-up? [y/N] ' >&2
+    read -r ans || ans="n"
+  else
+    echo "  non-interactive: re-run with  dc-up --create-nets" >&2
+    echo "  or:  dc-net --ensure --yes" >&2
+    return 1
+  fi
+  case "$ans" in
+    y|Y|yes|YES) ;;
+    *)
+      echo "  aborted (networks left as-is)." >&2
+      return 1
+      ;;
+  esac
+  dc_net_create_missing "$ws" >/dev/null || {
+    echo "dc-up: network create failed" >&2
+    return 1
+  }
+  return 0
+}
+
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
+
+if ! ensure_declared_nets; then
+  exit 1
+fi
 
 rc=0
 run_up "$tmp" || rc=$?

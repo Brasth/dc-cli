@@ -78,6 +78,9 @@ type model struct {
 	topLast    time.Time
 	topStale   bool
 	pulse      string
+	netOpen    bool
+	net        netReport
+	netErr     string
 }
 
 type reloadMsg struct {
@@ -85,6 +88,7 @@ type reloadMsg struct {
 	stack   []stackSvc
 	fwdMaps []portPair
 	disk    string
+	nets    netReport
 	err     error
 }
 
@@ -119,6 +123,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.applyTopMsg(msg)
 	case topLineMsg:
 		return m.applyTopLine(msg.line)
+	case netMsg:
+		return m.applyNetMsg(msg)
 	case topDoneMsg:
 		if m.topOpen && msg.err != nil && !strings.Contains(strings.ToLower(msg.err.Error()), "eof") {
 			m.topStale = true
@@ -151,6 +157,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if msg.disk != "" {
 				m.disk = msg.disk
 			}
+			m.net = msg.nets
 		}
 		m.hasConfig = hasDevcontainer(m.workspace)
 		m.clampCursor()
@@ -190,7 +197,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		if m.topOpen {
+		if m.topOpen || m.netOpen {
 			return m, nil
 		}
 		switch msg.Action {
@@ -216,7 +223,7 @@ func backStatus(action string) string {
 	switch {
 	case action == "l":
 		return "back from logs"
-	case action == "u":
+	case action == "u", action == "create-nets":
 		return "back from start"
 	case action == "e" || strings.HasPrefix(action, "exec-"):
 		return "back from shell"
@@ -246,6 +253,9 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 	}
 	if m.topOpen {
 		return m.handleTopKey(k)
+	}
+	if m.netOpen {
+		return m.handleNetKey(k)
 	}
 	if m.leaving != "" {
 		if k == "q" || k == "ctrl+c" {
@@ -278,6 +288,8 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 		return m.stayCmd("dc-df")
 	case "t":
 		return m.openTop()
+	case "n":
+		return m.openNets()
 	case "j", "down":
 		return m.moveCursor(1), nil
 	case "k", "up":
@@ -392,7 +404,7 @@ func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
 	if m.splashOn {
 		return m.skipSplash(), nil
 	}
-	if m.logOpen || m.topOpen {
+	if m.logOpen || m.topOpen || m.netOpen {
 		return m, nil
 	}
 	if m.leaving != "" {

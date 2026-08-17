@@ -93,7 +93,7 @@ fi
 CHECK_IDS=(
   platform_bash common_library docker_cli docker_daemon docker_context colima
   devcontainer_cli devcontainer_read_configuration workspace_config
-  duplicate_labels stack_identity desired_ports actual_ports stale_owned_sidecars
+  duplicate_labels stack_identity desired_ports required_networks actual_ports stale_owned_sidecars
   disk dc_cli_version dc_cli_channel
 )
 
@@ -153,6 +153,11 @@ if ! source "$COMMON"; then
   emit_bootstrap blocker common_library "common library failed to source" \
     common_library_unreadable "source failed" "$COMMON"
   exit 1
+fi
+NETLIB="$(dirname "$COMMON")/dc-net.sh"
+if [[ -f "$NETLIB" ]]; then
+  # shellcheck source=/dev/null
+  source "$NETLIB"
 fi
 
 resolved="."
@@ -349,7 +354,27 @@ else
   add_rec desired_ports ok "desired host ports" "" "{\"ports\":$wjson,\"provenance\":$(json_str "$prov")}"
 fi
 
-# 13 actual_ports
+# 13 required_networks (read-only)
+if [[ "${daemon_ok:-0}" -ne 1 ]]; then
+  add_rec required_networks warning "skipped" "" "{}" "" docker_unavailable "daemon down"
+elif ! type dc_net_report_json >/dev/null 2>&1; then
+  add_rec required_networks warning "net helper missing" "" "{}" "reinstall helpers via install.sh"
+else
+  net_json="$(dc_net_report_tsv "$resolved" | dc_net_report_json "$resolved")"
+  miss_c="$(python3 -c 'import json,sys; print(len(json.loads(sys.argv[1]).get("missingCreatable") or []))' "$net_json" 2>/dev/null || echo 0)"
+  miss_b="$(python3 -c 'import json,sys; print(len(json.loads(sys.argv[1]).get("missingBlocked") or []))' "$net_json" 2>/dev/null || echo 0)"
+  if [[ "$miss_b" -gt 0 ]]; then
+    add_rec required_networks warning "blocked missing networks" "" "$net_json" \
+      "create unsupported (overlay/ipam/unknown) — fix compose or create manually"
+  elif [[ "$miss_c" -gt 0 ]]; then
+    add_rec required_networks warning "missing external networks" "" "$net_json" \
+      "dc-up --create-nets   or   dc-net --ensure --yes"
+  else
+    add_rec required_networks ok "declared networks recorded" "" "$net_json"
+  fi
+fi
+
+# 14 actual_ports
 if [[ "${daemon_ok:-0}" -ne 1 ]]; then
   add_rec actual_ports warning "skipped" "" "{}" "" docker_unavailable "daemon down"
 else

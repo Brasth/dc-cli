@@ -59,6 +59,12 @@ fake_add_volume() {
   mkdir -p "$STATE/volumes/$1"
 }
 
+fake_add_network() {
+  local name="$1" driver="${2:-bridge}"
+  mkdir -p "$STATE/networks/$name"
+  printf '%s\n' "$driver" >"$STATE/networks/$name/driver"
+}
+
 fake_fail_inspect() {
   mkdir -p "$STATE/fail/inspect"
   : >"$STATE/fail/inspect/$1"

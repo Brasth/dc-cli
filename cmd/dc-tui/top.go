@@ -56,7 +56,7 @@ var runStats = func(args ...string) ([]byte, error) {
 }
 
 func (m model) idleForPulse() bool {
-	return !m.splashOn && !m.logOpen && !m.topOpen && m.leaving == "" && !m.fleet && !m.quitting
+	return !m.splashOn && !m.logOpen && !m.topOpen && !m.netOpen && m.leaving == "" && !m.fleet && !m.quitting
 }
 
 func (m model) pulseCmd() tea.Cmd {

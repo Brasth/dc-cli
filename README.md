@@ -12,6 +12,7 @@ this folder
    ├─ dc-tui          clickable board (default)
    ├─ dc-doctor       read-only diagnose (human or --json)
    ├─ dc-stats        read-only CPU / RAM / net (this folder)
+   ├─ dc-net          this folder's declared compose nets
    ├─ dc-up           start the labeled app + publish ports
    ├─ dc-exec         shell in the app
    ├─ dc-exec --service NAME   start (if needed) + shell in another service
@@ -27,7 +28,7 @@ this folder
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Always tracks the **latest GitHub release** (currently **v0.11.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start via the **official standalone** installer — not npm. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
+Always tracks the **latest GitHub release** (currently **v0.12.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start via the **official standalone** installer — not npm. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
 
 macOS/Linux via Homebrew (same kit, no Go required):
 
@@ -59,8 +60,10 @@ cd /path/to/your/project
 dc-tui                          # or the CLI below
 dc-doctor                       # read-only; --json for agents
 dc-stats                        # this folder CPU / RAM / net (read-only)
+dc-net                          # this folder declared compose nets
 
 dc-up                           # start the labeled app, then publish ports
+dc-up --create-nets             # missing external nets: create default bridge, then start
 dc-up --take-ports              # clash: stop labeled foreign holders only, retry
 dc-exec                         # bash in the app (starts it if it is down)
 dc-exec --list                  # labeled app + other services in that compose project
@@ -120,11 +123,12 @@ Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `D
 | **more** / **quit** | `?` / `q` | legend / exit |
 | **disk** | `d` | `dc-df` report (stays in TUI) |
 | **top** | `t` | CPU / RAM for this folder (stays in TUI). Fleet refuses. |
+| **nets** | `n` | this folder's declared compose nets (stays in TUI). `y` creates missing externals then start. Fleet refuses. |
 | **rows** | `j`/`k`, Enter | move cursor; fleet opens a folder, stack execs |
 
-Header shows a compact disk line from `dc-df` and an app load pulse from `dc-stats`. Reclaim stays CLI-only (`dc-prune --yes`).
+Header shows a compact disk line from `dc-df`, an app load pulse from `dc-stats`, and declared compose nets when present. Reclaim stays CLI-only (`dc-prune --yes`).
 
-After **shell** / **start** / **files**, the board comes back. **logs** and **top** stay on the board (`q` back). A normal `exit` is not a crash.
+After **shell** / **start** / **files**, the board comes back. **logs**, **top**, and **nets** stay on the board (`q` back). A normal `exit` is not a crash.
 
 **open ≠ attach.** Open = files on the Mac/Linux host. `a` / `dc-open --attach` is the VS Code Remote URI into Linux. Zed attaches itself. Sublime cannot.
 
@@ -152,7 +156,8 @@ TUI key `t` opens the live overlay. Fleet refuses — this folder only. Sidecar 
 | `dc-up [dir]` | project config, then `dc-forward` |
 | `dc-up --no-forward` | skip sidecars (`DC_FORWARD=0`) |
 | `dc-up --ports` | **REPLACE** project config (not a merge) |
-| `dc-up --take-ports` / `--yes` | clash: stop **labeled** foreign stacks/sidecars, retry once |
+| `dc-up --take-ports` / `--yes` | clash: stop **labeled** foreign stacks/sidecars, retry once. `--yes` also creates missing nets |
+| `dc-up --create-nets` | create missing declared external nets (does not take ports) |
 | `dc-exec` | app shell |
 | `dc-exec --list` | stack table |
 | `dc-exec --service NAME` | other compose service (starts if down) |
@@ -170,6 +175,7 @@ TUI key `t` opens the live overlay. Fleet refuses — this folder only. Sidecar 
 | `dc-ps` | docker + labels |
 | `dc-df` / `--json` / `--volumes` | disk report (read-only) |
 | `dc-stats` / `--json` | CPU / RAM / net for this folder (read-only) |
+| `dc-net` / `--json` / `--ensure` | this folder's declared compose nets; create missing externals |
 | `dc-prune` / `--yes` | safe reclaim (cache, dangling, nets, orphan sidecars) |
 | `dc-prune --all --yes` | also unused tagged images |
 | `dc-prune --volume NAME --yes` | delete **one** named volume |
@@ -179,7 +185,7 @@ There is **no** `dc` meta-binary. **Never** `docker system prune -af --volumes` 
 
 ## Doctor
 
-`dc-doctor` is read-only. It never starts, stops, prunes, or edits project files. Human text and `--json` share the same 17 checks.
+`dc-doctor` is read-only. It never starts, stops, prunes, or edits project files. Human text and `--json` share the same 18 checks.
 
 ```bash
 dc-doctor                 # this folder
@@ -249,7 +255,8 @@ dc-up
 | Mode | Behavior |
 |---|---|
 | TTY (interactive) | lists holder → ask **y/N** → stop foreign holders → retry once |
-| `dc-up --take-ports` / `--yes` / `DC_UP_TAKE_PORTS=1` | same without prompt (agents / CI); only **positively labeled** foreign stacks/sidecars |
+| `dc-up --create-nets` / `DC_UP_CREATE_NETS=1` | create missing declared external nets (does not take ports) |
+| `dc-up --take-ports` / `--yes` / `DC_UP_TAKE_PORTS=1` | same without prompt (agents / CI); only **positively labeled** foreign stacks/sidecars. `--yes` also creates missing nets |
 | non-TTY without flag | lists holder + how to re-run; does **not** stop |
 
 Stops **other** labeled workspaces only (same-folder containers are skipped). Unlabeled, ambiguous, or inspect-unknown holders are **report-only** — they are not stopped. Prefer stopping a sibling stack over editing project compose ports.
