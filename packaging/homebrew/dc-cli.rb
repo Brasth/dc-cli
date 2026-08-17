@@ -5,28 +5,28 @@
 class DcCli < Formula
   desc "Host-global helpers around @devcontainers/cli"
   homepage "https://dc.brasth.com"
-  version "0.10.4"
+  version "0.11.0"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.10.4/dc-cli-0.10.4-darwin-arm64.tar.gz"
-      sha256 "72fbbd7a007adee69f5cac09e8068d2353c7845770fdcde4b8a692493ef10022"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.11.0/dc-cli-0.11.0-darwin-arm64.tar.gz"
+      sha256 "db1ac8436a986bf3711cc8ad478ebce07abb380c2668b24bf7e847e204ec41b5"
     end
     on_intel do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.10.4/dc-cli-0.10.4-darwin-amd64.tar.gz"
-      sha256 "e962cf451df56c424730bedbe712fa05d1359477bb1e17e4c6f09a68c99a319b"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.11.0/dc-cli-0.11.0-darwin-amd64.tar.gz"
+      sha256 "9c5bd0ca7b345268bb3ccff8e848a150f31740db6e5d94eec0daf5de4c46f6a3"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.10.4/dc-cli-0.10.4-linux-arm64.tar.gz"
-      sha256 "c76eaaf735e75ed2364af9ba7c565cb93a9606d721a408764888e734aa77c3c0"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.11.0/dc-cli-0.11.0-linux-arm64.tar.gz"
+      sha256 "09e1491092dd1c52d0684f37174b8e04691dd81c4084a3acbb0f9ca663270d40"
     end
     on_intel do
-      url "https://github.com/Brasth/dc-cli/releases/download/v0.10.4/dc-cli-0.10.4-linux-amd64.tar.gz"
-      sha256 "15899064b99d9798e7d607fc8168ef9512e5691f53d77ede51195f1a15cfdb60"
+      url "https://github.com/Brasth/dc-cli/releases/download/v0.11.0/dc-cli-0.11.0-linux-amd64.tar.gz"
+      sha256 "33e989fe875363d79c787628c4e6c4061735fc7cd9ae8fce463c1fba4eaaf09c"
     end
   end
 
@@ -40,6 +40,7 @@ class DcCli < Formula
     assert_match "dc-tui", shell_output("#{bin}/dc-tui --help")
     assert_match "dc-up", shell_output("#{bin}/dc-up --help")
     assert_match "dc-doctor", shell_output("#{bin}/dc-doctor --help")
+    assert_match "dc-stats", shell_output("#{bin}/dc-stats --help")
   end
 
   def caveats
