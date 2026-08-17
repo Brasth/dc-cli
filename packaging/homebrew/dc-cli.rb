@@ -11,22 +11,22 @@ class DcCli < Formula
   on_macos do
     on_arm do
       url "https://github.com/Brasth/dc-cli/releases/download/v0.14.1/dc-cli-0.14.1-darwin-arm64.tar.gz"
-      sha256 "1768e7139a29ec91009fa65d6ef84a30419f0c3176a3a8638f2165f79e953a49"
+      sha256 "4320e804effb64a183af7fe7af18d3b922abbcd282f7b25f9fd59e28f8ba7499"
     end
     on_intel do
       url "https://github.com/Brasth/dc-cli/releases/download/v0.14.1/dc-cli-0.14.1-darwin-amd64.tar.gz"
-      sha256 "56189b2e92df1dd0dae5338a84419ae4374856af50425de128fd530186e404de"
+      sha256 "c2b2bfa3eb5c0c5385ca66c37d2f4e7c4335b737dd62683c815dc632e4013959"
     end
   end
 
   on_linux do
     on_arm do
       url "https://github.com/Brasth/dc-cli/releases/download/v0.14.1/dc-cli-0.14.1-linux-arm64.tar.gz"
-      sha256 "1d22b829a4579e2a929bd5cebe680e23a510f537104ab23d68c3cd958da73838"
+      sha256 "09f914bc24e0794c404325647ef9200ac60fa186d4d60d1c61df0db299374ba2"
     end
     on_intel do
       url "https://github.com/Brasth/dc-cli/releases/download/v0.14.1/dc-cli-0.14.1-linux-amd64.tar.gz"
-      sha256 "b2b0cca707651f1d3efb95b614894a5f0ddb5794c7a90b34ee013e577f41c837"
+      sha256 "0a136255eb80ec24819047f7f28c1f8243c5a233a923da74d7a2c0bd67977616"
     end
   end
 
