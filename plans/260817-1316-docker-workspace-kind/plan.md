@@ -1,6 +1,6 @@
 ---
 title: "Owned stack verbs + compose-kind workspace"
-description: "Per-row logs and stack-membership restart now. Compose-kind identity next. Compose start stays gated."
+description: "Per-row logs, stack restart, and compose-kind identity shipped. Compose start stays gated."
 status: in-progress
 priority: P2
 effort: 3d
@@ -19,7 +19,7 @@ source: skill
 
 dc-cli already talks to Docker. It does not own the daemon.
 
-This plan grows **folder identity**, not a Docker UI. Phase 1 adds verbs on stacks we already own. Phase 2 teaches `kind=compose` (detect, list, classify) with **no start**. Phase 3 may start/stop/exec compose-only folders. Unlabeled stays report-only.
+This plan grows **folder identity**, not a Docker UI. Phase 1 added verbs on stacks we already own. Phase 2 taught `kind=compose` (detect, list, classify) with **no start**. Phase 3 may start/stop/exec compose-only folders. Unlabeled stays report-only.
 
 Brainstorm: [../reports/260817-1316-docker-scope-expansion.md](../reports/260817-1316-docker-scope-expansion.md)
 
@@ -46,7 +46,7 @@ Brainstorm: [../reports/260817-1316-docker-scope-expansion.md](../reports/260817
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | [Owned stack verbs](./phase-01-owned-stack-verbs.md) | Done ([review](./reports/review-phase-01.md) 7/10, High fixed; [tester](./reports/tester-phase-01.md); [closeout](./reports/project-manager-phase-01.md)) |
-| 2 | [Compose-kind identity](./phase-02-compose-kind-identity.md) | Review concerns ([review](./reports/review-phase-02.md) 7/10, High claimants; [tester](./reports/tester-phase-02.md) 114 pass) |
+| 2 | [Compose-kind identity](./phase-02-compose-kind-identity.md) | Done ([review](./reports/review-phase-02.md) 7/10, High fixed; [tester](./reports/tester-phase-02.md); [closeout](./reports/project-manager-phase-02.md)) |
 | 3 | [Compose-kind lifecycle and docs](./phase-03-compose-kind-lifecycle-and-docs.md) | Pending (gated) |
 
 Sequential. Phase 3 does not start until Phase 2 is completed **and** explicitly un-gated.
@@ -68,13 +68,13 @@ lazydocker/Portainer clone, unlabeled TUI kill list, engine start/stop, `docker 
 - [x] This-folder `dc-ls --json` includes `kind` on any running/exited compose containers; `--all` stays labeled-only
 - [x] Phase 2 `dc-up` still cannot start a compose-only folder
 - [ ] Phase 3 (if un-gated) starts that folder via `docker compose` and does not call official CLI
-- [ ] Unlabeled take-ports tests still refuse `stop`/`rm`
+- [x] Unlabeled take-ports tests still refuse `stop`/`rm`
 
 ## Unresolved
 
 - `--id` outside workspace: refuse vs hatch (open since safety roadmap)
 - take-ports vs foreign compose-kind: locked to Phase 3 (predicate + `dc-down $working_dir`)
-- Phase 2 High (open): `dc_compose_claimants` n=2 when labeled `local_folder` ≠ own compose `working_dir` (`$ws/.devcontainer`). Fix before treating Phase 2 complete / before any Phase 3 take-ports work. Review: [review-phase-02.md](./reports/review-phase-02.md)
+- Phase 2 High (closed): `dc_compose_claimants` skips labeled container `working_dir`/`config_files`. Same-stack `$ws` + `$ws/.devcontainer` n=1; labeled + foreign n=2. Review hole was [review-phase-02.md](./reports/review-phase-02.md); re-test [tester-phase-02.md](./reports/tester-phase-02.md).
 
 ## Validation Log
 

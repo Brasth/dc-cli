@@ -1,7 +1,7 @@
 ---
 phase: 1
 title: "Owned stack verbs"
-status: review-concerns
+status: completed
 priority: P2
 effort: 1d
 dependencies: []
@@ -19,7 +19,7 @@ dependencies: []
 
 Fix TUI logs so `l` follows the selected compose sibling, not `dc-ls` `rows[0]`. Add stack-membership restart (`R` / `dc-exec --service NAME --restart`). No compose-kind. No unlabeled mutate.
 
-Date: 2026-08-17. Priority: P2. Implementation: done. Review: concerns — [review-phase-01.md](./reports/review-phase-01.md). Tester: [tester-phase-01.md](./reports/tester-phase-01.md).
+Date: 2026-08-17. Priority: P2. Implementation: done. Review: 7/10, 0 critical — [review-phase-01.md](./reports/review-phase-01.md). High id-prefix collision fixed + re-tested — [tester-phase-01.md](./reports/tester-phase-01.md). Closeout: [project-manager-phase-01.md](./reports/project-manager-phase-01.md).
 
 ## Key insights
 
@@ -41,7 +41,7 @@ TUI cursor → stack[i].ID
 
 CLI: dc-exec --service NAME --restart
   dc_restart_in_stack $ws $ref
-    match via dc_stack_rows (service|name|id prefix)
+    match via dc_stack_resolve (three-pass: service, then name, then id prefix)
     miss → fail (no docker inspect of strangers)
     docker restart $id + poll running
 ```
@@ -77,7 +77,7 @@ CLI: dc-exec --service NAME --restart
 - [x] TUI `R` + fleet/app refuse
 - [x] exec tests: match / miss / `--id --restart` banned
 - [x] README + skill + tui guide
-- [ ] Review High: three-pass match in `dc_restart_in_stack` (exact service, then name, then id prefix) + collision test (`db` vs app id `db12ffff`)
+- [x] Review High: three-pass match in `dc_restart_in_stack` (exact service, then name, then id prefix) + collision test (`db` vs app id `db12ffff`)
 
 ## Success criteria
 
@@ -86,7 +86,7 @@ CLI: dc-exec --service NAME --restart
 - [x] Fleet `R`/`l` do not mutate or follow logs
 - [x] Unlabeled take-ports tests unchanged and still pass
 - [x] `r` still reloads the board
-- [ ] Restart of `--service db` cannot hit another stack member whose id is a `db*` prefix
+- [x] Restart of `--service db` cannot hit another stack member whose id is a `db*` prefix
 
 ## Risk assessment
 
@@ -103,6 +103,8 @@ Restart is mutate. Must run under existing patterns (no lock required for one `d
 
 ## Next steps
 
-1. Fix review High: `dc_restart_in_stack` three-pass match + exec collision test. Do not unlock `--id --restart`.
-2. Optional: `openLogs` refuse fleet; TUI `R` refuse when `rows` empty.
-3. Phase 2 only after the match fix ships. Compose-only folders still have empty stack — expected.
+Phase 1 complete. Do **not** start Phase 2 from this file. Phase 3 stays gated.
+
+1. Optional leftovers (not Phase 1 blockers): `openLogs` refuse fleet; TUI `R` refuse when `rows` empty; exec-path twin of id-prefix collision.
+2. Do not unlock `--id --restart`.
+3. Compose-only folders still have empty stack — expected until Phase 2.

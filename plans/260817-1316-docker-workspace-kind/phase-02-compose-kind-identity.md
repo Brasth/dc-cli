@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: "Compose-kind identity"
-status: review-concerns
+status: completed
 priority: P2
 effort: 1d
 dependencies: [1]
@@ -20,7 +20,7 @@ dependencies: [1]
 
 Teach the kit a second this-folder identity: `kind=compose`. Detect, list, classify, doctor. **Do not start.** `dc-up` on a compose-only folder still fails closed with a kind-aware message.
 
-Date: 2026-08-17. Priority: P2. Implementation: done. Review: 7/10, 0 critical — [review-phase-02.md](./reports/review-phase-02.md). High: `dc_compose_claimants` double-counts labeled app + own `.devcontainer` working_dir → `dc-down` refuse / take-ports `ambiguous-compose`. Tester: [tester-phase-02.md](./reports/tester-phase-02.md) 114 pass (kind 8 / safety 19 / doctor 9 / exec 8 / TUI 70).
+Date: 2026-08-17. Priority: P2. Implementation: done. Review: 7/10, 0 critical — [review-phase-02.md](./reports/review-phase-02.md). High claimants double-count fixed + tested (skip labeled `working_dir`). Tester: [tester-phase-02.md](./reports/tester-phase-02.md) kind 10 / safety 20 / doctor 9 / exec 8. Closeout: [project-manager-phase-02.md](./reports/project-manager-phase-02.md).
 
 ## Key insights
 
@@ -85,11 +85,11 @@ Rewrite skill/manifesto:
 
 - [x] Kind detect + tests
 - [x] `dc-ls` `kind` field; no fake labels (`--json` only; TTY table still labeled-only)
-- [ ] Claimants / classify unknown-on-missing-working_dir — **High:** claimants over-fire when labeled `local_folder` ≠ own `working_dir` (e.g. `$ws/.devcontainer`). Classify still `unlabeled` for compose-kind (report-only; OK for no-new-stop)
+- [x] Claimants skip labeled container `working_dir`/`config_files` (same-stack `$ws` + `$ws/.devcontainer` n=1; labeled + foreign n=2). Classify still `unlabeled` for compose-kind (report-only; Phase 2 lock)
 - [x] Doctor kind field
 - [x] `dc-up` compose-kind refuse
 - [x] Skill + README detect-only (no manifesto edit)
-- [x] Safety unlabeled tests still green (fixtures omit `working_dir`; High untested)
+- [x] Safety unlabeled tests still green + labeled compose-in-`.devcontainer` take-ports still stops
 
 ## Success criteria
 
@@ -97,7 +97,7 @@ Rewrite skill/manifesto:
 - [x] Stopped compose-only folder: `dc-ls` is `[]`; doctor still reports kind=compose
 - [x] `dc-ls --all` does not grow a daemon compose inventory
 - [x] `dc-up` does not call `devcontainer` or `compose up` on that folder
-- [x] Two folders same compose name: ls not owned; name-alone `[]` (claimants n>1 also fail-closed — over-fires on same-stack `.devcontainer` working_dir)
+- [x] Two folders same compose name: ls not owned; name-alone `[]`; claimants n>1 only when labeled folder + *foreign* compose-kind working_dir
 - [x] Unlabeled take-ports still report-only
 - [x] Skill says detect-only; manifesto unchanged
 
@@ -117,7 +117,9 @@ Listing compose-kind is read-only. Classify must not treat "same project name" a
 
 ## Next steps
 
-1. Fix High: `dc_compose_claimants` must not add working_dir/config_files for containers that already have `devcontainer.local_folder`. Safety case: labeled `$ws` + `working_dir=$ws/.devcontainer` → `dc-down` still stops; take-ports foreign still stops. Keep n>1 for labeled folder + *foreign* compose-kind working_dir.
-2. Optional before demo polish: `dc_ls_table` same ids as JSON; strip inspect `<no value>` on compose-kind `local_folder`.
-3. Show user `dc-ls --json` / `dc-doctor --json` on a compose-only folder. Do not demo `dc-down` on a labeled compose-in-`.devcontainer` workspace until (1) lands.
-4. Phase 3 stays gated until user says start. Do not cook `compose up` / `compose exec` / manifesto / take-ports compose-kind stop.
+Phase 2 complete. Do **not** start Phase 3 from this file. Phase 3 stays gated until user says start compose-kind.
+
+1. High closed: `dc_compose_claimants` skips labeled container `working_dir`/`config_files`. Same-stack n=1; labeled + foreign n=2; labeled compose-in-`.devcontainer` take-ports still `compose -p … stop`.
+2. Optional leftovers (not Phase 2 blockers): `dc_ls_table` same ids as JSON; strip inspect `<no value>` on compose-kind `local_folder`; `config_files`-only ls case.
+3. User demo: `dc-ls --json` / `dc-doctor --json` on a compose-only folder. Labeled compose-in-`.devcontainer` `dc-down` / take-ports now has a passing harness case.
+4. Do not cook `compose up` / `compose exec` / manifesto / take-ports compose-kind stop.
