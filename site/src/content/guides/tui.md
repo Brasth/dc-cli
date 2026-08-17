@@ -31,7 +31,11 @@ dc-tui --all        # every labeled workspace
 
 Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `DC_TUI_NO_SPLASH=1` skips it. The compact mark stays in the header.
 
-![dc-tui board](/images/tui.png)
+![dc-tui board with top next to logs](/images/tui.png)
+
+Header **load** line is `dc-stats`. Press **t** or click **top**.
+
+![dc-tui top overlay: CPU, RAM, net, q/t back](/images/tui-top.png)
 
 Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y/n`. Stack / fleet: **up** / **down**, `j`/`k` or click, Enter to open or exec.
 
