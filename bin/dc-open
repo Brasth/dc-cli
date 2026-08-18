@@ -105,9 +105,7 @@ if [[ "$attach" -eq 1 ]]; then
   name="$(docker inspect -f '{{.Name}}' "$id" | sed 's#^/##')"
   folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id")"
   inner="$(dc_container_workspace_path "$id" "$folder")"
-  payload="$(printf '{"containerName":"%s"}' "$name")"
-  hex="$(dc_hex "$payload")"
-  uri="vscode-remote://attached-container+${hex}${inner}"
+  uri="$(dc_attached_container_uri "$id" "$inner")"
   echo "Attaching VS Code: $name → $inner"
   exec "$code_bin" --folder-uri "$uri"
 fi

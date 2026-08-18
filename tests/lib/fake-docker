@@ -604,7 +604,26 @@ case "$cmd" in
       '{{.Endpoints.docker.Host}}')
         printf '%s\n' "unix:///var/run/docker.sock"
         ;;
-      '{{range .Mounts}}{{.Source}}{{"\t"}}{{.Destination}}{{"\n"}}{{end}}')
+      '{{range .Mounts}}{{.Source}}{{"\t"}}{{.Destination}}{{"\n"}}{{end}}'|'{{range .Mounts}}{{.Type}}{{"\t"}}{{.Source}}{{"\t"}}{{.Destination}}{{"\n"}}{{end}}')
+        _typed=0
+        [[ "$fmt" == *'.Type'* ]] && _typed=1
+        if [[ -f "$dir/mounts" ]]; then
+          while IFS= read -r line; do
+            [[ -n "$line" ]] || continue
+            if [[ "$line" == *$'\t'* ]]; then
+              src="${line%%$'\t'*}"
+              dest="${line#*$'\t'}"
+            else
+              src="${line%%:*}"
+              dest="${line#*:}"
+            fi
+            if [[ "$_typed" -eq 1 ]]; then
+              printf 'bind\t%s\t%s\n' "$src" "$dest"
+            else
+              printf '%s\t%s\n' "$src" "$dest"
+            fi
+          done <"$dir/mounts"
+        fi
         exit 0
         ;;
       '{{range .Config.Env}}{{println .}}{{end}}')
@@ -673,6 +692,13 @@ case "$cmd" in
       echo "Error: No such container: $id" >&2
       exit 1
     fi
+    orig="$*"
+    if [[ "${1:-}" == "env" ]]; then
+      shift
+      while [[ $# -gt 0 && "$1" == ?*=* ]]; do
+        shift
+      done
+    fi
     if [[ "${1:-}" == "chmod" || "${1:-}" == "mkdir" || "${1:-}" == "true" || "${1:-}" == "rm" || "${1:-}" == "uname" ]]; then
       if [[ "${1:-}" == "uname" ]]; then
         arch="$(read_file "$dir/arch")"
@@ -716,8 +742,8 @@ case "$cmd" in
           printf '/usr/bin/%s\n' "$tool"
           exit 0
         fi
-        printf '%s\n' "$*" >>"$STATE/exec.log"
-        printf '%s\n' "$*" >>"$dir/exec.log"
+        printf '%s\n' "$orig" >>"$STATE/exec.log"
+        printf '%s\n' "$orig" >>"$dir/exec.log"
         exit 0
       fi
       if [[ "$script" == command* || "${1:-}" == "command" ]]; then

@@ -2,7 +2,7 @@
 title: "Dev Container vs compose"
 description: "dc-cli detects this folder. .devcontainer is official CLI. Compose-only is docker compose. Same keys. No daemon UI."
 h1: "This folder decides. You type the same verbs."
-updated: 2026-08-17
+updated: 2026-08-18
 howto: true
 steps:
   - name: Stand in the project
@@ -15,7 +15,7 @@ faq:
   - q: Do I pick a mode?
     a: No. .devcontainer present → kind=devcontainer even if compose files exist. Else a root compose file → kind=compose. Else dc-up refuses.
   - q: Does compose-kind publish Colima ports?
-    a: Not automatically. dc-forward stays opt-in and still wants a labeled app or --id. Attach is N/A.
+    a: Not automatically. dc-forward stays opt-in and still wants a labeled app or --id. Folder attach (a) is N/A. dc-files Enter still opens VS Code on that running box. Cursor needs kind=devcontainer (dev-container+); compose-kind falls back to a bind-mount host path.
   - q: What if two folders share a compose project name?
     a: Fail closed. We do not hash-rename. working_dir or config_files must prove this folder. project and project/.devcontainer are the same workspace. /Users vs /Volumes of the same dir too.
   - q: Why did dc-down --all refuse claimants?

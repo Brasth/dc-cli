@@ -17,6 +17,16 @@ fi
 if [[ -f "$_here/../lib/dc-install-yazi.sh" ]]; then
   # shellcheck source=/dev/null
   source "$_here/../lib/dc-install-yazi.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-install-yazi.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-install-yazi.sh"
+fi
+if [[ -f "$_here/../lib/dc-files-open.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-files-open.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-files-open.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-files-open.sh"
 fi
 
 workspace="."
@@ -36,7 +46,10 @@ dc-files — open a file manager inside the container
 
 Detects $DC_FILES_TOOL, then yazi, nnn, lf, mc, ranger in the box.
 If none, copies a Linux yazi into /tmp and runs that (never apt-get).
-Bind-mount editor on the host: dc-open.
+Enter / double-click opens the file in code/cursor (this container).
+No attach editor: bind-mount host path via zed/subl. Hatch: DC_FILES_EDITOR=vim.
+Force one: DC_FILES_EDITOR=code|cursor. Cursor needs kind=devcontainer.
+Bind-mount folder editor on the host: dc-open.
 EOF
 }
 
@@ -158,6 +171,10 @@ if [[ -z "$found" ]]; then
   fi
 fi
 
+if declare -F dc_files_run_fm >/dev/null 2>&1; then
+  dc_files_run_fm "$use_official" "$workspace" "$target" "$found" "$start_path"
+  exit $?
+fi
 if [[ "$use_official" -eq 1 ]]; then
   if [[ -n "$start_path" ]]; then
     exec dc-exec "$workspace" -- "$found" "$start_path"

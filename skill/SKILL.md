@@ -1,7 +1,7 @@
 ---
 name: "devcontainer-cli-global"
 description: "Host-global official @devcontainers/cli helpers. ALWAYS dc-exec — NEVER raw docker exec NAME (DC app = official CLI; compose-kind = docker compose exec inside dc-exec). Disk full: dc-df then dc-prune --yes. Port clash: --take-ports stops labeled foreign or proven compose-kind working_dir; unlabeled report-only. dc-forward needs one app or --id (not auto on compose-kind). dc-db on a declared port. dc-files yazi/nnn or Linux yazi in /tmp. dc-doctor read-only. NEVER docker system prune -af --volumes. Install: curl main/install.sh | bash -s -- --with-cli (or brew tap Brasth/dc-cli). No project .devcontainer edits."
-version: 30
+version: 32
 created: "2026-08-13"
 updated: "2026-08-17"
 ---
@@ -18,7 +18,7 @@ Use automatically for official @devcontainers/cli without editing project .devco
 7. Open: `dc-open` host. `--attach` with `code` = VS Code Remote URI. Without `code`, Zed: prints `dc-up` → `dc-open` → Project: Open Remote → Connect Dev Container (exit 0). Zed does not publish `forwardPorts` (`dc-forward` does).
 8. Ports: `dc-forward` reconciles owned sidecars (not host socat on Colima). Host+container pair identity (`9001:80` stays asymmetric). Requires exactly one labeled app or `--id`. Any mapping it cannot ensure fails (and fails `dc-up` after a successful start). Auto wanted set is still app|web only — `dc-db` may sidecar the **db** with an exact declared pair (`dc-forward --id $db HOST:CONTAINER`).
 8b. Database: `dc-db --list` then `dc-db` / `--print` / `--service NAME`. Creds from official image env (first volume init). Stale volume → `--url`. Never put secrets in `dc-doctor --json`.
-8c. Files: `dc-files` / `--service NAME`. Detects `$DC_FILES_TOOL`, yazi, nnn, lf, mc, ranger **in the box**. If none, copies a cached Linux yazi to `/tmp/dc-cli-yazi` and runs that. Never apt-get. Bind-mount editor stays `dc-open`.
+8c. Files: `dc-files` / `--service NAME`. Detects `$DC_FILES_TOOL`, yazi, nnn, lf, mc, ranger **in the box**. If none, copies a cached Linux yazi to `/tmp/dc-cli-yazi` and runs that. Never apt-get. Enter / double-click opens the guest path in **code** or **cursor** on **this** container (`DC_FILES_EDITOR=code`/`cursor`). Cursor uses `dev-container+` and needs `kind=devcontainer`; compose-kind falls back to a bind-mount host path. Hatch: `DC_FILES_EDITOR=vim`. Bind-mount folder editor stays `dc-open`.
 9. Disk: `dc-df` (report) → `dc-prune` dry-run → `dc-prune --yes` (**engine-wide** cache + dangling images + nets; **owned-only** orphan sidecars). Unused tagged images: `dc-prune --all --yes` (also engine-wide). One named volume: `dc-prune --volume NAME --yes` only when user names it (owned-only; mount inventory must succeed). Colima still full after prune: `dc-prune --colima-hint`.
 9b. Stats: `dc-stats` / `--json` is read-only CPU/RAM/net for this folder. Guest is Colima/Desktop VM (Desktop live guest is cap only). Never treat Mac host RAM as the box. TUI `t` consumes `--json`.
 9c. Nets: `dc-net` / `--json` / `--ensure` is this folder only. Create missing declared `external: true` names as a default bridge. Compose-managed = list only. TUI `n` consumes `--json`; `y` runs `dc-up --create-nets`.

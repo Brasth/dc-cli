@@ -60,7 +60,7 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 | **top** | `t` | CPU / RAM for this folder (stays in TUI). Fleet refuses. |
 | **nets** | `n` | this folder's declared compose nets. `y` creates missing externals then start. Fleet refuses. |
 | **db** | `b` | `dc-db` — host TablePlus on a declared db port |
-| **files** | `m` | `dc-files` — yazi/nnn in the box, else Linux yazi in /tmp |
+| **files** | `m` | `dc-files` — yazi/nnn in the box; Enter opens code/cursor on this container (`DC_FILES_EDITOR=vim` keeps vim) |
 | **fleet** | `f` | other workspaces |
 | **more** / **quit** | `?` / `q` | legend / exit |
 | **disk** | `d` | `dc-df` report (stays in TUI) |

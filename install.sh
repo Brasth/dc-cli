@@ -299,6 +299,9 @@ verify_stage() {
     [[ -x "$f" ]] || return 1
   done
   bash -n "$stage/lib/dc-common.sh"
+  for f in "$stage/lib"/*.sh; do
+    bash -n "$f"
+  done
   # shellcheck source=/dev/null
   source "$stage/lib/dc-common.sh"
   "$stage/bin/dc-up" --help >/dev/null

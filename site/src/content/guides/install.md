@@ -2,7 +2,7 @@
 title: "Install dc-cli"
 description: "Install dc-cli with one curl (--with-cli standalone) or Homebrew. Release kits include the clickable TUI. Clone with no flags is wrappers only."
 h1: "One curl. Then source your shell."
-updated: 2026-08-17
+updated: 2026-08-18
 howto: true
 steps:
   - name: Run the installer
@@ -51,7 +51,7 @@ The advertised curl passes `--with-cli` so `devcontainer` is on PATH via the **u
 
 Homes and the exact copy list live in the [README Skill](https://github.com/Brasth/dc-cli#skill) section.
 
-Confirm: `dc-tui --help`, `dc-up --help`, `dc-doctor --help`, `dc-engine --help`, `dc-stats --help`, or `dc-net --help` should print usage. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.14.1).
+Confirm: `dc-tui --help`, `dc-up --help`, `dc-doctor --help`, `dc-engine --help`, `dc-stats --help`, or `dc-net --help` should print usage. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.15.0).
 
 ## Daily start
 

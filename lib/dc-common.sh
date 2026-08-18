@@ -553,11 +553,15 @@ dc_ls_table() {
 }
 
 # Print executable path for zed|code|subl. Checks PATH then macOS .app bundles.
+# DC_EDITOR_PATH_ONLY=1 skips .app fallbacks (tests).
 dc_editor_bin() {
   local name="$1" bin
   if command -v "$name" >/dev/null 2>&1; then
     command -v "$name"
     return 0
+  fi
+  if [[ "${DC_EDITOR_PATH_ONLY:-}" == "1" ]]; then
+    return 1
   fi
   case "$name" in
     zed)
@@ -576,6 +580,50 @@ dc_editor_bin() {
       for bin in \
         "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" \
         "$HOME/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+      do
+        if [[ -x "$bin" ]]; then
+          printf '%s\n' "$bin"
+          return 0
+        fi
+      done
+      ;;
+    cursor)
+      for bin in \
+        "/Applications/Cursor.app/Contents/Resources/app/bin/cursor" \
+        "$HOME/Applications/Cursor.app/Contents/Resources/app/bin/cursor"
+      do
+        if [[ -x "$bin" ]]; then
+          printf '%s\n' "$bin"
+          return 0
+        fi
+      done
+      ;;
+    code-insiders)
+      for bin in \
+        "/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code" \
+        "$HOME/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code"
+      do
+        if [[ -x "$bin" ]]; then
+          printf '%s\n' "$bin"
+          return 0
+        fi
+      done
+      ;;
+    codium)
+      for bin in \
+        "/Applications/VSCodium.app/Contents/Resources/app/bin/codium" \
+        "$HOME/Applications/VSCodium.app/Contents/Resources/app/bin/codium"
+      do
+        if [[ -x "$bin" ]]; then
+          printf '%s\n' "$bin"
+          return 0
+        fi
+      done
+      ;;
+    windsurf)
+      for bin in \
+        "/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf" \
+        "$HOME/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf"
       do
         if [[ -x "$bin" ]]; then
           printf '%s\n' "$bin"
@@ -632,6 +680,65 @@ dc_hex() {
     return
   fi
   printf '%s' "$s" | od -An -tx1 | tr -d ' \n'
+}
+
+# vscode-remote URI for a path inside a running container (attach, not reopen).
+dc_uri_encode_path() {
+  local p="$1"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe="/"))' "$p"
+    return
+  fi
+  printf '%s\n' "${p// /%20}" | sed 's/#/%23/g'
+}
+
+dc_attached_container_uri() {
+  local id="$1" path="$2" name payload hex
+  name="$(docker inspect -f '{{.Name}}' "$id" | sed 's#^/##')"
+  payload="$(printf '{"containerName":"%s"}' "$name")"
+  hex="$(dc_hex "$payload")"
+  path="$(dc_uri_encode_path "$path")"
+  printf 'vscode-remote://attached-container+%s%s\n' "$hex" "$path"
+}
+
+# Cursor (and reopen-in-container) — hex of {"hostPath": host folder}. Needs .devcontainer.
+dc_dev_container_uri() {
+  local host="$1" path="$2" payload hex
+  payload="$(printf '{"hostPath":"%s"}' "$host")"
+  hex="$(dc_hex "$payload")"
+  path="$(dc_uri_encode_path "$path")"
+  printf 'vscode-remote://dev-container+%s%s\n' "$hex" "$path"
+}
+
+# Attach-capable editor for dc-files. Not zed-first (that is dc-open).
+# DC_FILES_EDITOR=code|cursor|… forces one. Else DC_EDITOR if attach-capable.
+# Else first of: code, cursor, code-insiders, codium, windsurf.
+dc_pick_files_editor() {
+  local want="${DC_FILES_EDITOR:-}" e
+  case "$want" in
+    vim|vi|0|no|off|"") ;;
+    code|cursor|code-insiders|codium|windsurf)
+      if dc_editor_bin "$want" >/dev/null; then
+        printf '%s\n' "$want"
+        return 0
+      fi
+      ;;
+  esac
+  case "${DC_EDITOR:-}" in
+    code|cursor|code-insiders|codium|windsurf)
+      if dc_editor_bin "$DC_EDITOR" >/dev/null; then
+        printf '%s\n' "$DC_EDITOR"
+        return 0
+      fi
+      ;;
+  esac
+  for e in code cursor code-insiders codium windsurf; do
+    if dc_editor_bin "$e" >/dev/null; then
+      printf '%s\n' "$e"
+      return 0
+    fi
+  done
+  return 1
 }
 
 # Destination path inside the container for a host folder mount.

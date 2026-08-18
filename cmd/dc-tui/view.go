@@ -231,7 +231,7 @@ func morePanel(editor string, width int) string {
 		"  top      CPU / RAM for this folder (t). Disk stays d / dc-df",
 		"  nets     this folder's declared compose nets (n). y creates missing externals then start",
 		"  db       open TablePlus (etc.) on a declared db port (b)",
-		"  files    yazi/nnn in the box, else Linux yazi copied into /tmp (m)",
+		"  files    yazi/nnn in the box; Enter opens code/cursor on this container (m)",
 		"  fleet    list every labeled workspace",
 		"  disk     dc-df report (d key). Reclaim: dc-prune --yes (CLI)",
 		"",

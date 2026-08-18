@@ -24,7 +24,7 @@ this folder
    ├─ dc-exec         shell in the app
    ├─ dc-exec --service NAME   start (if needed) + shell in another service
    ├─ dc-db           host TablePlus on a declared db port
-   ├─ dc-files        yazi/nnn in the box, else Linux yazi copied into /tmp
+   ├─ dc-files        yazi/nnn in the box; Enter opens code/cursor on this container
    ├─ dc-forward      reconcile owned sidecars (Colima-safe)
    └─ dc-down         stop the app (sidecars go too)
 ```
@@ -35,7 +35,7 @@ this folder
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Always tracks the **latest GitHub release** (currently **v0.14.1**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start **Dev Container** folders via the **official standalone** installer — not npm. Compose-only folders do not need that CLI. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
+Always tracks the **latest GitHub release** (currently **v0.15.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start **Dev Container** folders via the **official standalone** installer — not npm. Compose-only folders do not need that CLI. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
 
 macOS/Linux via Homebrew (same kit, no Go required):
 
@@ -79,7 +79,7 @@ dc-exec --service NAME          # start that compose service if it is down, then
 dc-exec --service NAME -- cmd   # same, run a command (works without a TTY)
 dc-db --list                    # classify stack DBs (passwords redacted)
 dc-db                           # open TablePlus on the declared host port
-dc-files                        # yazi/nnn in the box, else Linux yazi copied into /tmp
+dc-files                        # yazi/nnn in the box; Enter opens code/cursor on this container
 dc-forward                      # reconcile owned sidecars (needs one app or --id)
 dc-down                         # stop FULL compose stack (app+db+mitm+…)
 dc-down --app                   # labeled app only (+ its sidecars)
@@ -128,7 +128,7 @@ Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `D
 | **logs** | `l` | follow docker logs for the **selected stack row** (highlighted; q back). Fleet refuses. |
 | **restart** | `R` | `dc-exec --service NAME --restart` on the selected sibling. Labeled app row refuses (`u`/`s`). Fleet refuses. `r` still reloads. |
 | **db** | `b` | `dc-db` — host TablePlus (etc.) on a declared db port |
-| **files** | `m` | `dc-files` — yazi/nnn in the box, else Linux yazi in /tmp |
+| **files** | `m` | `dc-files` — yazi/nnn in the box; Enter opens code/cursor on this container. `DC_FILES_EDITOR=code`/`cursor`/`vim` |
 | **fleet** | `f` | other workspaces |
 | **more** / **quit** | `?` / `q` | legend / exit |
 | **disk** | `d` | `dc-df` report (stays in TUI) |
@@ -142,7 +142,7 @@ After **shell** / **start** / **files**, the board comes back. **logs**, **top**
 
 **open ≠ attach.** Open = files on the Mac/Linux host. `a` / `dc-open --attach` is the VS Code Remote URI into Linux. Zed attaches itself. Sublime cannot.
 
-**db ≠ url tiles.** `b` / `dc-db` opens TablePlus (or DBeaver / rainfrog) on the host port you already set on the db service. It never invents a port. No compose `ports` / matching `forwardPorts` → refuse. Two databases need `--service`. Bind-mount editor stays `o`; `m` / `dc-files` always runs **inside** the container (image FM, or a Linux yazi copied to `/tmp` — never `apt-get`). `e` / `dc-exec` is a color shell (`ls`, prompt, `hl` for access logs).
+**db ≠ url tiles.** `b` / `dc-db` opens TablePlus (or DBeaver / rainfrog) on the host port you already set on the db service. It never invents a port. No compose `ports` / matching `forwardPorts` → refuse. Two databases need `--service`. Bind-mount folder editor stays `o`; `m` / `dc-files` always runs **inside** the container (image FM, or a Linux yazi copied to `/tmp` — never `apt-get`). Enter / double-click opens that guest path in **code** or **cursor** on **this** container (`DC_FILES_EDITOR=vim` keeps vim). Cursor needs `kind=devcontainer`. `e` / `dc-exec` is a color shell (`ls`, prompt, `hl` for access logs).
 
 ## Stats
 
@@ -183,7 +183,7 @@ TUI key `t` opens the live overlay. Fleet refuses — this folder only. Sidecar 
 | `dc-ls [--json] [--all]` | labeled app list |
 | `dc-open` / `--attach` | host editor / VS Code attach |
 | `dc-db` / `--list` / `--print` | host DB client on a **declared** compose/`forwardPorts` port |
-| `dc-files` | yazi/nnn in the box, else Linux yazi copied into `/tmp` |
+| `dc-files` | yazi/nnn in the box; Enter opens **code** / **cursor** on this container. No attach editor: bind-mount host path (zed/subl). Hatch: `DC_FILES_EDITOR=vim` |
 | `dc-forward` / `3000` / `9001:80` / `--stop` | reconcile owned sidecars (one app or `--id`) |
 | `dc-ps` | docker + labels |
 | `dc-df` / `--json` / `--volumes` | disk report (read-only) |
