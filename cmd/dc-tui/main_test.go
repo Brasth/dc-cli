@@ -600,13 +600,21 @@ func TestExecDoneStartFailure(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("expected reload after start")
 	}
-	got, _ = mm.Update(reloadMsg{rows: []container{{ID: "abc", Status: "exited"}}})
+	got, _ = mm.Update(reloadMsg{
+		gen:       mm.loadGen,
+		workspace: mm.workspace,
+		fleet:     mm.fleet,
+		rows:      []container{{ID: "abc", Status: "exited"}},
+	})
 	mm = got.(model)
 	if mm.err == "" {
 		t.Fatal("reload must not wipe start failure")
 	}
 	if len(mm.rows) != 1 || mm.rows[0].Status != "exited" {
 		t.Fatalf("rows not refreshed: %+v", mm.rows)
+	}
+	if mm.load != loadReady || !mm.loaded {
+		t.Fatalf("load=%v loaded=%v", mm.load, mm.loaded)
 	}
 }
 
@@ -1068,6 +1076,249 @@ func TestReloadStillLowercaseR(t *testing.T) {
 	}
 	if cmd == nil {
 		t.Fatal("r should reload")
+	}
+	if mm.load != loadPending {
+		t.Fatalf("load=%v", mm.load)
+	}
+}
+
+func TestInitialLoadShowsCheckingNotStopped(t *testing.T) {
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		width:      80,
+		hoverStack: -1,
+		editor:     "zed",
+		load:       loadPending,
+		loadGen:    1,
+	}
+	s := ansi.Strip(m.View())
+	if strings.Contains(s, "stopped") {
+		t.Fatalf("pending load must not claim stopped:\n%s", s)
+	}
+	if !strings.Contains(s, "checking") {
+		t.Fatalf("pending load should show checking:\n%s", s)
+	}
+}
+
+func TestInitialFleetShowsCheckingNotEmpty(t *testing.T) {
+	m := model{
+		fleet:      true,
+		width:      80,
+		hoverStack: -1,
+		load:       loadPending,
+		loadGen:    1,
+	}
+	s := ansi.Strip(m.View())
+	if strings.Contains(s, "empty — dc-up") {
+		t.Fatalf("pending fleet must not claim empty:\n%s", s)
+	}
+	if !strings.Contains(s, "checking containers") {
+		t.Fatalf("pending fleet should show checking:\n%s", s)
+	}
+}
+
+func TestReadyEmptyShowsStopped(t *testing.T) {
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		width:      80,
+		hoverStack: -1,
+		editor:     "zed",
+		load:       loadReady,
+		loaded:     true,
+	}
+	s := ansi.Strip(m.View())
+	if !strings.Contains(s, "stopped") {
+		t.Fatalf("ready empty must show stopped:\n%s", s)
+	}
+	if strings.Contains(s, "checking") {
+		t.Fatalf("ready empty must not show checking:\n%s", s)
+	}
+}
+
+func TestFailedDiscoveryShowsUnknown(t *testing.T) {
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		width:      80,
+		hoverStack: -1,
+		editor:     "zed",
+		load:       loadPending,
+		loadGen:    1,
+	}
+	got, _ := m.Update(reloadMsg{
+		gen:       1,
+		workspace: "/tmp/app",
+		err:       errStr("dc-ls boom"),
+	})
+	mm := got.(model)
+	if mm.load != loadFailed {
+		t.Fatalf("load=%v", mm.load)
+	}
+	s := ansi.Strip(mm.View())
+	if strings.Contains(s, "stopped") {
+		t.Fatalf("failed discovery must not claim stopped:\n%s", s)
+	}
+	if !strings.Contains(s, "unknown") {
+		t.Fatalf("failed discovery should show unknown:\n%s", s)
+	}
+	if mm.err == "" {
+		t.Fatal("want err")
+	}
+}
+
+func TestSoftReloadKeepsRowsAndShowsRefreshing(t *testing.T) {
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		width:      80,
+		hoverStack: -1,
+		editor:     "zed",
+		load:       loadReady,
+		loaded:     true,
+		loadGen:    3,
+		rows:       []container{{ID: "abc123456789", Status: "running"}},
+	}
+	got, cmd := m.handleKey("r")
+	mm := got.(model)
+	if cmd == nil {
+		t.Fatal("r should reload")
+	}
+	if mm.load != loadPending || !mm.loaded {
+		t.Fatalf("load=%v loaded=%v", mm.load, mm.loaded)
+	}
+	if len(mm.rows) != 1 || mm.rows[0].Status != "running" {
+		t.Fatalf("soft reload cleared rows: %+v", mm.rows)
+	}
+	s := ansi.Strip(mm.View())
+	if !strings.Contains(s, "running") {
+		t.Fatalf("soft reload should keep running:\n%s", s)
+	}
+	if !strings.Contains(s, "refreshing") {
+		t.Fatalf("soft reload should show refreshing:\n%s", s)
+	}
+}
+
+func TestStaleReloadIgnored(t *testing.T) {
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		hoverStack: -1,
+		load:       loadPending,
+		loadGen:    2,
+	}
+	got, _ := m.Update(reloadMsg{
+		gen:       1,
+		workspace: "/tmp/app",
+		rows:      []container{{ID: "old", Status: "running"}},
+	})
+	mm := got.(model)
+	if mm.load != loadPending {
+		t.Fatalf("stale success must not mark ready, load=%v", mm.load)
+	}
+	if len(mm.rows) != 0 {
+		t.Fatalf("stale rows applied: %+v", mm.rows)
+	}
+}
+
+func TestFleetToggleHardReloadClearsOldRows(t *testing.T) {
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		hoverStack: -1,
+		load:       loadReady,
+		loaded:     true,
+		loadGen:    4,
+		rows:       []container{{ID: "abc", Status: "running", LocalFolder: "/tmp/app"}},
+		stack:      []stackSvc{{ID: "abc", Service: "app"}},
+	}
+	got, cmd := m.handleKey("f")
+	mm := got.(model)
+	if !mm.fleet {
+		t.Fatal("expected fleet")
+	}
+	if cmd == nil {
+		t.Fatal("fleet toggle should reload")
+	}
+	if mm.load != loadPending || mm.loaded {
+		t.Fatalf("load=%v loaded=%v", mm.load, mm.loaded)
+	}
+	if len(mm.rows) != 0 || len(mm.stack) != 0 {
+		t.Fatalf("context switch must clear old data rows=%+v stack=%+v", mm.rows, mm.stack)
+	}
+}
+
+func TestHardLoadingBlocksShell(t *testing.T) {
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		hoverStack: -1,
+		load:       loadPending,
+		loadGen:    1,
+	}
+	got, cmd := m.handleKey("e")
+	mm := got.(model)
+	if cmd != nil {
+		t.Fatal("shell must not leave while checking")
+	}
+	if !strings.Contains(mm.status, "checking") {
+		t.Fatalf("status=%q", mm.status)
+	}
+}
+
+func TestHardLoadingAllowsConfiguredStart(t *testing.T) {
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		hoverStack: -1,
+		load:       loadPending,
+		loadGen:    1,
+	}
+	got, cmd := m.handleKey("u")
+	mm := got.(model)
+	if cmd == nil || mm.leaving != "start" {
+		t.Fatalf("configured start should remain available, leaving=%q cmd=%v", mm.leaving, cmd != nil)
+	}
+}
+
+func TestSoftReloadFailureKeepsSnapshot(t *testing.T) {
+	m := model{
+		workspace:  "/tmp/app",
+		hasConfig:  true,
+		width:      80,
+		hoverStack: -1,
+		editor:     "zed",
+		load:       loadReady,
+		loaded:     true,
+		loadGen:    5,
+		rows:       []container{{ID: "abc123456789", Status: "running"}},
+	}
+	got, _ := m.handleKey("r")
+	mm := got.(model)
+	got, _ = mm.Update(reloadMsg{
+		gen:       mm.loadGen,
+		workspace: mm.workspace,
+		err:       errStr("dc-ls failed"),
+	})
+	mm = got.(model)
+	if mm.load != loadFailed || !mm.loaded {
+		t.Fatalf("load=%v loaded=%v", mm.load, mm.loaded)
+	}
+	if len(mm.rows) != 1 || mm.rows[0].Status != "running" {
+		t.Fatalf("soft failure must keep snapshot: %+v", mm.rows)
+	}
+	s := ansi.Strip(mm.View())
+	if !strings.Contains(s, "running") {
+		t.Fatalf("soft failure view should keep running:\n%s", s)
+	}
+	if strings.Contains(s, "stopped") || strings.Contains(s, "checking") {
+		t.Fatalf("soft failure must not claim stopped/checking:\n%s", s)
+	}
+	got, cmd := mm.handleKey("e")
+	mm = got.(model)
+	if cmd == nil || mm.leaving != "shell" {
+		t.Fatalf("trusted snapshot should stay actionable after soft failure, leaving=%q", mm.leaving)
 	}
 }
 

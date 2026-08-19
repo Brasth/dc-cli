@@ -35,6 +35,16 @@ type button struct {
 	y1       int
 }
 
+// loadState separates "not loaded yet" from confirmed empty/stopped.
+// Zero value is loadReady so existing test models with injected rows stay valid.
+type loadState int
+
+const (
+	loadReady loadState = iota
+	loadPending
+	loadFailed
+)
+
 type model struct {
 	workspace  string
 	fleet      bool
@@ -82,15 +92,21 @@ type model struct {
 	netOpen    bool
 	net        netReport
 	netErr     string
+	load       loadState
+	loadGen    int
+	loaded     bool // true when current context has a successful snapshot
 }
 
 type reloadMsg struct {
-	rows    []container
-	stack   []stackSvc
-	fwdMaps []portPair
-	disk    string
-	nets    netReport
-	err     error
+	gen       int
+	workspace string
+	fleet     bool
+	rows      []container
+	stack     []stackSvc
+	fwdMaps   []portPair
+	disk      string
+	nets      netReport
+	err       error
 }
 
 type execDoneMsg struct {
@@ -105,12 +121,81 @@ type splashTickMsg struct{}
 const splashStep = 70 * time.Millisecond
 
 func (m model) Init() tea.Cmd {
+	// load/loadGen are set by main before Run; do not mutate model here.
 	if m.splashOn {
-		return tea.Batch(m.reload(), m.pulseCmd(), tea.Tick(splashStep, func(time.Time) tea.Msg {
+		return tea.Batch(m.reloadCmd(), m.pulseCmd(), tea.Tick(splashStep, func(time.Time) tea.Msg {
 			return splashTickMsg{}
 		}))
 	}
-	return tea.Batch(m.reload(), m.pulseCmd())
+	return tea.Batch(m.reloadCmd(), m.pulseCmd())
+}
+
+// hardLoading is initial load or a context switch with no trusted snapshot.
+func (m model) hardLoading() bool {
+	return m.load == loadPending && !m.loaded
+}
+
+func (m model) refreshing() bool {
+	return m.load == loadPending && m.loaded
+}
+
+func (m model) clearContextData() model {
+	m.rows = nil
+	m.stack = nil
+	m.fwdMaps = nil
+	m.net = netReport{}
+	m.netErr = ""
+	m.pulse = ""
+	m.disk = ""
+	m.cursor = 0
+	m.hoverStack = -1
+	m.confirm = ""
+	return m
+}
+
+// beginHardReload clears context-specific data and starts discovery.
+func (m model) beginHardReload() (model, tea.Cmd) {
+	m.loadGen++
+	m.load = loadPending
+	m.loaded = false
+	m = m.clearContextData()
+	return m, m.reloadCmd()
+}
+
+// beginSoftReload keeps the current snapshot visible while refreshing.
+func (m model) beginSoftReload() (model, tea.Cmd) {
+	m.loadGen++
+	m.load = loadPending
+	return m, m.reloadCmd()
+}
+
+func (m model) applyReload(msg reloadMsg) model {
+	if msg.gen != m.loadGen || msg.workspace != m.workspace || msg.fleet != m.fleet {
+		return m
+	}
+	m.hasConfig = hasDevcontainer(m.workspace)
+	m.hasCompose = hasRootCompose(m.workspace)
+	if msg.err != nil {
+		m = m.withErr(msg.err.Error())
+		m.load = loadFailed
+		if !m.loaded {
+			m.rows = nil
+			m.stack = nil
+			m.fwdMaps = nil
+			m.net = netReport{}
+		}
+		m.clampCursor()
+		return m
+	}
+	m.rows = msg.rows
+	m.stack = msg.stack
+	m.fwdMaps = msg.fwdMaps
+	m.disk = msg.disk
+	m.net = msg.nets
+	m.load = loadReady
+	m.loaded = true
+	m.clampCursor()
+	return m
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -147,22 +232,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case reloadMsg:
-		if msg.err != nil {
-			m = m.withErr(msg.err.Error())
-			m.rows = nil
-			m.stack = nil
-		} else {
-			m.rows = msg.rows
-			m.stack = msg.stack
-			m.fwdMaps = msg.fwdMaps
-			if msg.disk != "" {
-				m.disk = msg.disk
-			}
-			m.net = msg.nets
-		}
-		m.hasConfig = hasDevcontainer(m.workspace)
-		m.hasCompose = hasRootCompose(m.workspace)
-		m.clampCursor()
+		m = m.applyReload(msg)
 	case execDoneMsg:
 		m.leaving = ""
 		m.pending = ""
@@ -172,7 +242,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m = m.withStatus(backStatus(msg.action))
 		}
 		// ExecProcess disables mouse on ReleaseTerminal and never restores it.
-		return m, tea.Batch(tea.EnableMouseAllMotion, m.reload())
+		m, reload := m.beginSoftReload()
+		return m, tea.Batch(tea.EnableMouseAllMotion, reload)
 	case leaveTickMsg:
 		return m.runPending()
 	case splashTickMsg:
@@ -282,35 +353,63 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 	case "f":
 		m.fleet = !m.fleet
 		m.more = false
-		m.cursor = 0
-		return m.withStatus(""), m.reload()
+		m = m.withStatus("")
+		return m.beginHardReload()
 	case "r":
-		return m.withStatus(""), m.reload()
+		m = m.withStatus("")
+		if m.loaded {
+			return m.beginSoftReload()
+		}
+		return m.beginHardReload()
 	case "R":
 		if m.fleet {
 			return m.withStatus("open a folder (enter / click) to start / shell / stop"), nil
+		}
+		if reason := m.actionBlockReason("R"); reason != "" {
+			return m.refuse(reason)
 		}
 		return m.restartSelected()
 	case "d":
 		return m.stayCmd("dc-df")
 	case "t":
+		if reason := m.actionBlockReason("t"); reason != "" {
+			return m.refuse(reason)
+		}
 		return m.openTop()
 	case "n":
+		if reason := m.actionBlockReason("n"); reason != "" {
+			return m.refuse(reason)
+		}
 		return m.openNets()
 	case "j", "down":
+		if m.hardLoading() {
+			return m, nil
+		}
 		return m.moveCursor(1), nil
 	case "k", "up":
+		if m.hardLoading() {
+			return m, nil
+		}
 		return m.moveCursor(-1), nil
 	case "enter":
+		if reason := m.actionBlockReason("enter"); reason != "" {
+			return m.refuse(reason)
+		}
 		return m.activateRow()
 	case "u", "e", "o", "a", "s", "x", "l", "p", "b", "m":
 		if m.fleet {
 			return m.withStatus("open a folder (enter / click) to start / shell / stop"), nil
 		}
+		if reason := m.actionBlockReason(k); reason != "" {
+			return m.refuse(reason)
+		}
 		return m.runAction(k)
 	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
 		if m.fleet {
 			return m, nil
+		}
+		if reason := m.actionBlockReason("url"); reason != "" {
+			return m.refuse(reason)
 		}
 		return m.openWebIndex(int(k[0] - '1'))
 	}
@@ -372,6 +471,9 @@ func (m model) moveCursor(delta int) model {
 }
 
 func (m model) activateRow() (tea.Model, tea.Cmd) {
+	if reason := m.actionBlockReason("enter"); reason != "" {
+		return m.refuse(reason)
+	}
 	m.clampCursor()
 	if m.fleet {
 		if len(m.rows) == 0 {
@@ -429,6 +531,13 @@ func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
 	}
 	for _, b := range buttons {
 		if y >= b.y0 && y < b.y1 && x >= b.x0 && x < b.x1 {
+			// Loading-disabled tiles refuse here. Other disabled tiles still go
+			// through clickKey so runAction can emit concrete reasons (no config).
+			if b.disabled {
+				if reason := m.actionBlockReason(b.key); reason != "" {
+					return m.refuse(reason)
+				}
+			}
 			return m.clickKey(b.key)
 		}
 	}
@@ -450,19 +559,53 @@ func (m model) clickKey(key string) (tea.Model, tea.Cmd) {
 	case "f":
 		m.fleet = !m.fleet
 		m.more = false
-		m.cursor = 0
-		return m.withStatus(""), m.reload()
+		m = m.withStatus("")
+		return m.beginHardReload()
 	case "r":
-		return m.withStatus(""), m.reload()
+		m = m.withStatus("")
+		if m.loaded {
+			return m.beginSoftReload()
+		}
+		return m.beginHardReload()
 	default:
 		if strings.HasPrefix(key, "url:") {
+			if reason := m.actionBlockReason("url"); reason != "" {
+				return m.refuse(reason)
+			}
 			return m.openWebURL(strings.TrimPrefix(key, "url:"))
 		}
 		if m.fleet {
 			return m.withStatus("open a folder (enter / click) to start / shell / stop"), nil
 		}
+		if reason := m.actionBlockReason(key); reason != "" {
+			return m.refuse(reason)
+		}
 		return m.runAction(key)
 	}
+}
+
+// actionBlockReason returns a human reason when an action must wait for discovery.
+// Safe controls (quit/help/fleet/reload/disk) never block here.
+// Soft-refresh failure keeps the last snapshot actionable; only hard-pending
+// or failed-without-snapshot discovery blocks container actions.
+func (m model) actionBlockReason(key string) string {
+	noSnapshot := m.hardLoading() || (m.load == loadFailed && !m.loaded)
+	if !noSnapshot {
+		return ""
+	}
+	switch key {
+	case "q", "?", "h", "f", "r", "d":
+		return ""
+	case "u":
+		// Config-based start remains available while discovery is pending/unknown.
+		if m.canStart() {
+			return ""
+		}
+	}
+	if m.hardLoading() {
+		return "still checking containers"
+	}
+	return "status unknown — press r to retry"
 }
 
 func (m model) refuse(reason string) (model, tea.Cmd) {

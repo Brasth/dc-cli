@@ -13,9 +13,10 @@ import (
 
 const leaveWait = 50 * time.Millisecond
 
-func (m model) reload() tea.Cmd {
+func (m model) reloadCmd() tea.Cmd {
 	ws := m.workspace
 	fleet := m.fleet
+	gen := m.loadGen
 	return func() tea.Msg {
 		args := []string{"--json"}
 		if fleet {
@@ -25,11 +26,11 @@ func (m model) reload() tea.Cmd {
 		}
 		out, err := exec.Command("dc-ls", args...).Output()
 		if err != nil {
-			return reloadMsg{err: err}
+			return reloadMsg{gen: gen, workspace: ws, fleet: fleet, err: err}
 		}
 		var rows []container
 		if err := json.Unmarshal(out, &rows); err != nil {
-			return reloadMsg{err: err}
+			return reloadMsg{gen: gen, workspace: ws, fleet: fleet, err: err}
 		}
 		var stack []stackSvc
 		if !fleet {
@@ -53,7 +54,16 @@ func (m model) reload() tea.Cmd {
 				nets = parsed
 			}
 		}
-		return reloadMsg{rows: rows, stack: stack, fwdMaps: fwd, disk: disk, nets: nets}
+		return reloadMsg{
+			gen:       gen,
+			workspace: ws,
+			fleet:     fleet,
+			rows:      rows,
+			stack:     stack,
+			fwdMaps:   fwd,
+			disk:      disk,
+			nets:      nets,
+		}
 	}
 }
 
@@ -238,8 +248,8 @@ func (m model) openRow(i int) (tea.Model, tea.Cmd) {
 	m.workspace = folder
 	m.hasConfig = hasDevcontainer(folder)
 	m.hasCompose = hasRootCompose(folder)
-	m.cursor = 0
-	return m.withStatus(""), m.reload()
+	m = m.withStatus("")
+	return m.beginHardReload()
 }
 
 // runStay is the stay-in-board exec. Tests replace it so confirm y never hits Docker.
@@ -257,7 +267,11 @@ func (m model) stayCmd(name string, args ...string) (tea.Model, tea.Cmd) {
 		}
 		return m.withErr(msg), nil
 	}
-	return m.withStatus(msg), m.reload()
+	m = m.withStatus(msg)
+	if m.loaded {
+		return m.beginSoftReload()
+	}
+	return m.beginHardReload()
 }
 
 func compactLines(msg string, n int) string {

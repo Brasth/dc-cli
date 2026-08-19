@@ -76,18 +76,7 @@ func (m model) layout() (string, []button, int) {
 		} else if m.hasCompose {
 			cfg = okStyle.Render("compose")
 		}
-		st, id, ports := warnStyle.Render("stopped"), "", ""
-		if len(m.rows) > 0 {
-			id, ports = shortID(m.rows[0].ID), m.rows[0].Ports
-			switch m.rows[0].Status {
-			case "running":
-				st = okStyle.Render("running")
-			case "exited":
-				st = badStyle.Render("exited")
-			default:
-				st = warnStyle.Render(m.rows[0].Status)
-			}
-		}
+		st, id, ports := m.workspaceStatusParts()
 		meta := st + mutedStyle.Render("  ") + cfg
 		if id != "" {
 			meta += mutedStyle.Render("  ") + mutedStyle.Render(id)
@@ -122,6 +111,9 @@ func (m model) layout() (string, []button, int) {
 	if m.leaving != "" {
 		b.WriteString("\n" + warnStyle.Render(trunc(leaveLine(m.leaving), w)) + "\n")
 	}
+	if m.refreshing() {
+		b.WriteString("\n" + mutedStyle.Render(trunc("refreshing…", w)) + "\n")
+	}
 	if m.confirm == "rm" {
 		b.WriteString("\n" + warnStyle.Render("remove stack containers? y/n") + "\n")
 	}
@@ -140,9 +132,14 @@ func (m model) layout() (string, []button, int) {
 		b.WriteString("\n")
 		b.WriteString(mutedStyle.Render("  status    workspace") + "\n")
 		rowY0 = strings.Count(b.String(), "\n")
-		if len(m.rows) == 0 {
+		switch {
+		case m.hardLoading():
+			b.WriteString(mutedStyle.Render("  (checking containers…)") + "\n")
+		case m.load == loadFailed && !m.loaded:
+			b.WriteString(mutedStyle.Render("  (status unknown — press r)") + "\n")
+		case len(m.rows) == 0:
 			b.WriteString(mutedStyle.Render("  (empty — dc-up in a project)") + "\n")
-		} else {
+		default:
 			for i, r := range m.rows {
 				line := formatFleetRow(r, w)
 				if i == m.cursor {
@@ -254,6 +251,28 @@ type btnSpec struct {
 	disabled   bool
 }
 
+func (m model) workspaceStatusParts() (st, id, ports string) {
+	switch {
+	case m.hardLoading():
+		return warnStyle.Render("checking…"), "", ""
+	case m.load == loadFailed && !m.loaded:
+		return badStyle.Render("unknown"), "", ""
+	case len(m.rows) == 0:
+		return warnStyle.Render("stopped"), "", ""
+	default:
+		id, ports = shortID(m.rows[0].ID), m.rows[0].Ports
+		switch m.rows[0].Status {
+		case "running":
+			st = okStyle.Render("running")
+		case "exited":
+			st = badStyle.Render("exited")
+		default:
+			st = warnStyle.Render(m.rows[0].Status)
+		}
+		return st, id, ports
+	}
+}
+
 func (m model) buttonGroups() [][]btnSpec {
 	if m.fleet {
 		return [][]btnSpec{{
@@ -263,32 +282,33 @@ func (m model) buttonGroups() [][]btnSpec {
 			{key: "q", label: "quit"},
 		}}
 	}
+	blocked := m.hardLoading() || (m.load == loadFailed && !m.loaded)
 	groups := [][]btnSpec{
 		{
 			{key: "u", label: "start", primary: true, disabled: !m.canStart()},
-			{key: "e", label: "shell", primary: true},
-			{key: "s", label: "stop", primary: true},
+			{key: "e", label: "shell", primary: true, disabled: blocked},
+			{key: "s", label: "stop", primary: true, disabled: blocked},
 		},
 		{
-			{key: "o", label: "open"},
-			{key: "a", label: "attach"},
-			{key: "p", label: "ports"},
-			{key: "l", label: "logs", disabled: !m.canFollowLogs()},
-			{key: "t", label: "top", disabled: len(m.rows) == 0 || m.rows[0].ID == ""},
-			{key: "n", label: "nets"},
+			{key: "o", label: "open", disabled: blocked},
+			{key: "a", label: "attach", disabled: blocked},
+			{key: "p", label: "ports", disabled: blocked},
+			{key: "l", label: "logs", disabled: blocked || !m.canFollowLogs()},
+			{key: "t", label: "top", disabled: blocked || len(m.rows) == 0 || m.rows[0].ID == ""},
+			{key: "n", label: "nets", disabled: blocked},
 		},
 		{
-			{key: "b", label: "db"},
-			{key: "m", label: "files"},
+			{key: "b", label: "db", disabled: blocked},
+			{key: "m", label: "files", disabled: blocked},
 		},
 		{
 			{key: "f", label: "fleet"},
 			{key: "?", label: "more"},
 			{key: "q", label: "quit"},
-			{key: "x", label: "rm", danger: true},
+			{key: "x", label: "rm", danger: true, disabled: blocked},
 		},
 	}
-	if links := m.webLinks(); len(links) > 0 {
+	if links := m.webLinks(); len(links) > 0 && !blocked {
 		specs := make([]btnSpec, len(links))
 		for i, l := range links {
 			label := l.Label

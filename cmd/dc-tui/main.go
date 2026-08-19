@@ -48,6 +48,8 @@ func main() {
 		editor:     pickEditor(),
 		hoverStack: -1,
 		splashOn:   os.Getenv("DC_TUI_NO_SPLASH") == "",
+		load:       loadPending,
+		loadGen:    1,
 	}
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseAllMotion())
 	if _, err := p.Run(); err != nil {
