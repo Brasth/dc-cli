@@ -35,7 +35,7 @@ this folder
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Always tracks the **latest GitHub release** (currently **v0.15.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start **Dev Container** folders via the **official standalone** installer — not npm. Compose-only folders do not need that CLI. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
+Always tracks the **latest GitHub release** (currently **v0.15.1**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start **Dev Container** folders via the **official standalone** installer — not npm. Compose-only folders do not need that CLI. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
 
 macOS/Linux via Homebrew (same kit, no Go required):
 
@@ -114,6 +114,8 @@ dc-tui --all        # every labeled workspace
 Primary row: **start** · **shell** · **stop**. Meta row is quieter. **rm** is danger and asks `y/n`. Stack / fleet rows: **up** / **down**, `j`/`k` or click, Enter to open or exec.
 
 Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `DC_TUI_NO_SPLASH=1` skips it. The compact mark stays in the header.
+
+While the board discovers containers it shows **checking…** — not **stopped**. **stopped** means discovery finished and no container is there. Discovery failure shows **unknown** (press `r`). Manual `r` keeps the last snapshot and shows **refreshing…**. Fleet / folder switches clear old context first.
 
 | Button | Key | Does |
 |---|---|---|

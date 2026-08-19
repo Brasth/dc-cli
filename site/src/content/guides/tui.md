@@ -2,7 +2,7 @@
 title: "dc-tui board and keys"
 description: "dc-tui is the clickable board for this folder. Primary keys: start, shell, stop. Click a published website URL or press 1-9 to open it. Meta: open, attach, ports, logs, top, nets, db, files, fleet."
 h1: "The board is the product."
-updated: 2026-08-17
+updated: 2026-08-19
 howto: false
 faq:
   - q: What is the difference between open and attach?
@@ -15,6 +15,8 @@ faq:
     a: A normal exit is not a crash. The board announces leave, then resumes so you can hit the next verb.
   - q: What does R do versus r?
     a: r reloads the board. R restarts the selected compose sibling (dc-exec --service NAME --restart). The labeled app row refuses — use u/s. Fleet refuses R. --id --restart is invalid.
+  - q: Why does the header say checking instead of stopped?
+    a: checking… means discovery is still running. stopped means discovery finished and no container is there. unknown means discovery failed — press r. Manual reload keeps the last snapshot and shows refreshing….
   - q: How do I move without the mouse?
     a: j/k or arrows move the cursor. Enter opens a fleet folder or execs the selected stack row.
   - q: How do I open the forwarded website?
@@ -34,6 +36,8 @@ dc-tui --all        # every labeled workspace
 ```
 
 Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `DC_TUI_NO_SPLASH=1` skips it. The compact mark stays in the header.
+
+While containers are discovered the header shows **checking…** — not **stopped**. **stopped** is only after a successful empty result. Discovery failure shows **unknown** (`r` retries). Manual reload keeps the last snapshot and shows **refreshing…**. Fleet / folder switches clear old context first.
 
 ![dc-tui board with top next to logs](/images/tui.png)
 
