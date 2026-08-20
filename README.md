@@ -7,7 +7,7 @@ Host-global helpers around official [`@devcontainers/cli`](https://github.com/de
 | This folder | `kind` | Start / exec |
 |---|---|---|
 | `.devcontainer` present | `devcontainer` | official CLI (`dc-up` / `dc-exec`) |
-| else a root compose file | `compose` | `docker compose` via `dc-up` / `dc-exec` (no official CLI, no auto `dc-forward`) |
+| else a root compose file | `compose` | Compose via `dc-up` / `dc-exec` (`docker compose` or `docker-compose`; no official CLI, no auto `dc-forward`) |
 | else | not a workspace | `dc-up` refuses; use `dc-try` for a sandbox |
 
 Upstream only has `up` / `exec`. This repo adds **stop**, **list**, **open**, **port publish**, **doctor**, and a **TUI**.
@@ -36,7 +36,7 @@ this folder
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Always tracks the **latest GitHub release** (currently **v0.16.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start **Dev Container** folders via the **official standalone** installer — not npm. Compose-only folders do not need that CLI. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
+Always tracks the **latest GitHub release** (currently **v0.17.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start **Dev Container** folders via the **official standalone** installer — not npm. Compose-only folders do not need that CLI. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
 
 macOS/Linux via Homebrew (same kit, no Go required):
 
@@ -61,7 +61,7 @@ Needs: bash 4+, Docker (Colima or Desktop). Official CLI floor is whatever `docs
 
 ## Daily flow
 
-Run these from **this folder**. The kit detects kind: `.devcontainer` → official CLI; else a root compose file → `docker compose`; else `dc-up` refuses (use `dc-try` for a sandbox). Same keys either way.
+Run these from **this folder**. The kit detects kind: `.devcontainer` → official CLI; else a root compose file → Compose (`docker compose` preferred, else `docker-compose`); else `dc-up` refuses (use `dc-try` for a sandbox). Same keys either way.
 
 ```bash
 cd /path/to/your/project
@@ -98,10 +98,10 @@ dc-prune --yes                  # cache + dangling images + nets + orphan sideca
 | Target | Command | How |
 |---|---|---|
 | labeled **app** (`kind=devcontainer`) | `dc-exec` | official `devcontainer exec` (remoteUser, cwd, features) |
-| compose-kind **app** | `dc-exec` | `docker compose exec` of the resolved service (1 / `app` / `web` / refuse) |
+| compose-kind **app** | `dc-exec` | Compose exec of the resolved service (1 / `app` / `web` / refuse) |
 | any other compose **service** | `dc-exec --service NAME` | `docker start` if exited, then `docker exec` |
 
-`NAME` is whatever `docker compose` calls the service (`dc-exec --list`). Click a **stack row** in the TUI for the same path. `e` / **shell** is always the app.
+`NAME` is whatever Compose calls the service (`dc-exec --list`). Click a **stack row** in the TUI for the same path. `e` / **shell** is always the app.
 
 ## TUI
 
@@ -308,6 +308,8 @@ dc-cli owns start / stop / ports / fleet. Zed owns the editor session. No Zed ex
 | Linux | Supported (Docker Engine **or** Docker Desktop — one live engine). Desktop socket is `~/.docker/desktop/docker.sock`. |
 | WSL2 | Best-effort (run the installer **inside** WSL) |
 | Native Windows | **Not supported** |
+
+Compose mutations (`dc-up` / `dc-down` / `dc-exec` / `dc-net`) prefer `docker compose`, then fall back to standalone `docker-compose`.
 
 Create and stop from the same environment so `devcontainer.local_folder` matches.
 

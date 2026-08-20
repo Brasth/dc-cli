@@ -1,8 +1,8 @@
 ---
 title: "Dev Container vs compose"
-description: "dc-cli detects this folder. .devcontainer is official CLI. Compose-only is docker compose. Same keys. No daemon UI."
+description: "dc-cli detects this folder. .devcontainer is official CLI. Compose-only uses docker compose or docker-compose. Same keys. No daemon UI."
 h1: "This folder decides. You type the same verbs."
-updated: 2026-08-18
+updated: 2026-08-20
 howto: true
 steps:
   - name: Stand in the project
@@ -29,7 +29,7 @@ faq:
 | This folder | kind | Start | Exec |
 |---|---|---|---|
 | `.devcontainer` present | `devcontainer` | official CLI, then `dc-forward` | official `devcontainer exec` |
-| else root compose file | `compose` | `docker compose -p NAME -f FILES up -d` | `docker compose exec` (1 / `app` / `web` / refuse) |
+| else root compose file | `compose` | Compose `-p NAME -f FILES up -d` (`docker compose` or `docker-compose`) | Compose exec (1 / `app` / `web` / refuse) |
 | else | none | `dc-up` refuses; `dc-try` sandbox | after try, labeled `dc-exec` |
 
 ```bash

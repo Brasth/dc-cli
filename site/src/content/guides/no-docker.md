@@ -1,10 +1,24 @@
 ---
 title: "No Docker engine"
 description: "dc-cli installs without Docker. Installer, doctor, up, and TUI guide recovery. Never auto-installs an engine."
-order: 25
+h1: "Helpers install. Docker is still your job."
+updated: 2026-08-20
+howto: true
+steps:
+  - name: Install dc-cli anyway
+    text: bash install.sh still installs helpers when Docker is missing. Read the Host Docker readiness block.
+  - name: Install or start an engine
+    text: Beginners use Docker Desktop. Lightweight macOS path is brew install docker colima && colima start.
+  - name: Recheck
+    text: dc-doctor then dc-tui. On the blocked board press r after Desktop/Colima is ready.
+faq:
+  - q: Does install fail without Docker?
+    a: No. Helpers install. Machine readiness is reported separately. Day-2 diagnosis is dc-doctor.
+  - q: Will dc-cli start Docker for me?
+    a: No. It never sudo installs, never starts Desktop/Colima, never stops an engine.
+  - q: What does the TUI show?
+    a: A blocked setup screen with d (Desktop guide), c (copy Colima setup), r (retry), q (quit).
 ---
-
-# No Docker engine
 
 dc-cli needs a Docker engine. It does **not** install, start, or stop one for you.
 
@@ -43,3 +57,5 @@ dc-tui
 ```
 
 One live engine only — Colima **or** Desktop, not both.
+
+See also [doctor](/guide/doctor/) and [install](/guide/install/).

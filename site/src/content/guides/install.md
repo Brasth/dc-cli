@@ -2,7 +2,7 @@
 title: "Install dc-cli"
 description: "Install dc-cli with one curl (--with-cli standalone) or Homebrew. Release kits include the clickable TUI. Clone with no flags is wrappers only."
 h1: "One curl. Then source your shell."
-updated: 2026-08-18
+updated: 2026-08-20
 howto: true
 steps:
   - name: Run the installer
@@ -13,9 +13,9 @@ steps:
     text: dc-tui --help, dc-up --help, dc-doctor --help, dc-engine --help, dc-stats --help, or dc-net --help should print usage.
 ---
 
-Needs bash 4+ and Docker (Colima **or** Desktop — one live engine). Official `@devcontainers/cli` is required only for `kind=devcontainer` folders. Compose-only folders start via `dc-up` → `docker compose` (no official CLI). Release kits and Homebrew include the clickable TUI (logo splash, start/shell/stop first). A source install builds it when Go is on PATH; otherwise you get the bash menu.
+Needs bash 4+. Docker can be missing at install time — helpers still install and print a Host Docker readiness block (never auto-installs an engine). Official `@devcontainers/cli` is required only for `kind=devcontainer` folders. Compose-only folders start via `dc-up` → Compose (`docker compose` or `docker-compose`). Release kits and Homebrew include the clickable TUI (logo splash, start/shell/stop first). A source install builds it when Go is on PATH; otherwise you get the bash menu.
 
-Safer than piping curl: clone the repo, then `bash install.sh`. Each person needs their own Docker/Colima. Do not copy `export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` onto a laptop that uses Docker Desktop. `dc-doctor` reports the CLI engine and socket; two live engines block `dc-up`. `dc-engine --fix` prints how to pick one.
+Safer than piping curl: clone the repo, then `bash install.sh`. Each person needs their own Docker/Colima. Do not copy `export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` onto a laptop that uses Docker Desktop. `dc-doctor` reports the CLI engine and socket; two live engines block `dc-up`. `dc-engine --fix` prints how to pick one. No engine yet? See [No Docker engine](/guide/no-docker/).
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
@@ -51,11 +51,11 @@ The advertised curl passes `--with-cli` so `devcontainer` is on PATH via the **u
 
 Homes and the exact copy list live in the [README Skill](https://github.com/Brasth/dc-cli#skill) section.
 
-Confirm: `dc-tui --help`, `dc-up --help`, `dc-try --help`, `dc-doctor --help`, `dc-engine --help`, `dc-stats --help`, or `dc-net --help` should print usage. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.16.0).
+Confirm: `dc-tui --help`, `dc-up --help`, `dc-try --help`, `dc-doctor --help`, `dc-engine --help`, `dc-stats --help`, or `dc-net --help` should print usage. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.17.0).
 
 ## Daily start
 
-Run from **this folder**. `.devcontainer` → official CLI. Compose-only → `docker compose`. Same verbs.
+Run from **this folder**. `.devcontainer` → official CLI. Compose-only → Compose plugin or standalone. Same verbs.
 
 ```bash
 cd /path/to/your/project

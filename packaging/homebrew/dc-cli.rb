@@ -49,7 +49,7 @@ class DcCli < Formula
   def caveats
     <<~EOS
       Needs Docker (Colima or Desktop — one live engine). Official CLI is required only for
-      Dev Container folders. Compose-only folders use docker compose via dc-up.
+      Dev Container folders. Compose-only folders use docker compose or docker-compose via dc-up.
       Preferred: standalone via advertised curl --with-cli
         curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
       Explicit npm (exact pin only, never implied by --with-cli):
