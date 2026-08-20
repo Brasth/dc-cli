@@ -8,7 +8,7 @@ Host-global helpers around official [`@devcontainers/cli`](https://github.com/de
 |---|---|---|
 | `.devcontainer` present | `devcontainer` | official CLI (`dc-up` / `dc-exec`) |
 | else a root compose file | `compose` | `docker compose` via `dc-up` / `dc-exec` (no official CLI, no auto `dc-forward`) |
-| else | not a workspace | `dc-up` refuses |
+| else | not a workspace | `dc-up` refuses; use `dc-try` for a sandbox |
 
 Upstream only has `up` / `exec`. This repo adds **stop**, **list**, **open**, **port publish**, **doctor**, and a **TUI**.
 
@@ -21,6 +21,7 @@ this folder
    ├─ dc-stats        read-only CPU / RAM / net (this folder)
    ├─ dc-net          this folder's declared compose nets
    ├─ dc-up           start the labeled app + publish ports
+   ├─ dc-try          sandbox start when there is no .devcontainer/compose
    ├─ dc-exec         shell in the app
    ├─ dc-exec --service NAME   start (if needed) + shell in another service
    ├─ dc-db           host TablePlus on a declared db port
@@ -35,7 +36,7 @@ this folder
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Always tracks the **latest GitHub release** (currently **v0.15.1**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start **Dev Container** folders via the **official standalone** installer — not npm. Compose-only folders do not need that CLI. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
+Always tracks the **latest GitHub release** (currently **v0.16.0**, prebuilt clickable TUI). The one-liner passes `--with-cli` so `dc-up` can start **Dev Container** folders via the **official standalone** installer — not npm. Compose-only folders do not need that CLI. Safer: clone, then `bash install.sh` (no flags = wrappers only; add `--with-cli` if you need official CLI).
 
 macOS/Linux via Homebrew (same kit, no Go required):
 
@@ -60,7 +61,7 @@ Needs: bash 4+, Docker (Colima or Desktop). Official CLI floor is whatever `docs
 
 ## Daily flow
 
-Run these from **this folder**. The kit detects kind: `.devcontainer` → official CLI; else a root compose file → `docker compose`; else `dc-up` refuses. Same keys either way.
+Run these from **this folder**. The kit detects kind: `.devcontainer` → official CLI; else a root compose file → `docker compose`; else `dc-up` refuses (use `dc-try` for a sandbox). Same keys either way.
 
 ```bash
 cd /path/to/your/project
@@ -73,6 +74,7 @@ dc-net                          # this folder declared compose nets
 dc-up                           # start the labeled app, then publish ports
 dc-up --create-nets             # missing external nets: create default bridge, then start
 dc-up --take-ports              # clash: stop labeled foreign holders only, retry
+dc-try                          # no .devcontainer/compose: sandbox via external override
 dc-exec                         # bash in the app (starts it if it is down)
 dc-exec --list                  # labeled app + other services in that compose project
 dc-exec --service NAME          # start that compose service if it is down, then bash
@@ -119,7 +121,7 @@ While the board discovers containers it shows **checking…** — not **stopped*
 
 | Button | Key | Does |
 |---|---|---|
-| **start** | `u` | `dc-up` (`.devcontainer` → official CLI + forward; compose-kind → `docker compose`, no forward) |
+| **start** | `u` | configured → `dc-up`; kind=none → confirm then `dc-try --yes` |
 | **shell** | `e` | `dc-exec` — **app** only |
 | **stop** | `s` | full stack `dc-down` |
 | **rm** | `x` | `dc-down --rm` after `y` |
@@ -167,6 +169,8 @@ TUI key `t` opens the live overlay. Fleet refuses — this folder only. Sidecar 
 | `dc-doctor [dir] [--json]` | read-only diagnostics (exit 0 usable / 1 blocker / 2 bad argv) |
 | `dc-engine` / `--json` / `--fix` | which Docker engine the CLI talks to; `--fix` prints recovery (`--yes` only runs `docker context use`) |
 | `dc-up [dir]` | project config, then `dc-forward` |
+| `dc-try [dir]` | sandbox for kind=none (external override; no project edits) |
+| `dc-try --yes` / `--print` / `--profile NAME` | skip confirm / write only / force go\|python\|node\|generic |
 | `dc-up --no-forward` | skip sidecars (`DC_FORWARD=0`) |
 | `dc-up --ports` | **REPLACE** project config (not a merge) |
 | `dc-up --take-ports` / `--yes` | clash: stop **labeled** foreign stacks/sidecars, retry once. `--yes` also creates missing nets |

@@ -120,6 +120,7 @@ _up_ws="$(dc_resolve_workspace "$workspace")" || exit 2
 _up_kind="$(dc_workspace_kind "$_up_ws")"
 if [[ "$_up_kind" == "none" ]]; then
   echo "dc-up: this folder is not a workspace (no .devcontainer, no compose file)." >&2
+  echo "dc-up: sandbox start without project config: dc-try \"$_up_ws\"" >&2
   exit 1
 fi
 if [[ "$_up_kind" == "compose" && -n "$override" ]]; then

@@ -13,7 +13,7 @@ steps:
     text: dc-tui or dc-up / dc-exec / dc-down. The kit forks. Do not type docker exec NAME.
 faq:
   - q: Do I pick a mode?
-    a: No. .devcontainer present → kind=devcontainer even if compose files exist. Else a root compose file → kind=compose. Else dc-up refuses.
+    a: No. .devcontainer present → kind=devcontainer even if compose files exist. Else a root compose file → kind=compose. Else dc-up refuses and hints dc-try for a sandbox start.
   - q: Does compose-kind publish Colima ports?
     a: Not automatically. dc-forward stays opt-in and still wants a labeled app or --id. Folder attach (a) is N/A. dc-files Enter still opens VS Code on that running box. Cursor needs kind=devcontainer (dev-container+); compose-kind falls back to a bind-mount host path.
   - q: What if two folders share a compose project name?
@@ -30,7 +30,7 @@ faq:
 |---|---|---|---|
 | `.devcontainer` present | `devcontainer` | official CLI, then `dc-forward` | official `devcontainer exec` |
 | else root compose file | `compose` | `docker compose -p NAME -f FILES up -d` | `docker compose exec` (1 / `app` / `web` / refuse) |
-| else | none | refuse | not a workspace |
+| else | none | `dc-up` refuses; `dc-try` sandbox | after try, labeled `dc-exec` |
 
 ```bash
 cd /path/to/your/project

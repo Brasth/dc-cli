@@ -65,7 +65,7 @@ type model struct {
 	hover      string
 	hoverStack int // -1 = none
 	disk       string
-	confirm    string // "" or "rm"
+	confirm    string // "", "rm", or "try"
 	cursor     int
 	leaving    string // "", "start", "shell", "logs"
 	pending    string // action key after leave tick: u/e/l or stack:N
@@ -419,10 +419,18 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 func (m model) handleConfirmKey(k string) (tea.Model, tea.Cmd) {
 	switch k {
 	case "y":
+		which := m.confirm
 		m.confirm = ""
+		if which == "try" {
+			return m.startLeave("start", "try")
+		}
 		return m.stayCmd("dc-down", "--rm", m.workspace)
 	case "n", "esc":
+		which := m.confirm
 		m.confirm = ""
+		if which == "try" {
+			return m.withStatus("try cancelled"), nil
+		}
 		return m.withStatus("rm cancelled"), nil
 	case "q", "ctrl+c":
 		m.quitting = true
@@ -433,10 +441,14 @@ func (m model) handleConfirmKey(k string) (tea.Model, tea.Cmd) {
 }
 
 func (m model) confirmAction() string {
-	if m.confirm == "rm" {
+	switch m.confirm {
+	case "rm":
 		return "dc-down --rm"
+	case "try":
+		return "dc-try --yes"
+	default:
+		return ""
 	}
-	return ""
 }
 
 func (m model) rowCount() int {
@@ -526,7 +538,11 @@ func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
 		if m.hitButton(x, y) == "x" {
 			return m, nil
 		}
+		which := m.confirm
 		m.confirm = ""
+		if which == "try" {
+			return m.withStatus("try cancelled"), nil
+		}
 		return m.withStatus("rm cancelled"), nil
 	}
 	for _, b := range buttons {

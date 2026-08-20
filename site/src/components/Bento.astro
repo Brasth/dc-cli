@@ -3,8 +3,8 @@ const tiles = [
   {
     k: 'dc-up',
     title: 'Start this folder.',
-    body: '.devcontainer → official CLI, then ports. Compose-only → docker compose. No official CLI. No auto-forward.',
-    lines: ['$ dc-up', '→ kind=devcontainer | compose', '→ up  (forward only on DC)', 'ok  or refuse kind=none'],
+    body: '.devcontainer → official CLI, then ports. Compose-only → docker compose. No config → dc-try sandbox.',
+    lines: ['$ dc-up | dc-try', '→ kind=devcontainer | compose | none', '→ up  (forward only on DC)', 'none → dc-try sandbox'],
   },
   {
     k: 'dc-exec',

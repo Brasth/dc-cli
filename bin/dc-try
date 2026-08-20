@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+# Start a configless folder via official CLI + external override config.
+# Never edits the project. Prefer dc-up when .devcontainer or compose exists.
+set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-common.sh not found (install.sh copies it to ~/.config/devcontainer/)" >&2
+  exit 1
+fi
+if [[ -f "$_here/../lib/dc-engine.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-engine.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-engine.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-engine.sh"
+else
+  echo "dc-engine.sh not found" >&2
+  exit 1
+fi
+if [[ -f "$_here/../lib/dc-try.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-try.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-try.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-try.sh"
+else
+  echo "dc-try.sh not found" >&2
+  exit 1
+fi
+
+workspace="."
+profile=""
+yes=0
+print_only=0
+
+usage() {
+  cat <<'EOF'
+dc-try — sandbox start for folders without .devcontainer or compose
+
+  dc-try [workspace]              detect profile, confirm, start
+  dc-try --yes [workspace]        skip confirm (agents / TUI)
+  dc-try --profile NAME [...]     force go|python|node|generic
+  dc-try --print [workspace]      write override + print paths; do not start
+  dc-try --help
+
+Writes a complete override config under
+  $XDG_STATE_HOME/dc-cli/try/<hash>/override.json
+Never edits the project. No ports, hooks, or package installs.
+
+If the folder already has .devcontainer or a root compose file, use dc-up.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --yes|-y) yes=1 ;;
+    --print) print_only=1 ;;
+    --profile)
+      shift
+      [[ $# -ge 1 ]] || { echo "--profile needs a name" >&2; exit 2; }
+      profile="$1"
+      ;;
+    --version|-V) dc_cli_print_version "$(basename "$0")"; exit 0 ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      workspace="$1"
+      ;;
+  esac
+  shift
+done
+
+if [[ ! -d "$workspace" ]]; then
+  echo "Not a directory: $workspace" >&2
+  exit 2
+fi
+
+ws="$(dc_resolve_workspace "$workspace")" || exit 2
+# Prefer the exact cwd for try when the folder itself is configless.
+# dc_resolve_workspace may walk to a git root that also lacks config — fine.
+# If resolve landed on a configured root while cwd is none, still operate on resolve.
+kind="$(dc_workspace_kind "$ws")"
+if [[ "$kind" == "devcontainer" ]]; then
+  echo "dc-try: this folder already has a Dev Container config. Use: dc-up \"$ws\"" >&2
+  exit 1
+fi
+if [[ "$kind" == "compose" ]]; then
+  echo "dc-try: this folder is compose-kind. Use: dc-up \"$ws\"" >&2
+  exit 1
+fi
+
+if [[ -n "$profile" ]] && ! dc_try_valid_profile "$profile"; then
+  echo "dc-try: unknown profile: $profile (go|python|node|generic)" >&2
+  exit 2
+fi
+
+if [[ -z "$profile" ]]; then
+  profile="$(dc_try_detect_profile "$ws")"
+fi
+image="$(dc_try_image_for "$profile")"
+override="$(dc_try_ensure_override "$ws" "$profile")"
+meta="$(dc_try_metadata_path "$ws")"
+
+echo "dc-try: sandbox (does not edit the project)"
+echo "  workspace: $ws"
+echo "  profile:   $profile"
+echo "  image:     $image"
+echo "  override:  $override"
+echo "  metadata:  $meta"
+
+if [[ "$print_only" -eq 1 ]]; then
+  exit 0
+fi
+
+if ! command -v devcontainer >/dev/null 2>&1; then
+  echo "devcontainer CLI not found. Advertised install:" >&2
+  echo "  curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli" >&2
+  exit 1
+fi
+
+if ! dc_engine_guard_up; then
+  exit 1
+fi
+
+if [[ "$yes" -ne 1 ]]; then
+  if [[ ! -t 0 ]]; then
+    echo "dc-try: non-interactive; pass --yes to start (will pull image if missing)." >&2
+    exit 2
+  fi
+  printf 'Start sandbox with this image? [y/N] '
+  read -r ans || true
+  case "$ans" in
+    y|Y|yes|YES) ;;
+    *)
+      echo "dc-try: aborted"
+      exit 1
+      ;;
+  esac
+fi
+
+cli_ws="$(dc_cli_workspace_folder "$ws")"
+args=(up --workspace-folder "$cli_ws" --override-config "$override")
+
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+set +e
+devcontainer "${args[@]}" 2>&1 | tee "$tmp"
+rc=${PIPESTATUS[0]}
+set -e
+
+if [[ "$rc" -ne 0 ]]; then
+  if grep -qiE 'no space left|ENOSPC|disk full|not enough disk|out of disk' "$tmp" 2>/dev/null; then
+    echo >&2
+    echo "dc-try: Docker looks out of disk. Check and reclaim:" >&2
+    echo "  dc-df" >&2
+    echo "  dc-prune          # dry-run" >&2
+    echo "  dc-prune --yes    # safe reclaim" >&2
+  fi
+  exit "$rc"
+fi
+
+echo "dc-try: started ($profile). Shell: dc-exec \"$ws\""
+echo "dc-try: stop with: dc-down \"$ws\""
+exit 0

@@ -117,6 +117,9 @@ func (m model) layout() (string, []button, int) {
 	if m.confirm == "rm" {
 		b.WriteString("\n" + warnStyle.Render("remove stack containers? y/n") + "\n")
 	}
+	if m.confirm == "try" {
+		b.WriteString("\n" + warnStyle.Render("no .devcontainer/compose — start sandbox via dc-try? y/n") + "\n")
+	}
 	if m.status != "" {
 		b.WriteString("\n" + statusStyle.Render(trunc(m.status, w)) + "\n")
 	}
@@ -160,7 +163,7 @@ func (m model) layout() (string, []button, int) {
 		}
 	}
 
-	if m.confirm == "rm" {
+	if m.confirm == "rm" || m.confirm == "try" {
 		b.WriteString("\n" + hintStyle.Render("y confirm  n/esc cancel  q quit") + "\n")
 	} else if !m.fleet && len(m.webLinks()) > 0 {
 		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  b db  m files  n nets  1-9 url  j/k  enter  ? more  q quit") + "\n")
@@ -214,7 +217,7 @@ func formatFleetRow(r container, width int) string {
 func morePanel(editor string, width int) string {
 	lines := []string{
 		"more — what each action does",
-		"  start    create/start this folder (.devcontainer → official CLI; compose-kind → docker compose)",
+		"  start    .devcontainer/compose → dc-up; else confirm → dc-try sandbox (no project edits)",
 		"  shell    bash in the labeled app — color prompt, ls, hl for logs",
 		"  stack    j/k + enter or click — starts the box if down, then exec",
 		"  open     host editor on the bind-mount  now: " + editor,

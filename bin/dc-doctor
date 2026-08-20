@@ -164,6 +164,11 @@ if [[ -f "$ENGLIB" ]]; then
   # shellcheck source=/dev/null
   source "$ENGLIB"
 fi
+TRYLIB="$(dirname "$COMMON")/dc-try.sh"
+if [[ -f "$TRYLIB" ]]; then
+  # shellcheck source=/dev/null
+  source "$TRYLIB"
+fi
 
 resolved="."
 if ! resolved="$(dc_resolve_workspace "$workspace")"; then
@@ -355,9 +360,18 @@ elif [[ "$ws_kind" == "compose" ]]; then
   add_rec workspace_config ok "compose-kind; start via docker compose" "" \
     "{\"hasConfig\":false,\"configPath\":null,\"kind\":\"compose\"}"
 else
+  _try_meta=""
+  if type dc_try_metadata_path >/dev/null 2>&1; then
+    _try_meta="$(dc_try_metadata_path "$resolved" 2>/dev/null || true)"
+  fi
+  _try_data="{\"hasConfig\":false,\"configPath\":null,\"kind\":$(json_str "$ws_kind")"
+  if [[ -n "$_try_meta" && -f "$_try_meta" ]]; then
+    _try_data+=",\"tryMetadata\":$(json_str "$_try_meta")"
+  fi
+  _try_data+="}"
   add_rec workspace_config warning "no .devcontainer config path" "" \
-    "{\"hasConfig\":false,\"configPath\":null,\"kind\":$(json_str "$ws_kind")}" \
-    "add .devcontainer/devcontainer.json"
+    "$_try_data" \
+    "dc-try \"$resolved\"  # sandbox without editing the project, or add .devcontainer/devcontainer.json"
 fi
 
 # 10 duplicate_labels

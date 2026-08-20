@@ -87,7 +87,7 @@ Open vs attach: open = edit files on the Mac/Linux host.
 Attach = VS Code Remote URI (a / dc-open --attach).
 Zed attaches itself (Project: Open Remote → Connect Dev Container). Sublime cannot.
 
-start needs .devcontainer (official CLI) or a root compose file (docker compose).
+start: .devcontainer / compose → dc-up; otherwise confirms then dc-try (sandbox, no project edits).
 compose-kind does not attach (no VS Code Dev Container URI).
 Use CLI dc-up --ports only if you accept REPLACE of project config.
 `
@@ -114,7 +114,12 @@ func hasRootCompose(dir string) bool {
 }
 
 func (m model) canStart() bool {
-	return m.hasConfig || m.hasCompose
+	// Always allow start: configured folders use dc-up; kind=none confirms then dc-try.
+	return true
+}
+
+func (m model) needsTry() bool {
+	return !m.hasConfig && !m.hasCompose
 }
 
 func (m model) isComposeKind() bool {

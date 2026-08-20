@@ -112,8 +112,9 @@ func benignLeaveErr(action string, err error) bool {
 func (m model) runAction(key string) (tea.Model, tea.Cmd) {
 	switch key {
 	case "u":
-		if !m.canStart() {
-			return m.refuse("No .devcontainer or compose file in " + m.workspace + ".")
+		if m.needsTry() {
+			m.confirm = "try"
+			return m.withStatus(""), nil
 		}
 		return m.startLeave("start", "u")
 	case "e":
@@ -217,6 +218,8 @@ func (m model) runPending() (tea.Model, tea.Cmd) {
 	switch pending {
 	case "u":
 		cmd = exec.Command("dc-up", ws)
+	case "try":
+		cmd = exec.Command("dc-try", "--yes", ws)
 	case "create-nets":
 		cmd = exec.Command("dc-up", "--create-nets", ws)
 	case "e":

@@ -162,7 +162,7 @@ elif [[ ! -f "$ROOT/bin/dc-up" ]]; then
   fetch_ref latest
 fi
 
-HELPERS=(dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-engine dc-db dc-files dc-stats dc-net)
+HELPERS=(dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-engine dc-db dc-files dc-stats dc-net dc-try)
 
 if [[ -f "$ROOT/lib/dc-install-yazi.sh" ]]; then
   # shellcheck source=/dev/null
@@ -564,6 +564,7 @@ echo "  dc-doctor         # read-only diagnostics"
 echo "  dc-engine         # which Docker engine; dc-engine --fix to recover"
 echo "  dc-stats          # this folder CPU / RAM / net"
 echo "  dc-net            # this folder declared compose nets"
+echo "  dc-try            # sandbox start when no .devcontainer/compose"
 if ! command -v devcontainer >/dev/null 2>&1; then
   echo "Official CLI not installed. Need it (standalone):"
   echo "  ${ADVERTISED_CURL}"

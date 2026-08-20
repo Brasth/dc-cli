@@ -142,18 +142,18 @@ func TestBenignExecErr(t *testing.T) {
 	}
 }
 
-func TestDisabledStartReason(t *testing.T) {
+func TestTryStartConfirms(t *testing.T) {
 	m := model{workspace: "/tmp/app", hoverStack: -1}
 	got, cmd := m.handleKey("u")
 	mm := got.(model)
 	if cmd != nil {
-		t.Fatal("disabled start must not run")
+		t.Fatal("kind=none start must confirm first")
 	}
-	if mm.status == "" {
-		t.Fatal("expected a reason")
+	if mm.confirm != "try" {
+		t.Fatalf("confirm=%q", mm.confirm)
 	}
-	if !strings.Contains(mm.status, "compose") && !strings.Contains(mm.status, ".devcontainer") {
-		t.Fatalf("reason=%q", mm.status)
+	if mm.leaving != "" {
+		t.Fatalf("leaving=%q", mm.leaving)
 	}
 }
 
@@ -438,17 +438,17 @@ func TestHeaderShowsVersion(t *testing.T) {
 	}
 }
 
-func TestDisabledStartTile(t *testing.T) {
+func TestTryStartTileEnabled(t *testing.T) {
 	groups := model{hasConfig: false}.buttonGroups()
 	_, buttons := renderGroups(groups, 80, 0, "")
 	for _, b := range buttons {
-		if b.key == "u" && !b.disabled {
-			t.Fatal("start should be disabled without config")
+		if b.key == "u" && b.disabled {
+			t.Fatal("start should be enabled for kind=none (confirm → dc-try)")
 		}
 	}
 }
 
-func TestClickDisabledStart(t *testing.T) {
+func TestClickTryStartConfirms(t *testing.T) {
 	m := model{workspace: "/tmp/app", width: 80, hoverStack: -1, editor: "zed"}
 	_, buttons, _ := m.layout()
 	var start button
@@ -463,10 +463,25 @@ func TestClickDisabledStart(t *testing.T) {
 	got, cmd := m.handleClick(start.x0, start.y0)
 	mm := got.(model)
 	if cmd != nil {
-		t.Fatal("click disabled start must not run")
+		t.Fatal("click try start must confirm first")
 	}
-	if !strings.Contains(mm.status, ".devcontainer") {
-		t.Fatalf("status=%q", mm.status)
+	if mm.confirm != "try" {
+		t.Fatalf("confirm=%q", mm.confirm)
+	}
+}
+
+func TestTryConfirmYesLeaves(t *testing.T) {
+	m := model{workspace: "/tmp/app", hoverStack: -1, confirm: "try"}
+	got, cmd := m.handleConfirmKey("y")
+	mm := got.(model)
+	if mm.confirm != "" {
+		t.Fatalf("confirm=%q", mm.confirm)
+	}
+	if mm.leaving != "start" || mm.pending != "try" {
+		t.Fatalf("leaving=%q pending=%q", mm.leaving, mm.pending)
+	}
+	if cmd == nil {
+		t.Fatal("expected leave tick")
 	}
 }
 
