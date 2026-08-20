@@ -154,7 +154,7 @@ fi
 _dc_compose_up_locked() {
   local dir="$1" name="$2"
   shift 2
-  (cd "$dir" && docker compose -p "$name" "$@" up -d)
+  (cd "$dir" && dc_docker_compose -p "$name" "$@" up -d)
 }
 
 dc_up_compose_kind() {

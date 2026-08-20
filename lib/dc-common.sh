@@ -67,6 +67,58 @@ dc_has_root_compose() {
   [[ -f "$dir/compose.yaml" || -f "$dir/compose.yml" || -f "$dir/docker-compose.yaml" || -f "$dir/docker-compose.yml" ]]
 }
 
+# Prefer Compose V2 plugin (`docker compose`), else standalone `docker-compose`.
+# Cached in DC_COMPOSE_FRONTEND=plugin|standalone for the process.
+dc_compose_frontend() {
+  if [[ -n "${DC_COMPOSE_FRONTEND:-}" ]]; then
+    printf '%s\n' "$DC_COMPOSE_FRONTEND"
+    return 0
+  fi
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    DC_COMPOSE_FRONTEND=plugin
+  elif command -v docker-compose >/dev/null 2>&1 && docker-compose version >/dev/null 2>&1; then
+    DC_COMPOSE_FRONTEND=standalone
+  else
+    return 1
+  fi
+  printf '%s\n' "$DC_COMPOSE_FRONTEND"
+}
+
+# Run compose args against the chosen frontend.
+# Usage: dc_docker_compose [compose-args...]
+dc_docker_compose() {
+  local front
+  front="$(dc_compose_frontend)" || {
+    echo "dc-cli: need Docker Compose (docker compose or docker-compose)" >&2
+    return 127
+  }
+  case "$front" in
+    plugin) docker compose "$@" ;;
+    standalone) docker-compose "$@" ;;
+    *)
+      echo "dc-cli: unknown compose frontend: $front" >&2
+      return 127
+      ;;
+  esac
+}
+
+# Replace this process with compose (plugin or standalone).
+dc_docker_compose_exec() {
+  local front
+  front="$(dc_compose_frontend)" || {
+    echo "dc-cli: need Docker Compose (docker compose or docker-compose)" >&2
+    return 127
+  }
+  case "$front" in
+    plugin) exec docker compose "$@" ;;
+    standalone) exec docker-compose "$@" ;;
+    *)
+      echo "dc-cli: unknown compose frontend: $front" >&2
+      return 127
+      ;;
+  esac
+}
+
 # this-folder identity: devcontainer | compose | none
 # Both-present = devcontainer. Never invent labels.
 dc_workspace_kind() {

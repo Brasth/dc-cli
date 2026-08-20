@@ -140,7 +140,7 @@ print(name.strip())
 dc_net_compose_json() {
   local ws="$1"
   local -a files=()
-  local -a args=(compose)
+  local -a args=()
   local f out rc
   mapfile -t files < <(dc_net_compose_files "$ws")
   if [[ ${#files[@]} -eq 0 ]]; then
@@ -152,7 +152,7 @@ dc_net_compose_json() {
   done
   args+=(config --format json)
   set +e
-  out="$(cd "$ws" && docker "${args[@]}" 2>/dev/null)"
+  out="$(cd "$ws" && dc_docker_compose "${args[@]}" 2>/dev/null)"
   rc=$?
   set -e
   if [[ "$rc" -ne 0 || -z "$out" ]]; then

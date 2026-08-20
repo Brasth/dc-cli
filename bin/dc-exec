@@ -215,7 +215,7 @@ if [[ "$(dc_workspace_kind "$workspace")" == "compose" ]]; then
     _exec_args+=(-f "$_f")
   done < <(dc_compose_file_args "$workspace")
   echo "exec  ${_exec_svc}  (compose-kind)"
-  (cd "$workspace" && docker compose -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" start "$_exec_svc") >/dev/null 2>&1 || true
+  (cd "$workspace" && dc_docker_compose -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" start "$_exec_svc") >/dev/null 2>&1 || true
   _exec_flags=()
   if [[ -t 0 && -t 1 ]]; then
     _exec_flags+=(-it)
@@ -223,12 +223,12 @@ if [[ "$(dc_workspace_kind "$workspace")" == "compose" ]]; then
     _exec_flags+=(-T)
   fi
   if [[ ${#cmd[@]} -eq 0 ]]; then
-    if docker compose -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" exec -T "$_exec_svc" bash -lc 'exit 0' >/dev/null 2>&1; then
-      exec docker compose -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" exec "${_exec_flags[@]+"${_exec_flags[@]}"}" "$_exec_svc" bash
+    if dc_docker_compose -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" exec -T "$_exec_svc" bash -lc 'exit 0' >/dev/null 2>&1; then
+      dc_docker_compose_exec -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" exec "${_exec_flags[@]+"${_exec_flags[@]}"}" "$_exec_svc" bash
     fi
-    exec docker compose -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" exec "${_exec_flags[@]+"${_exec_flags[@]}"}" "$_exec_svc" sh
+    dc_docker_compose_exec -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" exec "${_exec_flags[@]+"${_exec_flags[@]}"}" "$_exec_svc" sh
   fi
-  exec docker compose -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" exec "${_exec_flags[@]+"${_exec_flags[@]}"}" "$_exec_svc" "${cmd[@]}"
+  dc_docker_compose_exec -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" exec "${_exec_flags[@]+"${_exec_flags[@]}"}" "$_exec_svc" "${cmd[@]}"
 fi
 
 # Default: official CLI into the labeled app (features, remoteUser, cwd).

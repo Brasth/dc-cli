@@ -338,6 +338,10 @@ case "$cmd" in
     esac
     ;;
   compose)
+    if [[ "${1:-}" == "version" || " $* " == *" version "* ]]; then
+      echo "Docker Compose version fake"
+      exit 0
+    fi
     if [[ " $* " == *" config "* ]]; then
       if [[ -f "$STATE/compose-config.json" ]]; then
         cat "$STATE/compose-config.json"

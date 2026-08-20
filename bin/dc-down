@@ -158,9 +158,9 @@ dc_down_compose_workspace() {
     shift 2
     if [[ "$remove" -eq 1 ]]; then
       if [[ "$volumes" -eq 1 ]]; then
-        (cd "$d" && docker compose -p "$p" "$@" down -v)
+        (cd "$d" && dc_docker_compose -p "$p" "$@" down -v)
       else
-        (cd "$d" && docker compose -p "$p" "$@" down)
+        (cd "$d" && dc_docker_compose -p "$p" "$@" down)
       fi
     else
       if [[ "$app_only" -eq 1 ]]; then
@@ -169,9 +169,9 @@ dc_down_compose_workspace() {
           echo "dc-down: --app needs a resolved app service (one / app / web)" >&2
           return 1
         }
-        (cd "$d" && docker compose -p "$p" "$@" stop "$svc")
+        (cd "$d" && dc_docker_compose -p "$p" "$@" stop "$svc")
       else
-        (cd "$d" && docker compose -p "$p" "$@" stop)
+        (cd "$d" && dc_docker_compose -p "$p" "$@" stop)
       fi
     fi
   }
@@ -317,13 +317,13 @@ dc_down_apply() {
       fi
       if [[ "$remove" -eq 1 ]]; then
         if [[ "$volumes" -eq 1 ]]; then
-          if ! docker compose -p "$proj" down -v; then
+          if ! dc_docker_compose -p "$proj" down -v; then
             echo "dc-down: compose $proj down -v failed" >&2
             fail=1
             continue
           fi
         else
-          if ! docker compose -p "$proj" down; then
+          if ! dc_docker_compose -p "$proj" down; then
             echo "dc-down: compose $proj down failed" >&2
             fail=1
             continue
@@ -331,7 +331,7 @@ dc_down_apply() {
         fi
         echo "compose $proj  down (all services)"
       else
-        if ! docker compose -p "$proj" stop; then
+        if ! dc_docker_compose -p "$proj" stop; then
           echo "dc-down: compose $proj stop failed" >&2
           fail=1
           continue
