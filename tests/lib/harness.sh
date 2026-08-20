@@ -11,9 +11,15 @@ harness_setup() {
   export DC_MUTATION_LOCK_ROOT="$STATE/locks"
   export DC_MUTATION_LOCK_WAIT="${DC_MUTATION_LOCK_WAIT:-2}"
   mkdir -p "$STATE/bin" "$STATE/fail" "$STATE/volumes" "$STATE/locks"
+  # rm first: `cat >symlink` would otherwise clobber the fake-docker target.
+  rm -f "$STATE/bin/docker"
   ln -sf "$ROOT/tests/lib/fake-docker" "$STATE/bin/docker"
   chmod +x "$ROOT/tests/lib/fake-docker"
-  export PATH="$STATE/bin:$ROOT/bin:$PATH"
+  if [[ -z "${DC_HARNESS_BASE_PATH:-}" ]]; then
+    export DC_HARNESS_BASE_PATH="$PATH"
+  fi
+  export PATH="$STATE/bin:$ROOT/bin:$DC_HARNESS_BASE_PATH"
+  hash -r 2>/dev/null || true
   export DC_FILES_NO_INJECT=1
   export DC_ENGINE_HOME="$STATE/home"
   mkdir -p "$DC_ENGINE_HOME"

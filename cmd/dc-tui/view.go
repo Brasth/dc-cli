@@ -42,6 +42,9 @@ func (m model) View() string {
 	if m.splashOn {
 		return m.splashView()
 	}
+	if m.hostBlock {
+		return m.hostView()
+	}
 	if m.logOpen {
 		return m.logsView()
 	}
@@ -53,6 +56,58 @@ func (m model) View() string {
 	}
 	s, _, _ := m.layout()
 	return s
+}
+
+func (m model) hostView() string {
+	w := m.width
+	if w <= 0 {
+		w = 80
+	}
+	var b strings.Builder
+	b.WriteString(titleStyle.Render("Docker setup required") + "\n\n")
+	b.WriteString(errStyle.Render(trunc(m.host.Summary, w)) + "\n")
+	if m.host.Code != "" {
+		b.WriteString(mutedStyle.Render(trunc("code: "+m.host.Code, w)) + "\n")
+	}
+	if m.host.EngineHint != "" && m.host.EngineHint != "unknown" {
+		b.WriteString(mutedStyle.Render(trunc("engine hint: "+m.host.EngineHint, w)) + "\n")
+	}
+	if m.host.Detail != nil && strings.TrimSpace(*m.host.Detail) != "" {
+		b.WriteString(mutedStyle.Render(trunc(*m.host.Detail, w)) + "\n")
+	}
+	b.WriteString("\n")
+	switch m.host.Code {
+	case "docker_cli_missing", "docker_engine_missing":
+		b.WriteString(okStyle.Render("Recommended: Docker Desktop") + "\n")
+		guide := m.host.GuideURL
+		if guide == "" {
+			guide = "https://docs.docker.com/desktop/"
+		}
+		b.WriteString(mutedStyle.Render(trunc(guide, w)) + "\n")
+		b.WriteString(mutedStyle.Render("Lightweight: brew install docker colima && colima start") + "\n")
+	case "docker_engine_stopped":
+		switch m.host.EngineHint {
+		case "desktop":
+			b.WriteString(okStyle.Render("Start Docker Desktop, wait until ready") + "\n")
+		case "colima":
+			b.WriteString(okStyle.Render("Run: colima start") + "\n")
+		default:
+			b.WriteString(okStyle.Render("Start your Docker engine, then retry") + "\n")
+		}
+	default:
+		if m.host.Remediation != "" {
+			b.WriteString(okStyle.Render(trunc(m.host.Remediation, w)) + "\n")
+		}
+	}
+	b.WriteString("\n")
+	b.WriteString(hintStyle.Render("[d] Desktop guide  [c] copy Colima setup  [r] check again  [q] quit") + "\n")
+	if m.status != "" {
+		b.WriteString("\n" + statusStyle.Render(trunc(m.status, w)) + "\n")
+	}
+	if m.err != "" {
+		b.WriteString("\n" + errStyle.Render(trunc(m.err, w)) + "\n")
+	}
+	return b.String()
 }
 
 func (m model) layout() (string, []button, int) {

@@ -95,6 +95,8 @@ type model struct {
 	load       loadState
 	loadGen    int
 	loaded     bool // true when current context has a successful snapshot
+	hostBlock  bool
+	host       hostReport
 }
 
 type reloadMsg struct {
@@ -106,6 +108,8 @@ type reloadMsg struct {
 	fwdMaps   []portPair
 	disk      string
 	nets      netReport
+	host      hostReport
+	hostErr   error
 	err       error
 }
 
@@ -175,6 +179,24 @@ func (m model) applyReload(msg reloadMsg) model {
 	}
 	m.hasConfig = hasDevcontainer(m.workspace)
 	m.hasCompose = hasRootCompose(m.workspace)
+	if msg.host.blocked() {
+		m.host = msg.host
+		m.hostBlock = true
+		m.load = loadFailed
+		m.err = ""
+		m.status = ""
+		if !m.loaded {
+			m.rows = nil
+			m.stack = nil
+			m.fwdMaps = nil
+			m.disk = ""
+			m.net = netReport{}
+			m.pulse = ""
+		}
+		return m
+	}
+	m.hostBlock = false
+	m.host = msg.host
 	if msg.err != nil {
 		m = m.withErr(msg.err.Error())
 		m.load = loadFailed
@@ -314,6 +336,9 @@ func (m model) skipSplash() model {
 }
 
 func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
+	if m.hostBlock {
+		return m.handleHostKey(k)
+	}
 	if m.splashOn {
 		if k == "q" || k == "ctrl+c" {
 			m.quitting = true
@@ -414,6 +439,30 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 		return m.openWebIndex(int(k[0] - '1'))
 	}
 	return m, nil
+}
+
+func (m model) handleHostKey(k string) (tea.Model, tea.Cmd) {
+	switch k {
+	case "q", "ctrl+c":
+		m.quitting = true
+		return m, tea.Quit
+	case "r":
+		m = m.withStatus("checking Docker…")
+		return m.beginHardReload()
+	case "d":
+		url := m.host.GuideURL
+		if err := openHostGuide(url); err != nil {
+			return m.withErr(err.Error()), nil
+		}
+		return m.withStatus("opened Docker Desktop guide"), nil
+	case "c":
+		if err := copyHostText(colimaSetupText()); err != nil {
+			return m.withErr(err.Error()), nil
+		}
+		return m.withStatus("copied Colima setup command"), nil
+	default:
+		return m, nil
+	}
 }
 
 func (m model) handleConfirmKey(k string) (tea.Model, tea.Cmd) {

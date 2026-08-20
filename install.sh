@@ -517,8 +517,32 @@ fi
 
 doctor() {
   echo
-  echo "Doctor (install-time presence only; day-2: dc-doctor):"
-  if command -v docker >/dev/null 2>&1; then
+  echo "Doctor (install-time readiness; day-2: dc-doctor):"
+  if [[ -f "$GEN_ROOT/current/lib/dc-engine.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "$GEN_ROOT/current/lib/dc-engine.sh"
+  elif [[ -f "$ROOT/lib/dc-engine.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "$ROOT/lib/dc-engine.sh"
+  fi
+  if [[ -f "$GEN_ROOT/current/lib/dc-host.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "$GEN_ROOT/current/lib/dc-host.sh"
+  elif [[ -f "$ROOT/lib/dc-host.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "$ROOT/lib/dc-host.sh"
+  fi
+  if type dc_host_diagnose >/dev/null 2>&1; then
+    dc_host_diagnose
+    case "${DC_HOST_CODE:-}" in
+      ready)
+        echo "  docker        OK  $(command -v docker)  (${DC_HOST_ENGINE_HINT:-unknown})"
+        ;;
+      *)
+        echo "  docker        BLOCKED  ${DC_HOST_CODE}: ${DC_HOST_SUMMARY}"
+        ;;
+    esac
+  elif command -v docker >/dev/null 2>&1; then
     echo "  docker        OK  $(command -v docker)"
   else
     echo "  docker        MISSING  install Docker Engine or Desktop"
@@ -550,6 +574,11 @@ doctor() {
       echo "  editor $e     optional"
     fi
   done
+  if type dc_host_print_human >/dev/null 2>&1 && [[ "${DC_HOST_CODE:-}" != "ready" && -n "${DC_HOST_CODE:-}" ]]; then
+    echo
+    echo "Machine not ready for dc-up yet (dc-cli itself is installed)."
+    dc_host_print_human
+  fi
 }
 
 doctor

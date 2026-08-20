@@ -218,7 +218,7 @@ dc-doctor --json          # agents: one document, schemaVersion 1
 | `1` | one or more blockers (no Docker, no `devcontainer`, below-floor CLI when a floor is set, …) |
 | `2` | invalid invocation only (unknown flag, not a directory) |
 
-Install-time `install.sh` “Doctor:” lines are still just presence smoke. Day-2 diagnosis is `dc-doctor`. Diagnose **before** `dc-prune --yes`, `--take-ports`, or `dc-up` on a Docker Desktop machine.
+Install-time `install.sh` prints host Docker readiness (CLI missing / engine stopped / split-brain) but still installs helpers. It never auto-installs Docker. Day-2 diagnosis is `dc-doctor`; `dc-tui` shows a blocked setup screen when the engine is unavailable. Diagnose **before** `dc-prune --yes`, `--take-ports`, or `dc-up` on a Docker Desktop machine.
 
 ## Ports (Colima)
 

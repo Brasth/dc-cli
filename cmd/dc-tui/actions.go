@@ -18,6 +18,10 @@ func (m model) reloadCmd() tea.Cmd {
 	fleet := m.fleet
 	gen := m.loadGen
 	return func() tea.Msg {
+		host, hostErr := runHostDiagnose()
+		if hostErr == nil && host.blocked() {
+			return reloadMsg{gen: gen, workspace: ws, fleet: fleet, host: host}
+		}
 		args := []string{"--json"}
 		if fleet {
 			args = append(args, "--all")
@@ -26,7 +30,7 @@ func (m model) reloadCmd() tea.Cmd {
 		}
 		out, err := exec.Command("dc-ls", args...).Output()
 		if err != nil {
-			return reloadMsg{gen: gen, workspace: ws, fleet: fleet, err: err}
+			return reloadMsg{gen: gen, workspace: ws, fleet: fleet, host: host, hostErr: hostErr, err: err}
 		}
 		var rows []container
 		if err := json.Unmarshal(out, &rows); err != nil {
@@ -63,6 +67,8 @@ func (m model) reloadCmd() tea.Cmd {
 			fwdMaps:   fwd,
 			disk:      disk,
 			nets:      nets,
+			host:      host,
+			hostErr:   hostErr,
 		}
 	}
 }

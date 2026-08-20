@@ -164,6 +164,11 @@ if [[ -f "$ENGLIB" ]]; then
   # shellcheck source=/dev/null
   source "$ENGLIB"
 fi
+HOSTLIB="$(dirname "$COMMON")/dc-host.sh"
+if [[ -f "$HOSTLIB" ]]; then
+  # shellcheck source=/dev/null
+  source "$HOSTLIB"
+fi
 TRYLIB="$(dirname "$COMMON")/dc-try.sh"
 if [[ -f "$TRYLIB" ]]; then
   # shellcheck source=/dev/null
@@ -194,25 +199,59 @@ add_rec platform_bash ok "Bash ${BASH_VERSINFO[0]} on $(uname -s)" "" \
 # 2 common_library
 add_rec common_library ok "common library sourced" "" "{\"path\":$(json_str "$COMMON")}"
 
-# 3 docker_cli
-if command -v docker >/dev/null 2>&1; then
-  add_rec docker_cli ok "docker on PATH" "" "{\"path\":$(json_str "$(command -v docker)")}"
-  docker_ok=1
+# 3-4 docker_cli / docker_daemon (shared host diagnosis when available)
+docker_ok=0
+daemon_ok=0
+if type dc_host_diagnose >/dev/null 2>&1; then
+  dc_host_diagnose
+  case "${DC_HOST_CODE:-}" in
+    ready|docker_split_brain)
+      add_rec docker_cli ok "docker on PATH" "" "{\"path\":$(json_str "$(command -v docker)")}"
+      docker_ok=1
+      add_rec docker_daemon ok "docker daemon reachable" "" \
+        "{\"hostCode\":$(json_str "${DC_HOST_CODE}"),\"engineHint\":$(json_str "${DC_HOST_ENGINE_HINT:-unknown}")}"
+      daemon_ok=1
+      ;;
+    docker_cli_missing)
+      add_rec docker_cli blocker "${DC_HOST_SUMMARY}" "${DC_HOST_DETAIL}" \
+        "{\"hostCode\":$(json_str "$DC_HOST_CODE"),\"engineHint\":$(json_str "${DC_HOST_ENGINE_HINT:-unknown}")}" \
+        "${DC_HOST_REMEDIATION}" docker_missing "${DC_HOST_SUMMARY}"
+      add_rec docker_daemon blocker "docker unavailable" "" \
+        "{\"hostCode\":$(json_str "$DC_HOST_CODE")}" "" docker_unavailable "docker cli missing"
+      ;;
+    docker_engine_missing|docker_engine_stopped|docker_permission_denied|docker_context_invalid)
+      add_rec docker_cli ok "docker on PATH" "" "{\"path\":$(json_str "$(command -v docker)")}"
+      docker_ok=1
+      add_rec docker_daemon blocker "${DC_HOST_SUMMARY}" "${DC_HOST_DETAIL}" \
+        "{\"hostCode\":$(json_str "$DC_HOST_CODE"),\"engineHint\":$(json_str "${DC_HOST_ENGINE_HINT:-unknown}")}" \
+        "${DC_HOST_REMEDIATION}" "$DC_HOST_CODE" "${DC_HOST_SUMMARY}"
+      ;;
+    *)
+      add_rec docker_cli blocker "docker host unknown" "${DC_HOST_DETAIL}" \
+        "{\"hostCode\":$(json_str "${DC_HOST_CODE:-unknown}")}" \
+        "run dc-doctor" docker_unavailable "${DC_HOST_CODE:-unknown}"
+      add_rec docker_daemon blocker "docker unavailable" "" "{}" "" docker_unavailable "host diagnose failed"
+      ;;
+  esac
 else
-  add_rec docker_cli blocker "docker not on PATH" "" "{}" "install Docker Engine or Desktop" docker_missing "docker not found"
-  docker_ok=0
-fi
-
-# 4 docker_daemon
-if [[ "$docker_ok" -ne 1 ]]; then
-  add_rec docker_daemon blocker "docker unavailable" "" "{}" "" docker_unavailable "docker cli missing"
-else
-  if docker info >/dev/null 2>&1; then
-    add_rec docker_daemon ok "docker daemon reachable" "" "{}"
-    daemon_ok=1
+  if command -v docker >/dev/null 2>&1; then
+    add_rec docker_cli ok "docker on PATH" "" "{\"path\":$(json_str "$(command -v docker)")}"
+    docker_ok=1
   else
-    add_rec docker_daemon blocker "docker daemon unreachable" "" "{}" "start Docker Desktop or colima start" docker_daemon_unreachable "docker info failed"
-    daemon_ok=0
+    add_rec docker_cli blocker "docker not on PATH" "" "{}" "install Docker Engine or Desktop" docker_missing "docker not found"
+    docker_ok=0
+  fi
+
+  if [[ "$docker_ok" -ne 1 ]]; then
+    add_rec docker_daemon blocker "docker unavailable" "" "{}" "" docker_unavailable "docker cli missing"
+  else
+    if docker info >/dev/null 2>&1; then
+      add_rec docker_daemon ok "docker daemon reachable" "" "{}"
+      daemon_ok=1
+    else
+      add_rec docker_daemon blocker "docker daemon unreachable" "" "{}" "start Docker Desktop or colima start" docker_daemon_unreachable "docker info failed"
+      daemon_ok=0
+    fi
   fi
 fi
 

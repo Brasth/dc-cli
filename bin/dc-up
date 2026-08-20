@@ -35,6 +35,13 @@ else
   echo "dc-engine.sh not found" >&2
   exit 1
 fi
+if [[ -f "$_here/../lib/dc-host.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-host.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-host.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-host.sh"
+fi
 
 workspace="."
 override=""
@@ -126,6 +133,18 @@ fi
 if [[ "$_up_kind" == "compose" && -n "$override" ]]; then
   echo "dc-up: --ports / --override are for Dev Container workspaces only." >&2
   exit 2
+fi
+
+if type dc_host_diagnose >/dev/null 2>&1; then
+  dc_host_diagnose
+  case "${DC_HOST_CODE:-}" in
+    ready|docker_split_brain) ;;
+    *)
+      echo "dc-up: ${DC_HOST_SUMMARY:-Docker host not ready}" >&2
+      dc_host_print_human >&2
+      exit 1
+      ;;
+  esac
 fi
 
 if ! dc_engine_guard_up; then
