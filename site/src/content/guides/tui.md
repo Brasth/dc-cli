@@ -1,8 +1,8 @@
 ---
 title: "dc-tui board and keys"
-description: "dc-tui is the clickable board for this folder. Primary keys: start, shell, stop. Click a published website URL or press 1-9 to open it. Meta: open, attach, ports, logs, top, nets, db, files, fleet."
+description: "dc-tui is the clickable board for this folder. Primary keys: start, shell, stop. Click a published website URL or press 1-9 to open it. Meta: open, attach, ports, logs, top, nets, db, files, fleet. Upgrade: U when a newer release is available."
 h1: "The board is the product."
-updated: 2026-08-19
+updated: 2026-08-22
 howto: false
 faq:
   - q: What is the difference between open and attach?
