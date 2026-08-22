@@ -51,9 +51,9 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 
 | Button | Key | Does |
 |---|---|---|
-| **start** | `u` | `dc-up` — `.devcontainer` uses official CLI + forward; compose-kind uses `docker compose` (no forward) |
-| **shell** | `e` | `dc-exec` — **app** only |
-| **stop** | `s` | full stack `dc-down` |
+| **start** | `u` | `dc up` — `.devcontainer` uses official CLI + forward; compose-kind uses `docker compose` (no forward) |
+| **shell** | `e` | `dc exec` — **app** only |
+| **stop** | `s` | full stack `dc down` |
 | **rm** | `x` | `dc-down --rm` after `y` |
 | **open** | `o` | host editor on the bind-mount |
 | **attach** | `a` | VS Code Remote URI; Zed prints Connect Dev Container steps. N/A for compose-kind. |
@@ -81,4 +81,4 @@ Header shows a compact disk line from `dc-df`, an app load pulse from `dc-stats`
 
 `dc` with no args (or `dc tui`) is the board. Hyphenated `dc-tui` stays.
 
-See also [ports](/guide/ports/) and the [README TUI](https://github.com/Brasth/dc-cli#tui).
+See also [ports](/guide/ports/).
