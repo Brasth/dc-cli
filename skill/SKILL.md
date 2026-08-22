@@ -1,12 +1,12 @@
 ---
 name: "devcontainer-cli-global"
 description: "Host-global official @devcontainers/cli helpers. ALWAYS dc-exec — NEVER raw docker exec NAME (DC app = official CLI; compose-kind = docker compose exec inside dc-exec). Engine wall: dc-recover --yes (existing Desktop/Colima/dockerd). Disk full: dc-df then dc-prune --yes. Port clash: --take-ports stops labeled foreign or proven compose-kind working_dir; unlabeled report-only. dc-forward needs one app or --id (not auto on compose-kind). dc-db on a declared port. dc-files yazi/nnn or Linux yazi in /tmp. dc-doctor read-only. NEVER docker system prune -af --volumes. Install: curl main/install.sh | bash -s -- --with-cli (or brew tap Brasth/dc-cli). No project .devcontainer edits."
-version: 33
+version: 34
 created: "2026-08-13"
 updated: "2026-08-22"
 ---
 ## When to Use
-Use automatically for official @devcontainers/cli without editing project .devcontainer files. Triggers: start/stop/exec a devcontainer, dc-tui, dc-up, dc-try, dc-down, dc-open, extra ports, override.json, Docker disk full / ENOSPC / no space left, sandbox start without project config.
+Use automatically for official @devcontainers/cli without editing project .devcontainer files. Triggers: start/stop/exec a devcontainer, dc-tui, dc-up, dc-try, dc-down, dc-open, extra ports, override.json, Docker disk full / ENOSPC / no space left, sandbox start without project config. `dc <verb>` is the same as `dc-<verb>`; `dc` with no args is the board.
 
 ## Procedure
 1. Confirm Docker/Colima (read-only `dc-doctor` or `docker ps`). `dc-doctor` never mutates. Host wall on an **existing** engine: `dc-recover` (print) then `dc-recover --yes` (start Desktop/Colima/dockerd, pick-one + stop extra, context, Linux group). TUI blocked board `[f]` is the same apply. Empty machine: do not install; point at Desktop guide / Colima brew copy. On Docker Desktop, run `dc-doctor` **before** `dc-up` — `docker_context` must be one live engine (CLI socket). Linux Desktop is `~/.docker/desktop/docker.sock` (engine=desktop), not unknown. Split-brain is a blocker; `dc-recover --yes` stops the extra after context use. `dc-engine --fix` still prints; `--yes` is context only. `DC_UP_ALLOW_SPLIT=1` is a last-resort hatch only. This folder is `kind=devcontainer` if project config exists (official CLI required), else `kind=compose` if a root compose file exists (official CLI not required), else `kind=none` (use `dc-try` for a sandbox; `dc-up` refuses). Still stuck after apply: `dc-recover --report` (no secrets).
@@ -38,7 +38,7 @@ Use automatically for official @devcontainers/cli without editing project .devco
 - One engine per machine. Desktop UI is not proof the CLI is talking to that VM. Do not export Colima `DOCKER_HOST` onto a Desktop laptop. Linux Desktop socket is `~/.docker/desktop/docker.sock`. Leftover native `dockerd` on `/var/run` is a real extra engine — `dc-engine --fix`.
 
 ## Verification
-1. `dc-df --help`, `dc-prune --help`, `dc-up --help`, `dc-doctor --help`, `dc-recover --help`, `dc-engine --help`, `dc-stats --help`, `dc-net --help` work. `dc-doctor` and `dc-stats` are read-only. `dc-recover` without `--yes` is read-only. `dc-engine` without `--fix --yes` is read-only. `dc-net` without `--ensure` is read-only.
+1. `dc --help`, `dc up --help`, `dc-df --help`, `dc-prune --help`, `dc-up --help`, `dc-doctor --help`, `dc-recover --help`, `dc-engine --help`, `dc-stats --help`, `dc-net --help` work. `dc-doctor` and `dc-stats` are read-only. `dc-recover` without `--yes` is read-only. `dc-engine` without `--fix --yes` is read-only. `dc-net` without `--ensure` is read-only.
 2. `dc-prune` without `--yes` is dry-run (exit 0, no delete).
 3. `dc-prune --volume x` without `--yes` does not delete.
 4. `dc-ls --json --all` with no containers prints `[]`.

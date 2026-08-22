@@ -17,9 +17,9 @@ jobs:
           bash -n install.sh
           bash -n lib/dc-common.sh lib/dc-floor.sh lib/dc-install-yazi.sh lib/dc-exec-color.sh lib/dc-net.sh lib/dc-engine.sh lib/dc-host.sh lib/dc-recover.sh
           bash -n scripts/pack-release.sh scripts/print-release-shas.sh scripts/check-floor-qual.sh
-          bash -n bin/dc-up bin/dc-exec bin/dc-down bin/dc-ps bin/dc-forward
+          bash -n bin/dc bin/dc-up bin/dc-exec bin/dc-down bin/dc-ps bin/dc-forward
           bash -n bin/dc-ls bin/dc-open bin/dc-tui bin/dc-df bin/dc-prune bin/dc-doctor bin/dc-engine bin/dc-recover bin/dc-net
-          bash -n tests/lib/fake-docker tests/lib/harness.sh tests/safety/run.sh tests/install/run.sh tests/doctor/run.sh tests/forward/run.sh tests/files/run.sh tests/exec/run.sh tests/net/run.sh tests/engine/run.sh tests/host/run.sh tests/recover/run.sh
+          bash -n tests/lib/fake-docker tests/lib/harness.sh tests/safety/run.sh tests/install/run.sh tests/doctor/run.sh tests/forward/run.sh tests/files/run.sh tests/exec/run.sh tests/net/run.sh tests/engine/run.sh tests/host/run.sh tests/recover/run.sh tests/dc/run.sh
       - name: safety gates
         run: bash tests/safety/run.sh
       - name: installer gates
@@ -40,6 +40,8 @@ jobs:
         run: bash tests/files/run.sh
       - name: exec color gates
         run: bash tests/exec/run.sh
+      - name: dc meta-binary gates
+        run: bash tests/dc/run.sh
       - name: floor qualification artifact
         run: bash scripts/check-floor-qual.sh
       - name: go test dc-tui
@@ -49,12 +51,15 @@ jobs:
       - name: install to prefix
         run: |
           PREFIX="$RUNNER_TEMP/dc-bin" bash install.sh --prefix "$RUNNER_TEMP/dc-bin"
+          test -x "$RUNNER_TEMP/dc-bin/dc"
           test -x "$RUNNER_TEMP/dc-bin/dc-up"
           test -x "$RUNNER_TEMP/dc-bin/dc-down"
           test -x "$RUNNER_TEMP/dc-bin/dc-ls"
           test -x "$RUNNER_TEMP/dc-bin/dc-open"
           test -x "$RUNNER_TEMP/dc-bin/dc-tui"
           test -f "${XDG_DATA_HOME:-$HOME/.local/share}/dc-cli/generations/current/lib/dc-common.sh"
+          "$RUNNER_TEMP/dc-bin/dc" --help
+          "$RUNNER_TEMP/dc-bin/dc" up --help
           "$RUNNER_TEMP/dc-bin/dc-up" --help
           "$RUNNER_TEMP/dc-bin/dc-down" --help
           "$RUNNER_TEMP/dc-bin/dc-ls" --help
@@ -110,6 +115,7 @@ jobs:
         run: |
           scripts/pack-release.sh 0.0.0-ci linux amd64 "$RUNNER_TEMP/dc-dist"
           tar -tzf "$RUNNER_TEMP/dc-dist/dc-cli-0.0.0-ci-linux-amd64.tar.gz" | grep -q '/bin/dc-tui$'
+          tar -tzf "$RUNNER_TEMP/dc-dist/dc-cli-0.0.0-ci-linux-amd64.tar.gz" | grep -q '/bin/dc$'
           mkdir -p "$RUNNER_TEMP/dc-kit"
           tar -xzf "$RUNNER_TEMP/dc-dist/dc-cli-0.0.0-ci-linux-amd64.tar.gz" -C "$RUNNER_TEMP/dc-kit"
           kit="$RUNNER_TEMP/dc-kit/dc-cli-0.0.0-ci-linux-amd64"
@@ -122,6 +128,8 @@ jobs:
           gen_tui="$RUNNER_TEMP/prebuilt-home/.local/share/dc-cli/generations/current/bin/dc-tui"
           test -x "$gen_tui"
           test "$(head -c 2 "$gen_tui")" != "#!"
+          "$RUNNER_TEMP/dc-prebuilt/dc" --help
+          "$RUNNER_TEMP/dc-prebuilt/dc" up --help
           "$RUNNER_TEMP/dc-prebuilt/dc-tui" --help
           "$RUNNER_TEMP/dc-prebuilt/dc-up" --help
           test -f "$kit/skill/SKILL.md"
@@ -130,6 +138,8 @@ jobs:
           mkdir -p "$brew/bin" "$brew/lib"
           cp "$kit/bin/"* "$brew/bin/"
           cp "$kit/lib/"*.sh "$brew/lib/"
+          HOME="$RUNNER_TEMP/empty-home" "$brew/bin/dc" --help
+          HOME="$RUNNER_TEMP/empty-home" "$brew/bin/dc" up --help
           HOME="$RUNNER_TEMP/empty-home" "$brew/bin/dc-up" --help
           HOME="$RUNNER_TEMP/empty-home" "$brew/bin/dc-ls" --json --all | grep -qx '\[\]'
           grep -Fqx 'curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli' README.md

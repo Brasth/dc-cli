@@ -54,7 +54,10 @@ case_atomic_generation() {
   [[ -L "$home/share/generations/current" ]]
   [[ -f "$home/share/generations/current/lib/dc-common.sh" ]]
   [[ -x "$prefix/dc-up" ]]
+  [[ -x "$prefix/dc" ]]
   "$prefix/dc-up" --help >/dev/null
+  "$prefix/dc" --help >/dev/null
+  "$prefix/dc" up --help >/dev/null
   # Partial extra id dir is not current.
   mkdir -p "$home/share/generations/partial-id/bin"
   [[ "$(readlink "$home/share/generations/current")" != *partial-id ]]

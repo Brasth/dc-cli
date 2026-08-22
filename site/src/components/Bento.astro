@@ -1,28 +1,28 @@
 ---
 const tiles = [
   {
-    k: 'dc-up',
+    k: 'dc up',
     title: 'Start this folder.',
-    body: '.devcontainer → official CLI, then ports. Compose-only → docker compose. No config → dc-try sandbox.',
-    lines: ['$ dc-up | dc-try', '→ kind=devcontainer | compose | none', '→ up  (forward only on DC)', 'none → dc-try sandbox'],
+    body: '.devcontainer → official CLI, then ports. Compose-only → docker compose. No config → dc try sandbox.',
+    lines: ['$ dc up | dc try', '→ kind=devcontainer | compose | none', '→ up  (forward only on DC)', 'none → dc try sandbox'],
   },
   {
-    k: 'dc-exec',
+    k: 'dc exec',
     title: 'Never raw docker exec.',
-    body: 'Always dc-exec. DC app = official CLI. Compose app = compose exec (1 / app / web / refuse).',
-    lines: ['$ dc-exec --service db', '→ start db (was exited)', '→ never docker exec NAME', 'root@db:/#'],
+    body: 'Always dc exec. DC app = official CLI. Compose app = compose exec (1 / app / web / refuse).',
+    lines: ['$ dc exec --service db', '→ start db (was exited)', '→ never docker exec NAME', 'root@db:/#'],
   },
   {
-    k: 'dc-doctor',
+    k: 'dc doctor',
     title: 'Read-only diagnose.',
     body: 'Human or --json. Reports the CLI engine and socket. Two live engines (Colima + Desktop) is a blocker. Never mutates.',
-    lines: ['$ dc-doctor --json', 'engine  colima', 'extraLive  []', 'exit  0'],
+    lines: ['$ dc doctor --json', 'engine  colima', 'extraLive  []', 'exit  0'],
   },
   {
-    k: 'dc-forward',
+    k: 'dc forward',
     title: 'Colima-safe pairs.',
     body: 'Reconcile owned sidecars. 9001:80 stays asymmetric. One labeled app or --id.',
-    lines: ['$ dc-forward 9001:80', '→ owned alpine/socat', '→ host :9001 → :80', 'fail closed if blocked'],
+    lines: ['$ dc forward 9001:80', '→ owned alpine/socat', '→ host :9001 → :80', 'fail closed if blocked'],
   },
 ];
 ---

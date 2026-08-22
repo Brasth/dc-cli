@@ -19,7 +19,7 @@ trap 'rm -rf "$stage"' EXIT
 dest="$stage/$name"
 mkdir -p "$dest/bin" "$dest/lib" "$dest/config" "$dest/skill"
 
-for f in dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-engine dc-recover dc-db dc-files dc-stats dc-net dc-try; do
+for f in dc dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-engine dc-recover dc-db dc-files dc-stats dc-net dc-try; do
   if [[ -f "$ROOT/bin/$f" ]]; then
     cp "$ROOT/bin/$f" "$dest/bin/$f"
     chmod +x "$dest/bin/$f"

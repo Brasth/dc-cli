@@ -10,7 +10,7 @@ steps:
   - name: Reload the shell
     text: Open a new terminal, or source ~/.zshrc / ~/.bashrc so generation current/bin is on PATH.
   - name: Confirm
-    text: dc-tui --help, dc-up --help, dc-doctor --help, dc-engine --help, dc-stats --help, or dc-net --help should print usage.
+    text: dc --help, dc up --help, dc doctor --help, or dc-tui --help should print usage. Hyphenated names stay.
 ---
 
 Needs bash 4+. Docker can be missing at install time — helpers still install and print a Host Docker readiness block (never auto-installs an engine). Official `@devcontainers/cli` is required only for `kind=devcontainer` folders. Compose-only folders start via `dc-up` → Compose (`docker compose` or `docker-compose`). Release kits and Homebrew include the clickable TUI (logo splash, start/shell/stop first). A source install builds it when Go is on PATH; otherwise you get the bash menu.
@@ -51,7 +51,7 @@ The advertised curl passes `--with-cli` so `devcontainer` is on PATH via the **u
 
 Homes and the exact copy list live in the [README Skill](https://github.com/Brasth/dc-cli#skill) section.
 
-Confirm: `dc-tui --help`, `dc-up --help`, `dc-try --help`, `dc-doctor --help`, `dc-engine --help`, `dc-stats --help`, or `dc-net --help` should print usage. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.17.0).
+Confirm: `dc --help`, `dc up --help`, `dc try --help`, or `dc-tui --help` should print usage. Hyphenated names stay. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.17.0).
 
 ## Daily start
 
@@ -59,9 +59,9 @@ Run from **this folder**. `.devcontainer` → official CLI. Compose-only → Com
 
 ```bash
 cd /path/to/your/project
-dc-tui
+dc
 ```
 
-Or skip the board: `dc-up`, then `dc-exec`.
+Or skip the board: `dc up`, then `dc exec`.
 
 Full flag tables live in the [README commands](https://github.com/Brasth/dc-cli#commands-all-of-them).

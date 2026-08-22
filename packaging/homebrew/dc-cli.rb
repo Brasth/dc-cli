@@ -37,6 +37,7 @@ class DcCli < Formula
   end
 
   test do
+    assert_match "dc up", shell_output("#{bin}/dc --help")
     assert_match "dc-tui", shell_output("#{bin}/dc-tui --help")
     assert_match "dc-up", shell_output("#{bin}/dc-up --help")
     assert_match "dc-doctor", shell_output("#{bin}/dc-doctor --help")
