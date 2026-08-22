@@ -1,0 +1,59 @@
+# One-shot: restore +x on files the Contents API flattened to 100644, then delete this workflow.
+name: restore-exec
+on:
+  push:
+    branches: [feature/release-v0.18.0-7bdc]
+    paths:
+      - .github/workflows/restore-exec.yml
+permissions:
+  contents: write
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore 100755 via Git Data API
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          API="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          BRANCH="${GITHUB_REF_NAME}"
+          AUTH=( -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" )
+
+          ref="$(curl -fsSL "${AUTH[@]}" "${API}/git/ref/heads/${BRANCH}")"
+          sha="$(jq -r .object.sha <<<"$ref")"
+          commit="$(curl -fsSL "${AUTH[@]}" "${API}/git/commits/${sha}")"
+          tree="$(jq -r .tree.sha <<<"$commit")"
+          items="$(curl -fsSL "${AUTH[@]}" "${API}/git/trees/${tree}?recursive=1")"
+
+          body="$(jq -n --arg tree "$tree" --argjson items "$items" '
+            {
+              base_tree: $tree,
+              tree: (
+                [
+                  $items.tree[]
+                  | select(.path == "bin/dc" or .path == "install.sh" or .path == "tests/dc/run.sh")
+                  | {path, mode: "100755", type: "blob", sha}
+                ] + [
+                  {path: ".github/workflows/restore-exec.yml", mode: "100644", type: "blob", sha: null}
+                ]
+              )
+            }
+          ')"
+
+          created="$(curl -fsSL "${AUTH[@]}" -X POST "${API}/git/trees" -d "$body")"
+          new_tree="$(jq -r .sha <<<"$created")"
+          [[ -n "$new_tree" && "$new_tree" != null ]]
+
+          payload="$(jq -n \
+            --arg msg "fix: restore executable bits on dc, install.sh, and tests" \
+            --arg tree "$new_tree" \
+            --arg parent "$sha" \
+            '{message: $msg, tree: $tree, parents: [$parent]}')"
+          committed="$(curl -fsSL "${AUTH[@]}" -X POST "${API}/git/commits" -d "$payload")"
+          new_sha="$(jq -r .sha <<<"$committed")"
+          [[ -n "$new_sha" && "$new_sha" != null ]]
+
+          curl -fsSL "${AUTH[@]}" -X PATCH "${API}/git/refs/heads/${BRANCH}" \
+            -d "$(jq -n --arg sha "$new_sha" '{sha: $sha}')"
+          echo "updated ${BRANCH} -> ${new_sha}"
