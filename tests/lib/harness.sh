@@ -31,6 +31,31 @@ harness_teardown() {
   [[ -n "${STATE:-}" && -d "$STATE" ]] && rm -rf "$STATE"
 }
 
+# PATH with no `docker` executable. CI installs docker to /usr/bin and /bin.
+harness_path_no_docker() {
+  local bindir="$STATE/bindir" f base want="${1:-}"
+  mkdir -p "$bindir"
+  for f in /usr/bin/* /bin/*; do
+    [[ -e "$f" ]] || continue
+    base="$(basename "$f")"
+    case "$base" in
+      docker|dockerd|docker-init|docker-proxy|dockerd-rootless*) continue ;;
+    esac
+    ln -sf "$f" "$bindir/$base" 2>/dev/null || true
+  done
+  rm -f "$STATE/bin/docker"
+  if [[ -n "$want" ]]; then
+    PATH="$want:$bindir"
+  else
+    PATH="$STATE/bin:$ROOT/bin:$bindir"
+  fi
+  hash -r 2>/dev/null || true
+  if command -v docker >/dev/null 2>&1; then
+    echo "harness_path_no_docker: docker still on PATH ($(command -v docker))" >&2
+    return 1
+  fi
+}
+
 fake_add_container() {
   local id="$1" name="$2" status="${3:-running}"
   shift 3 || true
