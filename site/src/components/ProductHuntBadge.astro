@@ -1,0 +1,31 @@
+---
+interface Props {
+  class?: string;
+  theme?: 'light' | 'dark' | 'neutral';
+}
+
+const { class: className = '', theme = 'light' } = Astro.props;
+
+const postId = '1229048';
+const productUrl =
+  'https://www.producthunt.com/products/dc-cli?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-dc-cli';
+const badgeSrc = `https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=${postId}&theme=${theme}`;
+---
+
+<a
+  href={productUrl}
+  target="_blank"
+  rel="noopener noreferrer"
+  class:list={['inline-block shrink-0', className]}
+  aria-label="dc-cli on Product Hunt"
+>
+  <img
+    src={badgeSrc}
+    alt="dc-cli - Dev containers from your terminal — no VS Code required | Product Hunt"
+    width="250"
+    height="54"
+    loading="lazy"
+    decoding="async"
+    class="h-[54px] w-[250px] max-w-full"
+  />
+</a>
