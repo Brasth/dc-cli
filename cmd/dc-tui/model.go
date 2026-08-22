@@ -65,7 +65,7 @@ type model struct {
 	hover      string
 	hoverStack int // -1 = none
 	disk       string
-	confirm    string // "", "rm", or "try"
+	confirm    string // "", "rm", "try", or "upgrade"
 	cursor     int
 	leaving    string // "", "start", "shell", "logs"
 	pending    string // action key after leave tick: u/e/l or stack:N
@@ -97,6 +97,9 @@ type model struct {
 	loaded     bool // true when current context has a successful snapshot
 	hostBlock  bool
 	host       hostReport
+	updateAvail      bool
+	updateInstalled  string
+	updateLatest     string
 }
 
 type reloadMsg struct {
@@ -127,11 +130,11 @@ const splashStep = 70 * time.Millisecond
 func (m model) Init() tea.Cmd {
 	// load/loadGen are set by main before Run; do not mutate model here.
 	if m.splashOn {
-		return tea.Batch(m.reloadCmd(), m.pulseCmd(), tea.Tick(splashStep, func(time.Time) tea.Msg {
+		return tea.Batch(m.reloadCmd(), m.pulseCmd(), m.updateCheckCmd(), tea.Tick(splashStep, func(time.Time) tea.Msg {
 			return splashTickMsg{}
 		}))
 	}
-	return tea.Batch(m.reloadCmd(), m.pulseCmd())
+	return tea.Batch(m.reloadCmd(), m.pulseCmd(), m.updateCheckCmd())
 }
 
 // hardLoading is initial load or a context switch with no trusted snapshot.
@@ -255,9 +258,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case reloadMsg:
 		m = m.applyReload(msg)
+	case updateCheckMsg:
+		if msg.available && msg.latest != "" {
+			m.updateAvail = true
+			m.updateInstalled = msg.installed
+			m.updateLatest = msg.latest
+		}
+		return m, nil
 	case execDoneMsg:
 		m.leaving = ""
 		m.pending = ""
+		if msg.action == "upgrade" {
+			m.quitting = true
+			if msg.err != nil {
+				m = m.withErr(msg.err.Error())
+			}
+			return m, tea.Quit
+		}
 		if msg.err != nil && !benignLeaveErr(msg.action, msg.err) {
 			m = m.withErr(msg.err.Error())
 		} else {
@@ -394,6 +411,12 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 			return m.refuse(reason)
 		}
 		return m.restartSelected()
+	case "U":
+		if !m.updateAvail {
+			return m.withStatus("no update available — dc upgrade --check"), nil
+		}
+		m.confirm = "upgrade"
+		return m, nil
 	case "d":
 		return m.stayCmd("dc-df")
 	case "t":
@@ -482,12 +505,18 @@ func (m model) handleConfirmKey(k string) (tea.Model, tea.Cmd) {
 		if which == "try" {
 			return m.startLeave("start", "try")
 		}
+		if which == "upgrade" {
+			return m.startLeave("upgrade", "upgrade")
+		}
 		return m.stayCmd("dc-down", "--rm", m.workspace)
 	case "n", "esc":
 		which := m.confirm
 		m.confirm = ""
 		if which == "try" {
 			return m.withStatus("try cancelled"), nil
+		}
+		if which == "upgrade" {
+			return m.withStatus("upgrade cancelled"), nil
 		}
 		return m.withStatus("rm cancelled"), nil
 	case "q", "ctrl+c":
@@ -504,6 +533,8 @@ func (m model) confirmAction() string {
 		return "dc-down --rm"
 	case "try":
 		return "dc-try --yes"
+	case "upgrade":
+		return "dc-upgrade --yes"
 	default:
 		return ""
 	}

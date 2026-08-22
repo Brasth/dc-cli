@@ -66,11 +66,12 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 | **db** | `b` | `dc-db` — host TablePlus on a declared db port |
 | **files** | `m` | `dc-files` — yazi/nnn in the box; Enter opens code/cursor on this container (`DC_FILES_EDITOR=vim` keeps vim) |
 | **fleet** | `f` | other workspaces |
+| **upgrade** | `U` | when a newer release is available — confirms then `dc-upgrade --yes` |
 | **more** / **quit** | `?` / `q` | legend / exit |
 | **disk** | `d` | `dc-df` report (stays in TUI) |
 | **rows** | `j`/`k`, Enter | cursor; fleet opens a folder, stack execs |
 
-Header shows a compact disk line from `dc-df`, an app load pulse from `dc-stats`, and declared compose nets when present. `d` is still the disk document. `t` is live CPU/RAM for this folder (`q` back). `n` lists this folder's required nets (`y` creates missing `external: true` bridge nets, then `dc-up --create-nets`). Fleet refuses `t` and `n`. Desktop guest is cap only. Reclaim stays CLI-only (`dc-prune --yes`). CLI twins: `dc-stats` / `dc-net`.
+Header shows a compact disk line from `dc-df`, an app load pulse from `dc-stats`, and declared compose nets when present. When a newer GitHub release exists, a banner points at `U` / `dc upgrade`. `d` is still the disk document. `t` is live CPU/RAM for this folder (`q` back). `n` lists this folder's required nets (`y` creates missing `external: true` bridge nets, then `dc-up --create-nets`). Fleet refuses `t` and `n`. Desktop guest is cap only. Reclaim stays CLI-only (`dc-prune --yes`). CLI twins: `dc-stats` / `dc-net`.
 
 ## App vs other services
 

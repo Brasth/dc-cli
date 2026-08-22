@@ -226,6 +226,8 @@ func (m model) runPending() (tea.Model, tea.Cmd) {
 		cmd = exec.Command("dc-up", ws)
 	case "try":
 		cmd = exec.Command("dc-try", "--yes", ws)
+	case "upgrade":
+		cmd = exec.Command("dc-upgrade", "--yes")
 	case "create-nets":
 		cmd = exec.Command("dc-up", "--create-nets", ws)
 	case "e":

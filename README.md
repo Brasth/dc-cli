@@ -43,6 +43,7 @@ Stuck engine: `dc doctor` then `dc recover --yes`. Disk: `dc df` then `dc prune 
 | `dc try` / `dc-try` | sandbox when there is no config |
 | `dc doctor` / `dc-doctor` | read-only diagnose |
 | `dc recover` / `dc-recover` | one next step (`--yes` applies) |
+| `dc upgrade` / `dc-upgrade` | check / install latest release |
 | `dc engine` / `dc-engine` | which engine (`--fix`) |
 | `dc forward` / `dc-forward` | Colima-safe ports |
 | `dc db` / `dc-db` | host DB client on a declared port |

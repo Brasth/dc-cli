@@ -51,7 +51,17 @@ The advertised curl passes `--with-cli` so `devcontainer` is on PATH via the **u
 
 Homes: `~/.cursor`, `~/.claude`, `~/.codex`, `~/.pi`, `~/.gemini`, `~/.opencode`, `~/.agents/skills`.
 
-Confirm: `dc --help` or `dc up --help`. `dc-up` still works. Homebrew on an older tap: `brew update && brew upgrade dc-cli` (v0.18.0).
+Confirm: `dc --help` or `dc up --help`. `dc-up` still works. Homebrew on an older tap: `dc upgrade` (or `brew update && brew upgrade dc-cli`).
+
+## Update
+
+```bash
+dc upgrade --check    # installed vs latest
+dc upgrade            # prompt, then apply
+dc upgrade --yes      # no prompt
+```
+
+Homebrew installs upgrade via brew. Curl / generation installs re-run `install.sh --ref latest --with-cli`. The TUI shows a banner when a newer release exists (`U` confirms).
 
 ## Daily start
 

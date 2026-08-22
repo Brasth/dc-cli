@@ -94,7 +94,7 @@ CHECK_IDS=(
   platform_bash common_library docker_cli docker_daemon docker_context colima
   devcontainer_cli devcontainer_read_configuration workspace_config
   duplicate_labels stack_identity desired_ports required_networks actual_ports stale_owned_sidecars
-  disk dc_cli_version dc_cli_channel
+  disk dc_cli_version dc_cli_channel dc_cli_update
 )
 
 # record fields stored as US-separated: id status summary detail datajson remediation ecode emsg
@@ -543,18 +543,13 @@ else
   fi
 fi
 
-# 16/17 version + channel
+# 16/17/18 version + channel + update
 ver="$(dc_cli_version)"
 [[ "$ver" == "dev" ]] && ver=""
-chan="unknown"
+chan="$(dc_cli_channel)"
 if [[ -z "$ver" && -x "$_here/dc-tui" ]]; then
   ver="$("$_here/dc-tui" --version 2>/dev/null | awk '{print $NF}')"
   [[ "$ver" == "dev" ]] && ver=""
-fi
-if command -v brew >/dev/null 2>&1 && brew list --versions dc-cli >/dev/null 2>&1; then
-  chan="homebrew"
-elif [[ -L "${XDG_DATA_HOME:-$HOME/.local/share}/dc-cli/generations/current" ]]; then
-  chan="source"
 fi
 if [[ -n "$ver" ]]; then
   add_rec dc_cli_version ok "dc-cli version known" "" "{\"version\":$(json_str "$ver")}"
@@ -566,6 +561,29 @@ if [[ "$chan" == "unknown" ]]; then
 else
   add_rec dc_cli_channel ok "channel $chan" "" "{\"channel\":$(json_str "$chan")}"
 fi
+
+# Soft update probe — never a blocker; offline stays ok.
+upd_state="" upd_installed="" upd_latest=""
+IFS=$'\t' read -r upd_state upd_installed upd_latest _chan <<<"$(dc_cli_update_info)"
+case "$upd_state" in
+  available)
+    add_rec dc_cli_update warning "update available ${upd_installed} → ${upd_latest}" "" \
+      "{\"state\":\"available\",\"installed\":$(json_str "$upd_installed"),\"latest\":$(json_str "$upd_latest")}" \
+      "dc upgrade"
+    ;;
+  current)
+    add_rec dc_cli_update ok "dc-cli is current" "" \
+      "{\"state\":\"current\",\"installed\":$(json_str "$upd_installed"),\"latest\":$(json_str "$upd_latest")}"
+    ;;
+  dev)
+    add_rec dc_cli_update ok "dev install — skip release check" "" \
+      "{\"state\":\"dev\",\"installed\":$(json_str "${upd_installed:-dev}")}"
+    ;;
+  *)
+    add_rec dc_cli_update ok "latest release unknown (offline or API)" "" \
+      "{\"state\":\"unknown\",\"installed\":$(json_str "${upd_installed:-}")}"
+    ;;
+esac
 
 blockers=0
 warnings=0
