@@ -162,7 +162,7 @@ elif [[ ! -f "$ROOT/bin/dc-up" ]]; then
   fetch_ref latest
 fi
 
-HELPERS=(dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-engine dc-db dc-files dc-stats dc-net dc-try)
+HELPERS=(dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-engine dc-recover dc-db dc-files dc-stats dc-net dc-try)
 
 if [[ -f "$ROOT/lib/dc-install-yazi.sh" ]]; then
   # shellcheck source=/dev/null
@@ -590,6 +590,7 @@ echo "  dc-up --help"
 echo "  dc-tui --help     # this folder"
 echo "  dc-tui --all      # fleet"
 echo "  dc-doctor         # read-only diagnostics"
+echo "  dc-recover        # one next step; --yes applies (existing engine)"
 echo "  dc-engine         # which Docker engine; dc-engine --fix to recover"
 echo "  dc-stats          # this folder CPU / RAM / net"
 echo "  dc-net            # this folder declared compose nets"

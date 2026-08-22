@@ -297,12 +297,15 @@ dc_host_print_human() {
   fi
   echo
   echo "Then:"
+  echo "  dc-recover --yes    # apply the next safe step (existing engine)"
   echo "  dc-doctor"
   echo "  dc-tui"
 }
 
 dc_host_json() {
-  printf '{"schemaVersion":1,"command":"dc-host","status":%s,"code":%s,"summary":%s,"detail":%s,"engineHint":%s,"remediation":%s,"actions":%s,"guideUrl":%s}\n' \
+  local allowed=false
+  [[ "${DC_RECOVER_APPLY_ALLOWED:-0}" == "1" ]] && allowed=true
+  printf '{"schemaVersion":1,"command":"dc-host","status":%s,"code":%s,"summary":%s,"detail":%s,"engineHint":%s,"remediation":%s,"actions":%s,"guideUrl":%s,"nextId":%s,"nextCommand":%s,"nextApply":%s,"applyAllowed":%s}\n' \
     "$( [[ "${DC_HOST_CODE:-}" == "ready" ]] && printf '"ok"' || printf '"blocker"' )" \
     "$(dc_host_json_str "${DC_HOST_CODE:-unknown}")" \
     "$(dc_host_json_str "${DC_HOST_SUMMARY:-}")" \
@@ -310,7 +313,11 @@ dc_host_json() {
     "$(dc_host_json_str "${DC_HOST_ENGINE_HINT:-unknown}")" \
     "$(dc_host_json_str "${DC_HOST_REMEDIATION:-}")" \
     "$(dc_host_json_str "${DC_HOST_ACTIONS:-}")" \
-    "$(dc_host_json_str "${DC_HOST_GUIDE:-$(dc_host_desktop_guide_url)}")"
+    "$(dc_host_json_str "${DC_HOST_GUIDE:-$(dc_host_desktop_guide_url)}")" \
+    "$(dc_host_json_str "${DC_RECOVER_ID:-}")" \
+    "$(dc_host_json_str "${DC_RECOVER_COMMAND:-}")" \
+    "$(dc_host_json_str "${DC_RECOVER_APPLY:-}")" \
+    "$allowed"
 }
 
 dc_host_colima_copy_text() {

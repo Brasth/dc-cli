@@ -99,8 +99,15 @@ func (m model) hostView() string {
 			b.WriteString(okStyle.Render(trunc(m.host.Remediation, w)) + "\n")
 		}
 	}
+	if m.host.NextCommand != "" {
+		b.WriteString(mutedStyle.Render(trunc("next: "+m.host.NextCommand, w)) + "\n")
+	}
 	b.WriteString("\n")
-	b.WriteString(hintStyle.Render("[d] Desktop guide  [c] copy Colima setup  [r] check again  [q] quit") + "\n")
+	hints := "[d] Desktop guide  [c] copy Colima setup  [r] check again  [q] quit"
+	if m.host.canApply() {
+		hints = "[f] try fix  " + hints
+	}
+	b.WriteString(hintStyle.Render(hints) + "\n")
 	if m.status != "" {
 		b.WriteString("\n" + statusStyle.Render(trunc(m.status, w)) + "\n")
 	}

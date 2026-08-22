@@ -34,6 +34,31 @@ func TestHostViewShowsSetup(t *testing.T) {
 	}
 }
 
+func TestHostViewShowsTryFixWhenApplyAllowed(t *testing.T) {
+	m := model{
+		width:     80,
+		hostBlock: true,
+		host: hostReport{
+			Code:         "docker_engine_stopped",
+			Summary:      "Docker engine is not running",
+			EngineHint:   "colima",
+			NextID:       "start_colima",
+			NextCommand:  "colima start",
+			NextApply:    "colima_start",
+			ApplyAllowed: true,
+		},
+	}
+	s := m.View()
+	for _, want := range []string{
+		"colima start",
+		"[f] try fix",
+	} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("missing %q in:\n%s", want, s)
+		}
+	}
+}
+
 func TestHostKeyRetryClearsViaReloadMsg(t *testing.T) {
 	old := runHostDiagnose
 	t.Cleanup(func() { runHostDiagnose = old })
@@ -56,6 +81,44 @@ func TestHostKeyRetryClearsViaReloadMsg(t *testing.T) {
 	}
 	if cmd == nil {
 		t.Fatal("expected reload cmd")
+	}
+}
+
+func TestHostKeyFixRunsRecover(t *testing.T) {
+	old := runHostRecover
+	t.Cleanup(func() { runHostRecover = old })
+	called := false
+	runHostRecover = func() error {
+		called = true
+		return nil
+	}
+	oldDiag := runHostDiagnose
+	t.Cleanup(func() { runHostDiagnose = oldDiag })
+	runHostDiagnose = func() (hostReport, error) {
+		return hostReport{Code: "ready", Status: "ok"}, nil
+	}
+
+	m := model{
+		workspace: "/tmp/app",
+		hostBlock: true,
+		host: hostReport{
+			Code:         "docker_engine_stopped",
+			EngineHint:   "colima",
+			NextApply:    "colima_start",
+			ApplyAllowed: true,
+		},
+		loadGen: 1,
+	}
+	got, cmd := m.handleKey("f")
+	mm := got.(model)
+	if !called {
+		t.Fatal("expected recover apply")
+	}
+	if !strings.Contains(mm.status, "fix") && !strings.Contains(mm.status, "checking") {
+		t.Fatalf("status=%q", mm.status)
+	}
+	if cmd == nil {
+		t.Fatal("expected reload after fix")
 	}
 }
 
