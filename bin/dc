@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# dc — one entry. Verbs map to dc-<verb>. No args opens the board.
+set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+
+dc_exec() {
+  local name="$1"
+  shift
+  local bin="$_here/$name"
+  if [[ ! -x "$bin" ]]; then
+    echo "dc: missing $name (expected next to $0)" >&2
+    exit 1
+  fi
+  exec "$bin" "$@"
+}
+
+usage() {
+  cat <<'EOF'
+dc — this folder
+
+  dc                      clickable board
+  dc up [dir]             start
+  dc exec                 shell in the app
+  dc down                 stop the stack
+  dc doctor               read-only diagnose
+  dc recover              one next step (--yes applies)
+  dc try                  sandbox when there is no config
+
+  dc exec --service NAME
+  dc --all                fleet board
+  dc --help
+
+Same verbs as the hyphenated names: dc up = dc-up. Those stay installed.
+EOF
+}
+
+is_verb() {
+  case "$1" in
+    tui|doctor|recover|engine|up|try|exec|down|ls|open|db|files|forward|ps|df|stats|net|prune)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+if [[ $# -eq 0 ]]; then
+  dc_exec dc-tui
+fi
+
+case "$1" in
+  -h|--help|help)
+    usage
+    exit 0
+    ;;
+esac
+
+if is_verb "$1"; then
+  verb="$1"
+  shift
+  dc_exec "dc-${verb}" "$@"
+fi
+
+if [[ "$1" == -* || -d "$1" || "$1" == /* || "$1" == .* ]]; then
+  dc_exec dc-tui "$@"
+fi
+
+echo "dc: unknown verb '$1'" >&2
+echo "Try dc --help. Hyphenated names still work (dc-up, dc-exec, …)." >&2
+exit 2

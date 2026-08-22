@@ -162,7 +162,7 @@ elif [[ ! -f "$ROOT/bin/dc-up" ]]; then
   fetch_ref latest
 fi
 
-HELPERS=(dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-engine dc-recover dc-db dc-files dc-stats dc-net dc-try)
+HELPERS=(dc dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-engine dc-recover dc-db dc-files dc-stats dc-net dc-try)
 
 if [[ -f "$ROOT/lib/dc-install-yazi.sh" ]]; then
   # shellcheck source=/dev/null
@@ -306,6 +306,7 @@ verify_stage() {
   source "$stage/lib/dc-common.sh"
   "$stage/bin/dc-up" --help >/dev/null
   "$stage/bin/dc-ls" --help >/dev/null
+  "$stage/bin/dc" --help >/dev/null
 }
 
 if ! verify_stage; then
@@ -562,7 +563,7 @@ doctor() {
   else
     echo "  files         optional  dc-files fetches Linux yazi on first use"
   fi
-  if [[ -x "$PREFIX/dc-up" && -x "$PREFIX/dc-tui" ]]; then
+  if [[ -x "$PREFIX/dc" && -x "$PREFIX/dc-up" && -x "$PREFIX/dc-tui" ]]; then
     echo "  helpers       OK  $PREFIX (generation $GEN_ROOT/current)"
   else
     echo "  helpers       MISSING  $PREFIX"
@@ -586,15 +587,13 @@ doctor
 echo
 echo "Next:"
 echo "  open a new terminal (or: source ~/.bashrc / ~/.zshrc)"
-echo "  dc-up --help"
-echo "  dc-tui --help     # this folder"
-echo "  dc-tui --all      # fleet"
-echo "  dc-doctor         # read-only diagnostics"
-echo "  dc-recover        # one next step; --yes applies (existing engine)"
-echo "  dc-engine         # which Docker engine; dc-engine --fix to recover"
-echo "  dc-stats          # this folder CPU / RAM / net"
-echo "  dc-net            # this folder declared compose nets"
-echo "  dc-try            # sandbox start when no .devcontainer/compose"
+echo "  dc                # this folder board"
+echo "  dc --help         # verbs (dc up = dc-up, still installed)"
+echo "  dc --all          # fleet"
+echo "  dc doctor         # read-only diagnostics"
+echo "  dc recover        # one next step; dc recover --yes to apply"
+echo "  dc engine --fix   # which Docker engine / recover context"
+echo "  dc try            # sandbox start when no .devcontainer/compose"
 if ! command -v devcontainer >/dev/null 2>&1; then
   echo "Official CLI not installed. Need it (standalone):"
   echo "  ${ADVERTISED_CURL}"
