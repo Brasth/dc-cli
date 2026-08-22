@@ -41,6 +41,7 @@ export interface BoardSnapshot {
   logName: string;
   logLines: string[];
   logFollow: boolean;
+  logOffset: number;
   topRows: TopRow[];
   topCursor: number;
   nets: NetRow[];
@@ -73,6 +74,16 @@ const SAMPLE_LOGS = [
   '2026-08-22T05:00:22.019Z GET / 200 8ms',
   '2026-08-22T05:00:25.773Z GET /api/ports 200 19ms',
 ];
+
+/** logOffset is lines from the end (0 = latest / follow). */
+export function visibleLogLines(lines: string[], offset: number, windowSize = 6): string[] {
+  const off = Math.max(0, Number.isFinite(offset) ? offset : 0);
+  const end = Math.max(0, lines.length - off);
+  const start = Math.max(0, end - windowSize);
+  const slice = lines.slice(start, end);
+  if (slice.length || !lines.length) return slice;
+  return lines.slice(-windowSize);
+}
 
 export class BoardSimulator {
   private view: BoardView = 'board';
@@ -111,7 +122,6 @@ export class BoardSimulator {
 
   constructor(onChange: (snap: BoardSnapshot) => void) {
     this.onChange = onChange;
-    // this.emit(); // moved to mountBoard
     this.schedule(() => this.tickPulse(), 2200);
   }
 
@@ -140,6 +150,7 @@ export class BoardSimulator {
       logName: this.logName,
       logLines: [...this.logLines],
       logFollow: this.logFollow,
+      logOffset: this.logOffset,
       topRows: this.topRows.map((r) => ({ ...r })),
       topCursor: this.topCursor,
       nets: this.nets.map((n) => ({ ...n })),
@@ -278,7 +289,6 @@ export class BoardSimulator {
     }
     this.handleKey(key);
   }
-
 
   private runAction(key: string): boolean {
     switch (key) {
@@ -468,10 +478,11 @@ export class BoardSimulator {
 
   private openLogs() {
     this.view = 'logs';
-    this.logOffset = Math.max(0, this.logLines.length - 6);
+    this.logOffset = 0;
+    this.logFollow = true;
     this.hint = 'q back · j/k scroll · f follow';
     this.emit();
-    this.schedule(() => this.appendLog(), 1800);
+    this.schedule(() => this.appendLog(), 800);
   }
 
   private appendLog() {
@@ -480,8 +491,8 @@ export class BoardSimulator {
     const paths = ['/api/health', '/api/exec', '/static/chunk.js', '/'];
     const i = this.logLines.length % paths.length;
     const ts = new Date().toISOString();
-    this.logLines.push(`${ts} ${verbs[i]} ${paths[i]} 200 ${8 + (i * 7)}ms`);
-    if (this.logFollow) this.logOffset = Math.max(0, this.logLines.length - 6);
+    this.logLines.push(`${ts} ${verbs[i]} ${paths[i]} 200 ${8 + i * 7}ms`);
+    if (this.logFollow) this.logOffset = 0;
     this.emit();
     this.schedule(() => this.appendLog(), 2200);
   }

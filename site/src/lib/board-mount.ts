@@ -1,4 +1,4 @@
-import { BoardSimulator, type BoardSnapshot } from './board-simulator';
+import { BoardSimulator, visibleLogLines, type BoardSnapshot } from './board-simulator';
 
 function esc(s: string) {
   return s
@@ -109,8 +109,7 @@ function renderBoardMain(root: HTMLElement, s: BoardSnapshot, sim: BoardSimulato
 }
 
 function renderLogs(root: HTMLElement, s: BoardSnapshot) {
-  const start = Math.max(0, s.logLines.length - 6 - s.logOffset);
-  const lines = s.logLines.slice(start, start + 6);
+  const lines = visibleLogLines(s.logLines, s.logOffset);
   root.innerHTML = `
     <div class="board-overlay px-4 py-4 font-mono text-[12px]">
       <p class="text-sm font-semibold text-ink">dc-cli <span class="text-mute">logs</span> <span class="text-[#8ecf7a]">${esc(s.logName)}</span></p>

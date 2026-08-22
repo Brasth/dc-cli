@@ -1,17 +1,27 @@
 ---
+interface Props {
+  compact?: boolean;
+}
+
+const compact = Astro.props.compact ?? false;
 ---
 
-<section id="board" class="px-4 pb-10 pt-4 md:px-6 md:pb-12" aria-label="dc-tui board">
-  <div class="mx-auto mb-6 w-full max-w-6xl">
-    <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">try without installing</p>
-    <h2 class="mt-3 max-w-2xl text-2xl leading-tight tracking-tight text-ink md:text-3xl">
-      Play the board — same keys as dc-tui.
-    </h2>
-    <p class="mt-2 max-w-xl text-sm text-mute">
-      Stateful sandbox: start/stop updates the stack, logs and top overlays, rm confirms y/n.
-      Install for your real folder.
-    </p>
-  </div>
+<section id="board" class:list={['px-4 md:px-6', compact ? 'pb-6 pt-2' : 'pb-10 pt-4 md:pb-12']} aria-label="dc-tui board">
+  {
+    !compact && (
+      <div class="mx-auto mb-6 w-full max-w-6xl">
+        <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">try without installing</p>
+        <h2 class="mt-3 max-w-2xl text-2xl leading-tight tracking-tight text-ink md:text-3xl">
+          Play the board — same keys as dc-tui.
+        </h2>
+        <p class="mt-2 max-w-xl text-sm text-mute">
+          Stateful sandbox: start/stop updates the stack, logs and top overlays, rm confirms y/n.
+          Fullscreen tour: <a href="/play/" class="text-ink underline decoration-ink/30 underline-offset-2 hover:decoration-ink">/play</a>.
+          Install for your real folder.
+        </p>
+      </div>
+    )
+  }
   <div class="board-shell mx-auto w-full max-w-6xl">
     <div class="board-frame" id="board-root"></div>
   </div>

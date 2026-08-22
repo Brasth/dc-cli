@@ -1,0 +1,22 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Board from '../components/Board.astro';
+---
+
+<Layout
+  title="Play the dc-tui board — dc-cli"
+  description="Try every dc-tui key in the browser. Same board as dc. Start, shell, logs, top, nets, rm confirm."
+  path="/play/"
+>
+  <main class="relative z-10 min-h-screen bg-page px-0 pb-10 pt-6">
+    <div class="mx-auto mb-3 flex w-full max-w-6xl flex-wrap items-baseline justify-between gap-2 px-4 md:px-6">
+      <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">
+        <a href="/" class="hover:text-ink">dc-cli</a>
+        <span class="text-mute"> / </span>
+        play
+      </p>
+      <p class="font-mono text-[11px] text-mute">click a key or type it · q never leaves this page</p>
+    </div>
+    <Board compact />
+  </main>
+</Layout>
