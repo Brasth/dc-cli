@@ -6,36 +6,17 @@ import { installCommand } from '../lib/install';
 
 <section
   id="hero"
-  class="relative isolate min-h-[100svh] overflow-hidden"
+  class="relative px-4 pb-10 pt-24 md:px-6 md:pb-14 md:pt-28"
   aria-label="Introduction"
 >
-  <DemoVideo
-    fill
-    id="hero-video"
-    src="/videos/hero.mp4"
-    poster="/videos/posters/hero.webp"
-    label="dc-cli terminal demo"
-    class="hero-video-plane"
-  />
-  <div
-    class="pointer-events-none absolute inset-0 bg-gradient-to-t from-page via-page/80 to-page/50"
-    aria-hidden="true"
-  >
-  </div>
-  <div
-    class="pointer-events-none absolute inset-0 bg-gradient-to-r from-page via-page/70 to-transparent md:from-page/95 md:via-page/55"
-    aria-hidden="true"
-  >
-  </div>
-
-  <div class="relative z-10 flex min-h-[100svh] flex-col justify-end px-4 pb-20 pt-24 md:justify-center md:px-6 md:pb-24 md:pt-28">
-    <div class="hero-rise mx-auto w-full max-w-6xl md:pt-8">
+  <div class="mx-auto grid w-full max-w-6xl items-center gap-8 md:grid-cols-12 md:gap-10 lg:gap-12">
+    <div class="hero-rise md:col-span-6">
       <p class="flex items-center gap-3 font-mono text-sm text-ink md:text-base">
         <Logo class="h-8 w-8 md:h-10 md:w-10" />
         <span class="tracking-tight">dc-cli</span>
       </p>
       <h1
-        class="mt-5 max-w-3xl font-mono text-[clamp(2.1rem,5.2vw,4.25rem)] leading-[0.95] font-medium tracking-[-0.06em] text-ink drop-shadow-[0_2px_24px_rgba(7,8,6,0.85)]"
+        class="mt-5 font-mono text-[clamp(2rem,4.8vw,3.5rem)] leading-[0.95] font-medium tracking-[-0.06em] text-ink"
       >
         Host-global helpers around the official Dev Containers CLI.
       </h1>
@@ -54,7 +35,7 @@ import { installCommand } from '../lib/install';
         </button>
         <a
           href="#demo"
-          class="inline-flex min-h-10 items-center border border-ink/20 bg-page/40 px-4 font-mono text-xs text-ink backdrop-blur-sm transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-ink/45"
+          class="inline-flex min-h-10 items-center border border-ink/15 px-4 font-mono text-xs text-ink transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-ink/40"
         >
           Watch
         </a>
@@ -67,22 +48,35 @@ import { installCommand } from '../lib/install';
       </div>
       <p id="hero-copy-status" class="mt-3 min-h-5 font-mono text-[11px] text-amber" aria-live="polite"></p>
     </div>
+
+    <div class="hero-rise md:col-span-6" style="animation-delay: 80ms">
+      <div class="overflow-hidden rounded-sm border border-ink/15 bg-core">
+        <DemoVideo
+          id="hero-video"
+          src="/videos/hero.mp4"
+          poster="/videos/posters/hero.webp"
+          label="dc-cli terminal demo"
+          framed
+        />
+      </div>
+    </div>
   </div>
 </section>
 
 <script>
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const rise = document.querySelector<HTMLElement>('.hero-rise');
-  if (rise && !reduce) {
+  document.querySelectorAll<HTMLElement>('.hero-rise').forEach((rise, i) => {
+    if (reduce) return;
     rise.style.opacity = '0';
-    rise.style.transform = 'translateY(16px)';
+    rise.style.transform = 'translateY(12px)';
     requestAnimationFrame(() => {
       rise.style.transition =
-        'opacity 700ms cubic-bezier(0.32,0.72,0,1), transform 700ms cubic-bezier(0.32,0.72,0,1)';
+        'opacity 600ms cubic-bezier(0.32,0.72,0,1), transform 600ms cubic-bezier(0.32,0.72,0,1)';
+      rise.style.transitionDelay = `${i * 80}ms`;
       rise.style.opacity = '1';
       rise.style.transform = 'translateY(0)';
     });
-  }
+  });
 
   const btn = document.getElementById('hero-copy-install');
   const status = document.getElementById('hero-copy-status');

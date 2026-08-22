@@ -22,6 +22,7 @@ AMBER = (111, 207, 123)
 LINE = (44, 42, 38)
 
 W, H = 1280, 720
+HERO_W, HERO_H = 960, 540
 FPS = 24
 
 
@@ -39,86 +40,111 @@ def font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
 FONT = font(28)
 FONT_SM = font(22)
 FONT_XS = font(18)
+HERO_FONT = font(24)
+HERO_FONT_XS = font(15)
 
 
-def base_frame() -> Image.Image:
-    img = Image.new("RGB", (W, H), BG)
+def base_frame(margin: int = 48, width: int = W, height: int = H) -> Image.Image:
+    img = Image.new("RGB", (width, height), BG)
     draw = ImageDraw.Draw(img)
-    # Terminal bezel — product only, no app chrome
-    margin = 48
     draw.rounded_rectangle(
-        (margin, margin, W - margin, H - margin),
+        (margin, margin, width - margin, height - margin),
         radius=12,
         fill=CORE,
         outline=LINE,
         width=2,
     )
-    # Title bar dots
     y = margin + 22
     for i, color in enumerate([(90, 88, 84), (90, 88, 84), AMBER]):
         x = margin + 28 + i * 22
         draw.ellipse((x, y - 6, x + 12, y + 6), fill=color)
     draw.text((margin + 110, y - 10), "dc-cli — ~/src/app", font=FONT_XS, fill=MUTE)
-    draw.rectangle((margin + 2, margin + 44, W - margin - 2, H - margin - 2), fill=CORE)
+    draw.rectangle((margin + 2, margin + 44, width - margin - 2, height - margin - 2), fill=CORE)
     return img
 
 
-def draw_lines(img: Image.Image, lines: list[tuple[str, tuple[int, int, int]]], typed: int | None = None) -> None:
+def hero_frame() -> Image.Image:
+    """Tight terminal fill — no outer letterboxing for the hero panel."""
+    img = Image.new("RGB", (HERO_W, HERO_H), CORE)
     draw = ImageDraw.Draw(img)
-    x0, y0 = 80, 140
-    line_h = 40
+    draw.rectangle((0, 0, HERO_W - 1, HERO_H - 1), outline=LINE, width=1)
+    draw.rectangle((0, 0, HERO_W, 40), fill=(16, 16, 14))
+    for i, color in enumerate([(90, 88, 84), (90, 88, 84), AMBER]):
+        x = 16 + i * 18
+        draw.ellipse((x, 14, x + 10, 24), fill=color)
+    draw.text((70, 11), "dc-cli — ~/src/app", font=HERO_FONT_XS, fill=MUTE)
+    return img
+
+
+def draw_lines(
+    img: Image.Image,
+    lines: list[tuple[str, tuple[int, int, int]]],
+    typed: int | None = None,
+    *,
+    hero: bool = False,
+) -> None:
+    draw = ImageDraw.Draw(img)
+    x0 = 28 if hero else 80
+    y0 = 64 if hero else 140
+    line_h = 34 if hero else 40
+    fnt = HERO_FONT if hero else FONT
     shown = 0
     for text, color in lines:
         if typed is not None and shown >= typed:
             break
-        draw.text((x0, y0), text, font=FONT, fill=color)
+        draw.text((x0, y0), text, font=fnt, fill=color)
         y0 += line_h
         shown += 1
-    # caret on last visible prompt line
     if typed is not None and typed > 0 and typed <= len(lines):
         last = lines[typed - 1][0]
-        bbox = draw.textbbox((x0, 0), last, font=FONT)
+        bbox = draw.textbbox((x0, 0), last, font=fnt)
         cx = x0 + (bbox[2] - bbox[0]) + 4
-        cy = 140 + (typed - 1) * line_h
+        cy = (64 if hero else 140) + (typed - 1) * line_h
         if int(typed * 2) % 2 == 0:
-            draw.rectangle((cx, cy + 4, cx + 14, cy + 28), fill=AMBER)
+            draw.rectangle((cx, cy + 4, cx + 12, cy + 26), fill=AMBER)
 
 
 def typewriter_frames(
     lines: list[tuple[str, tuple[int, int, int]]],
     hold: int = 18,
+    *,
+    hero: bool = False,
 ) -> list[Image.Image]:
     frames: list[Image.Image] = []
-    # Build progressive character reveal for prompt lines starting with $
     built: list[tuple[str, tuple[int, int, int]]] = []
+    mk = hero_frame if hero else base_frame
+    x0 = 28 if hero else 80
+    y_base = 64 if hero else 140
+    line_h = 34 if hero else 40
+    fnt = HERO_FONT if hero else FONT
+
     for text, color in lines:
         if text.startswith("$ "):
             prefix, rest = "$ ", text[2:]
             for i in range(len(rest) + 1):
                 partial = built + [(prefix + rest[:i], color)]
-                img = base_frame()
-                draw_lines(img, partial)
-                # caret
+                img = mk()
+                draw_lines(img, partial, hero=hero)
                 draw = ImageDraw.Draw(img)
-                x0, y0 = 80, 140 + len(built) * 40
-                bbox = draw.textbbox((x0, 0), prefix + rest[:i], font=FONT)
+                y0 = y_base + len(built) * line_h
+                bbox = draw.textbbox((x0, 0), prefix + rest[:i], font=fnt)
                 cx = x0 + (bbox[2] - bbox[0]) + 4
-                draw.rectangle((cx, y0 + 4, cx + 14, y0 + 28), fill=AMBER)
+                draw.rectangle((cx, y0 + 4, cx + 12, y0 + 26), fill=AMBER)
                 frames.append(img)
             built.append((text, color))
             for _ in range(6):
-                img = base_frame()
-                draw_lines(img, built)
+                img = mk()
+                draw_lines(img, built, hero=hero)
                 frames.append(img)
         else:
             built.append((text, color))
             for _ in range(8):
-                img = base_frame()
-                draw_lines(img, built)
+                img = mk()
+                draw_lines(img, built, hero=hero)
                 frames.append(img)
     for _ in range(hold):
-        img = base_frame()
-        draw_lines(img, built)
+        img = mk()
+        draw_lines(img, built, hero=hero)
         frames.append(img)
     return frames
 
@@ -191,14 +217,13 @@ def main() -> None:
     ]
 
     jobs = [
-        ("hero.mp4", "hero.webp", hero_lines, 24),
-        ("clip-up.mp4", "clip-up.webp", up_lines, 20),
-        ("clip-exec.mp4", "clip-exec.webp", exec_lines, 20),
-        ("clip-doctor.mp4", "clip-doctor.webp", doctor_lines, 20),
+        ("hero.mp4", "hero.webp", hero_lines, 24, True),
+        ("clip-up.mp4", "clip-up.webp", up_lines, 20, False),
+        ("clip-exec.mp4", "clip-exec.webp", exec_lines, 20, False),
+        ("clip-doctor.mp4", "clip-doctor.webp", doctor_lines, 20, False),
     ]
-    for mp4_name, poster_name, lines, hold in jobs:
-        frames = typewriter_frames(lines, hold=hold)
-        # Loop feel for hero: bounce last state
+    for mp4_name, poster_name, lines, hold, is_hero in jobs:
+        frames = typewriter_frames(lines, hold=hold, hero=is_hero)
         if mp4_name == "hero.mp4":
             frames = frames + frames[-12:] * 2
         encode(frames, OUT / mp4_name, POSTERS / poster_name)
