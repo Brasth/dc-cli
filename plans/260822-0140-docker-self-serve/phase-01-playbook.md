@@ -18,7 +18,9 @@ Recover **ranks**. First matching row wins.
 
 Direction: **C — this-machine engine manager.** Host rows apply. Folder rows call existing verbs.
 
-If `dc-host` sees engine evidence (Desktop.app, Colima, or a docker socket), **install rows do not match**. Start / context / group / stop-extra win. Install is empty-machine only.
+If `dc-host` sees engine evidence (Desktop.app, Colima, or a docker socket), **install rows do not match**. Start / context / group / stop-extra win.
+
+**v1 cut:** install rows stay `open_guide` / `copy` only. `brew_install_*` and `linux_install_docker` wait for v2.
 
 ## Rank order
 

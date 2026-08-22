@@ -162,8 +162,8 @@ See [phase-01-playbook.md](./phase-01-playbook.md). Host rows now **apply**. Fol
 
 | # | Phase | Status | File |
 |---|---|---|---|
-| 1 | [Playbook contract](./phase-01-playbook.md) | proposed | Closed code→action table including C applies. |
-| 2 | CLI `dc-recover` | gated on phase 1 + default-engine | Diagnose → one next → `--yes` apply → recheck. `--report`. |
+| 1 | [Playbook contract](./phase-01-playbook.md) | proposed | v1 rows apply; install rows stay print/copy until v2. |
+| 2 | CLI `dc-recover` | gated on v1 cut approval | Diagnose → one next → `--yes` apply → recheck. `--report`. |
 | 3 | TUI recover board | gated on phase 2 | Replace `hostView`. Day-2 disk/split/net open the same board. |
 | 4 | Stuck guide + issues + skill | gated on phase 2 | `/guide/stuck`. Template asks for `--report`. |
 
@@ -177,12 +177,35 @@ See [phase-01-playbook.md](./phase-01-playbook.md). Host rows now **apply**. Fol
 - [ ] Empty machine (no engine evidence) + Homebrew: recover installs the **default** engine only then.
 - [ ] `dc-doctor` tests stay green. No volume-nuke. No zoo.
 
-## Open question (one)
+## Suggested now (v1 cut)
 
-**When there is no engine yet, what does recover install by default?**
+Ship the **already-have-Docker** host manager first. That is the original pain. Keep the refuse list. Install-from-zero is v2.
 
-- **Colima** (recommended for C) — we can install, start, stop, and grow. Desktop stays first-class if it is already present, and remains an explicit other path.
-- **Desktop** — matches today’s beginner copy. We can install via cask/installer and launch/quit; we cannot own disk grow.
-- **Ask every time** — safest, more bounce, weaker “tool.”
+### Lock
 
-Do not implement until the default is picked.
+| Item | v1 |
+|---|---|
+| Primary user | Engine already installed (Desktop, Colima, or Linux dockerd) |
+| Mutate door | `dc-recover` + TUI recover board. Doctor stays read-only. |
+| Applies | Start that engine; pick-one + stop extra; context / `DOCKER_HOST`; Linux `usermod` then re-login; `dc-prune --yes`; `--create-nets`; `--take-ports`; grow Colima disk after prune |
+| Empty machine | Do **not** auto-install yet. TUI keeps `[d]` Desktop guide and `[c]` copy Colima. Same as today. |
+| Refuse | Zoo, volume-nuke, unlabeled mass-stop, `disable --now`, rewrite rc, `.app` — all stay |
+
+### Why this cut
+
+- Most users already have an engine. Start / split-brain / disk is why they cannot use the product.
+- Install-from-zero needs a default-engine product decision and brew/cask/apt footguns. Do not block v1 on it.
+- The refuse list is how we stay dc-cli and not Docker Desktop.
+
+### v2 (after v1 works)
+
+Empty-machine install. Recommended default: **Colima via brew**, Desktop as the other explicit button. Linux: Ubuntu/Debian one-liner only.
+
+### Phases for v1
+
+1. Playbook mapper + tests (existing-engine rows only; install rows print/copy)
+2. `dc-recover` CLI (`--json`, `--yes` on the v1 allowlist, `--report`)
+3. TUI recover board (replace `hostView` actions with apply + retry)
+4. `/guide/stuck` + issue template + skill
+
+Do not implement until this v1 cut is approved.
