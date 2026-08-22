@@ -114,6 +114,29 @@ case_real_up_help() {
   "$ROOT/bin/dc" up --help | grep -q 'dc-up'
 }
 
+case_both_spellings_same_help() {
+  local v spaced dashed
+  # dc-ps has no --help and talks to Docker; skip it here.
+  for v in tui up exec down doctor recover engine try ls open db files forward df stats net prune; do
+    spaced="$("$ROOT/bin/dc" "$v" --help)"
+    dashed="$("$ROOT/bin/dc-$v" --help)"
+    [[ -n "$spaced" && "$spaced" == "$dashed" ]]
+  done
+}
+
+case_both_spellings_same_argv() {
+  local kit spaced dashed
+  kit="$(mktemp -d "${TMPDIR:-/tmp}/dc-meta.XXXX")"
+  stub_kit "$kit"
+  spaced="$("$kit/dc" exec --service db -- true)"
+  dashed="$("$kit/dc-exec" --service db -- true)"
+  [[ "$spaced" == "$dashed" ]]
+  spaced="$("$kit/dc" up --take-ports ./proj)"
+  dashed="$("$kit/dc-up" --take-ports ./proj)"
+  [[ "$spaced" == "$dashed" ]]
+  rm -rf "$kit"
+}
+
 echo "== dc meta-binary =="
 run_case "help lists verbs and hyphenated alias" case_help_lists_verbs
 run_case "--help / -h / help match" case_help_aliases
@@ -123,6 +146,8 @@ run_case "flags and dirs go to tui" case_flags_and_dir_go_to_tui
 run_case "tui verb" case_tui_verb
 run_case "unknown verb exits 2" case_unknown_verb
 run_case "dc up --help reaches dc-up" case_real_up_help
+run_case "dc <verb> --help matches dc-<verb> --help" case_both_spellings_same_help
+run_case "dc <verb> argv matches dc-<verb>" case_both_spellings_same_argv
 
 echo
 if [[ "$FAILED" -ne 0 ]]; then

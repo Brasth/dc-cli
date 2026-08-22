@@ -17,21 +17,21 @@ dc_exec() {
 
 usage() {
   cat <<'EOF'
-dc — this folder
+dc — this folder. Two spellings, same command.
 
-  dc                      clickable board
-  dc up [dir]             start
-  dc exec                 shell in the app
-  dc down                 stop the stack
-  dc doctor               read-only diagnose
-  dc recover              one next step (--yes applies)
-  dc try                  sandbox when there is no config
+  dc / dc-tui                    clickable board
+  dc up / dc-up                  start
+  dc exec / dc-exec              shell in the app
+  dc down / dc-down              stop the stack
+  dc doctor / dc-doctor          read-only diagnose
+  dc recover / dc-recover        one next step (--yes applies)
+  dc try / dc-try                sandbox when there is no config
 
   dc exec --service NAME
-  dc --all                fleet board
+  dc --all                       fleet board
   dc --help
 
-Same verbs as the hyphenated names: dc up = dc-up. Those stay installed.
+`dc <verb>` execs `dc-<verb>`. Both stay installed.
 EOF
 }
 

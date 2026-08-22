@@ -6,11 +6,11 @@ updated: 2026-08-22
 howto: true
 steps:
   - name: Diagnose
-    text: dc-recover or dc-tui. The blocked board shows the next command. [f] applies it when safe.
+    text: dc recover or dc. The blocked board shows the next command. [f] applies it when safe.
   - name: Apply if you already have an engine
     text: dc-recover --yes starts Desktop/Colima/Linux docker, picks one engine, or fixes context/group. Confirm first.
   - name: Recheck
-    text: dc-doctor then dc-tui. Still stuck? dc-recover --report and attach that folder on GitHub. No .env.
+    text: dc doctor then dc. Still stuck? dc recover --report and attach that folder on GitHub. No .env.
 faq:
   - q: Will this install Docker for me?
     a: Not in v1. Empty machine still uses the Desktop guide or the copied Colima brew line. Recover attaches to an engine you already installed.

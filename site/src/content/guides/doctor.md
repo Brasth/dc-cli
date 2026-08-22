@@ -42,4 +42,4 @@ When a **qualified floor** is recorded in `docs/qualification/devcontainer-cli-f
 
 Run this **before** `dc-prune --yes`, `dc-up --take-ports`, or `dc-up` when the machine also has Docker Desktop.
 
-See [README doctor](https://github.com/Brasth/dc-cli#doctor).
+Stuck after this: [dc-recover](/guide/stuck/).
