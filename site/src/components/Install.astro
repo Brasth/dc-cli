@@ -1,7 +1,6 @@
 ---
 import { latestRelease } from '../lib/schema';
-
-const install = 'curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli';
+import { installCommand } from '../lib/install';
 ---
 
 <section id="install" class="px-4 py-12 md:px-6 md:py-16">
@@ -11,6 +10,8 @@ const install = 'curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main
       <button
         id="copy-install"
         type="button"
+        data-install-copy
+        data-install-cmd={installCommand}
         class="inline-flex min-h-10 items-center px-2 font-mono text-[11px] text-amber transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96]"
       >
         copy
@@ -24,7 +25,7 @@ const install = 'curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main
         Tracks the latest GitHub release ({latestRelease}, prebuilt TUI). Safer: clone, then
         <span class="font-mono text-ink/80"> bash install.sh</span>.
       </p>
-      <pre class="mt-8 overflow-x-auto font-mono text-sm leading-relaxed text-ink md:text-base"><span class="text-amber">$</span> <code id="install-cmd" data-cmd={install}></code><span class="cursor-block" aria-hidden="true"></span></pre>
+      <pre class="mt-8 overflow-x-auto font-mono text-sm leading-relaxed text-ink md:text-base"><span class="text-amber">$</span> <code id="install-cmd" data-cmd={installCommand}></code><span class="cursor-block" aria-hidden="true"></span></pre>
       <p id="copy-status" class="mt-3 min-h-5 font-mono text-[11px] text-amber" aria-live="polite"></p>
       <p class="font-mono text-xs text-mute">source ~/.zshrc <span class="text-ink/30">or</span> ~/.bashrc <span class="text-ink/30">then</span> dc</p>
       <p class="mt-4 font-mono text-xs text-mute">
@@ -41,7 +42,6 @@ const install = 'curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main
 
 <script>
   const code = document.getElementById('install-cmd');
-  const button = document.getElementById('copy-install');
   const status = document.getElementById('copy-status');
   const full = code?.dataset.cmd ?? '';
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -60,17 +60,10 @@ const install = 'curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main
     }
   }
 
-  async function copy() {
-    if (!full || !button || !status) return;
-    try {
-      await navigator.clipboard.writeText(full);
-      status.textContent = 'copied — now source your shell';
-    } catch {
-      status.textContent = 'select the line and copy';
-    }
-  }
-
-  button?.addEventListener('click', () => {
-    void copy();
+  // Keep #copy-status in sync when the shared copy handler fires on #copy-install
+  document.getElementById('copy-install')?.addEventListener('click', () => {
+    window.setTimeout(() => {
+      if (status && !status.textContent) status.textContent = 'copied';
+    }, 0);
   });
 </script>

@@ -4,25 +4,19 @@ const tiles = [
     k: 'dc up',
     title: 'Start this folder.',
     body: '.devcontainer → official CLI, then ports. Compose-only → docker compose. No config → dc try sandbox.',
-    lines: ['$ dc up | dc try', '→ kind=devcontainer | compose | none', '→ up  (forward only on DC)', 'none → dc try sandbox'],
+    lines: ['$ dc up | dc try', '→ kind=devcontainer | compose | none', '→ up  (forward only on DC)'],
   },
   {
     k: 'dc exec',
     title: 'Never raw docker exec.',
-    body: 'Always dc exec. DC app = official CLI. Compose app = compose exec (1 / app / web / refuse).',
-    lines: ['$ dc exec --service db', '→ start db (was exited)', '→ never docker exec NAME', 'root@db:/#'],
+    body: 'Always dc exec. DC app = official CLI. Compose app = compose exec.',
+    lines: ['$ dc exec --service db', '→ start db (was exited)', '→ never docker exec NAME'],
   },
   {
     k: 'dc doctor',
     title: 'Read-only diagnose.',
-    body: 'Human or --json. Reports the CLI engine and socket. Two live engines (Colima + Desktop) is a blocker. Never mutates.',
-    lines: ['$ dc doctor --json', 'engine  colima', 'extraLive  []', 'exit  0'],
-  },
-  {
-    k: 'dc forward',
-    title: 'Colima-safe pairs.',
-    body: 'Reconcile owned sidecars. 9001:80 stays asymmetric. One labeled app or --id.',
-    lines: ['$ dc forward 9001:80', '→ owned alpine/socat', '→ host :9001 → :80', 'fail closed if blocked'],
+    body: 'Human or --json. Reports the CLI engine and socket. Never mutates.',
+    lines: ['$ dc doctor --json', 'engine  colima', 'exit  0'],
   },
 ];
 ---
@@ -30,10 +24,10 @@ const tiles = [
 <section class="px-4 py-12 md:px-6 md:py-16">
   <div class="mx-auto w-full max-w-6xl">
     <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">the missing verbs</p>
-    <div class="mt-4 grid grid-cols-1 overflow-hidden rounded-sm border border-ink/15 md:grid-cols-2">
+    <div class="mt-4 grid grid-cols-1 overflow-hidden rounded-sm border border-ink/15 md:grid-cols-3">
       {
         tiles.map((tile) => (
-          <article class="flex flex-col gap-4 border-ink/10 bg-core p-5 md:border-r md:border-b md:[&:nth-child(2n)]:border-r-0 md:[&:nth-last-child(-n+2)]:border-b-0">
+          <article class="flex flex-col gap-4 border-ink/10 bg-core p-5 md:border-r md:[&:last-child]:border-r-0">
             <p class="font-mono text-[11px] text-amber">{tile.k}</p>
             <pre class="font-mono text-[11px] leading-5 text-ink/70">
               {tile.lines.map((line) => (

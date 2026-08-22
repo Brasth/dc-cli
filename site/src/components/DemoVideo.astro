@@ -1,0 +1,78 @@
+---
+interface Props {
+  src: string;
+  poster: string;
+  class?: string;
+  id?: string;
+  /** When true, fills parent and sits behind content */
+  fill?: boolean;
+  label?: string;
+}
+
+const {
+  src,
+  poster,
+  class: className = '',
+  id,
+  fill = false,
+  label = 'Product demo',
+} = Astro.props;
+---
+
+<div
+  class:list={[
+    'demo-video relative overflow-hidden bg-page',
+    fill && 'absolute inset-0',
+    className,
+  ]}
+  data-demo-video
+>
+  <video
+    id={id}
+    class:list={[
+      'h-full w-full object-cover',
+      fill && 'scale-105',
+    ]}
+    poster={poster}
+    muted
+    playsinline
+    loop
+    preload="metadata"
+    aria-label={label}
+    data-demo-src={src}
+  >
+  </video>
+  <img
+    class="demo-video-poster absolute inset-0 h-full w-full object-cover"
+    src={poster}
+    alt=""
+    width="1920"
+    height="1080"
+    decoding="async"
+    hidden
+  />
+</div>
+
+<script>
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll<HTMLElement>('[data-demo-video]').forEach((wrap) => {
+    const video = wrap.querySelector('video');
+    const poster = wrap.querySelector<HTMLImageElement>('.demo-video-poster');
+    if (!video) return;
+    const src = video.dataset.demoSrc;
+    if (reduce) {
+      video.removeAttribute('autoplay');
+      video.pause();
+      video.classList.add('hidden');
+      if (poster) poster.hidden = false;
+      return;
+    }
+    if (src) {
+      video.src = src;
+      video.setAttribute('autoplay', '');
+      void video.play().catch(() => {
+        if (poster) poster.hidden = false;
+      });
+    }
+  });
+</script>

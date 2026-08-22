@@ -1,0 +1,44 @@
+---
+import { installCommand } from '../lib/install';
+---
+
+<div
+  id="sticky-install"
+  class="pointer-events-none fixed inset-x-0 bottom-0 z-40 translate-y-full opacity-0 transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] md:bottom-4"
+  aria-hidden="true"
+>
+  <div
+    class="pointer-events-auto mx-auto flex w-full max-w-6xl items-center justify-between gap-3 border border-ink/15 bg-core/95 px-4 py-3 backdrop-blur-xl md:rounded-sm"
+  >
+    <p class="hidden min-w-0 truncate font-mono text-[11px] text-mute sm:block md:text-xs">
+      <span class="text-amber">$</span>
+      <span class="text-ink/80">curl … install.sh | bash -s -- --with-cli</span>
+    </p>
+    <p class="font-mono text-[11px] text-mute sm:hidden">One curl. Then <span class="text-ink/80">dc</span>.</p>
+    <button
+      type="button"
+      data-install-copy
+      data-install-cmd={installCommand}
+      class="shrink-0 inline-flex min-h-10 items-center bg-amber px-4 font-mono text-xs text-page transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96]"
+    >
+      Copy install
+    </button>
+  </div>
+</div>
+
+<script>
+  const bar = document.getElementById('sticky-install');
+  const hero = document.getElementById('hero');
+  if (bar && hero && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        const show = !entry.isIntersecting;
+        bar.classList.toggle('translate-y-full', !show);
+        bar.classList.toggle('opacity-0', !show);
+        bar.setAttribute('aria-hidden', show ? 'false' : 'true');
+      },
+      { threshold: 0.05 },
+    );
+    io.observe(hero);
+  }
+</script>

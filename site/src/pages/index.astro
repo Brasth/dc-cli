@@ -2,27 +2,52 @@
 import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
 import Hero from '../components/Hero.astro';
+import PainPayoff from '../components/PainPayoff.astro';
+import ClipStrip from '../components/ClipStrip.astro';
 import Board from '../components/Board.astro';
-import Marquee from '../components/Marquee.astro';
 import Bento from '../components/Bento.astro';
-import Manifesto from '../components/Manifesto.astro';
 import Commands from '../components/Commands.astro';
 import Install from '../components/Install.astro';
+import StickyInstall from '../components/StickyInstall.astro';
 import Footer from '../components/Footer.astro';
 import Glow from '../components/Glow.astro';
 ---
 
 <Layout>
   <Glow />
-  <main id="top" class="relative z-10 overflow-x-hidden w-full max-w-full">
+  <main id="top" class="relative z-10 overflow-x-hidden w-full max-w-full pb-20 md:pb-16">
     <Nav />
     <Hero />
+    <PainPayoff />
+    <ClipStrip />
     <Board />
-    <Marquee />
     <Bento />
-    <Manifesto />
-    <Commands />
     <Install />
+    <Commands />
     <Footer />
   </main>
+  <StickyInstall />
 </Layout>
+
+<script>
+  document.addEventListener('click', async (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const btn = target.closest<HTMLElement>('[data-install-copy]');
+    if (!btn) return;
+    const cmd = btn.getAttribute('data-install-cmd') ?? '';
+    if (!cmd) return;
+    try {
+      await navigator.clipboard.writeText(cmd);
+      const label = btn.textContent?.trim() ?? 'Copy install';
+      btn.textContent = 'copied';
+      window.setTimeout(() => {
+        btn.textContent = label === 'copied' ? 'Copy install' : label;
+      }, 1600);
+      const status = document.getElementById('copy-status');
+      if (status) status.textContent = 'copied — paste in your terminal';
+    } catch {
+      window.location.hash = 'install';
+    }
+  });
+</script>

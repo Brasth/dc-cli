@@ -1,0 +1,90 @@
+---
+const clips = [
+  {
+    id: 'up',
+    k: 'dc up',
+    title: 'Start this folder',
+    src: '/videos/clip-up.mp4',
+    poster: '/videos/posters/clip-up.webp',
+  },
+  {
+    id: 'exec',
+    k: 'dc exec',
+    title: 'Never raw docker exec',
+    src: '/videos/clip-exec.mp4',
+    poster: '/videos/posters/clip-exec.webp',
+  },
+  {
+    id: 'doctor',
+    k: 'dc doctor',
+    title: 'Read-only diagnose',
+    src: '/videos/clip-doctor.mp4',
+    poster: '/videos/posters/clip-doctor.webp',
+  },
+];
+---
+
+<section id="demo" class="px-4 py-12 md:px-6 md:py-16" aria-label="Command demos">
+  <div class="mx-auto w-full max-w-6xl">
+    <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">see it run</p>
+    <h2 class="mt-3 max-w-2xl text-3xl leading-tight tracking-tight text-ink md:text-4xl">
+      Three verbs. Thirty seconds.
+    </h2>
+    <p class="mt-3 max-w-xl text-sm text-mute">
+      Terminal-only recordings — product UI, no editor chrome.
+    </p>
+
+    <div class="mt-8 grid gap-4 md:grid-cols-3">
+      {
+        clips.map((clip) => (
+          <figure class="group relative overflow-hidden rounded-sm border border-ink/15 bg-core">
+            <div class="aspect-video overflow-hidden bg-page">
+              <video
+                class="h-full w-full object-cover"
+                poster={clip.poster}
+                muted
+                playsinline
+                loop
+                preload="metadata"
+                data-clip-video
+                data-src={clip.src}
+                aria-label={`${clip.k} demo`}
+              />
+            </div>
+            <figcaption class="border-t border-ink/10 px-4 py-3">
+              <p class="font-mono text-[11px] text-amber">{clip.k}</p>
+              <p class="mt-1 text-sm text-ink">{clip.title}</p>
+            </figcaption>
+          </figure>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<script>
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll<HTMLVideoElement>('[data-clip-video]').forEach((video) => {
+    const src = video.dataset.src;
+    if (!src) return;
+    if (reduce) return;
+    const play = () => {
+      if (!video.src) video.src = src;
+      void video.play().catch(() => {});
+    };
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) play();
+            else video.pause();
+          }
+        },
+        { threshold: 0.35 },
+      );
+      io.observe(video);
+    } else {
+      play();
+    }
+  });
+</script>
