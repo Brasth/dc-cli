@@ -1,7 +1,7 @@
 ---
 title: "Self-serve Docker recovery"
 description: "dc-cli becomes this-machine's Docker host manager so users can finish engine walls without leaving the product. Not a container zoo. Not a shared team host."
-status: proposed
+status: in_progress
 priority: P1
 branch: cursor/docker-self-serve-plan-2db4
 tags:
@@ -208,4 +208,4 @@ Empty-machine install. Recommended default: **Colima via brew**, Desktop as the 
 3. TUI recover board (replace `hostView` actions with apply + retry)
 4. `/guide/stuck` + issue template + skill
 
-Do not implement until this v1 cut is approved.
+v1 cut approved 2026-08-22. Implementation in progress.

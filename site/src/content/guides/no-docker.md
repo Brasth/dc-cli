@@ -15,12 +15,12 @@ faq:
   - q: Does install fail without Docker?
     a: No. Helpers install. Machine readiness is reported separately. Day-2 diagnosis is dc-doctor.
   - q: Will dc-cli start Docker for me?
-    a: No. It never sudo installs, never starts Desktop/Colima, never stops an engine.
+    a: If an engine is already installed, dc-recover --yes / TUI [f] can start it. It still never auto-installs Desktop or Colima.
   - q: What does the TUI show?
-    a: A blocked setup screen with d (Desktop guide), c (copy Colima setup), r (retry), q (quit).
+    a: A blocked setup screen. Engine already there — [f] try fix. Empty machine — [d] Desktop guide, [c] copy Colima setup. [r] retry, [q] quit.
 ---
 
-dc-cli needs a Docker engine. It does **not** install, start, or stop one for you.
+dc-cli needs a Docker engine. It does **not** install one for you. If Desktop or Colima is already installed, `dc-recover --yes` / TUI `[f]` can start it.
 
 ## What you will see
 
@@ -29,7 +29,7 @@ dc-cli needs a Docker engine. It does **not** install, start, or stop one for yo
 | `install.sh` | Helpers still install. Readiness block explains what is missing. |
 | `dc-doctor` | Blocker on `docker_cli` / `docker_daemon` with a host code and remediation. |
 | `dc-up` | Refuses early with the same recovery text. |
-| `dc-tui` | Blocked setup screen: `[d]` Desktop guide, `[c]` copy Colima setup, `[r]` retry, `[q]` quit. |
+| `dc-tui` | Blocked setup screen: `[f]` try fix (existing engine), `[d]` Desktop guide, `[c]` copy Colima, `[r]` retry, `[q]` quit. |
 
 ## Codes
 
@@ -38,7 +38,7 @@ dc-cli needs a Docker engine. It does **not** install, start, or stop one for yo
 - `docker_engine_stopped` — engine present but not reachable
 - `docker_permission_denied` — socket permission / group issue
 - `docker_context_invalid` — bad context / `DOCKER_HOST`
-- `docker_split_brain` — more than one live engine (`dc-engine --fix`)
+- `docker_split_brain` — more than one live engine (`dc-recover --yes` or `dc-engine --fix`)
 
 ## Beginner path
 

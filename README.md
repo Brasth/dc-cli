@@ -17,6 +17,7 @@ this folder
    │
    ├─ dc-tui          clickable board (default)
    ├─ dc-doctor       read-only diagnose (human or --json)
+   ├─ dc-recover      one next step; --yes applies (existing engine)
    ├─ dc-engine       which Docker engine; --fix prints recovery
    ├─ dc-stats        read-only CPU / RAM / net (this folder)
    ├─ dc-net          this folder's declared compose nets
@@ -67,6 +68,7 @@ Run these from **this folder**. The kit detects kind: `.devcontainer` → offici
 cd /path/to/your/project
 dc-tui                          # or the CLI below
 dc-doctor                       # read-only; --json for agents
+dc-recover                      # one next step; dc-recover --yes to apply
 dc-engine                       # which engine; dc-engine --fix if split
 dc-stats                        # this folder CPU / RAM / net (read-only)
 dc-net                          # this folder declared compose nets
@@ -167,6 +169,7 @@ TUI key `t` opens the live overlay. Fleet refuses — this folder only. Sidecar 
 | `dc-tui --all` | fleet |
 | `dc-tui --version` / `dc-up --version` | print kit version |
 | `dc-doctor [dir] [--json]` | read-only diagnostics (exit 0 usable / 1 blocker / 2 bad argv) |
+| `dc-recover [dir]` / `--json` / `--yes` / `--report` | one next step; `--yes` applies the allowlist (start engine, stop extra, context, group, safe prune). `--report` writes a redacted bundle. Does not install Docker. |
 | `dc-engine` / `--json` / `--fix` | which Docker engine the CLI talks to; `--fix` prints recovery (`--yes` only runs `docker context use`) |
 | `dc-up [dir]` | project config, then `dc-forward` |
 | `dc-try [dir]` | sandbox for kind=none (external override; no project edits) |
@@ -204,7 +207,7 @@ There is **no** `dc` meta-binary. **Never** `docker system prune -af --volumes` 
 
 ## Doctor
 
-`dc-doctor` is read-only. It never starts, stops, prunes, or edits project files. Human text and `--json` share the same 18 checks. `docker_context` reports the **CLI engine + socket** (not just the context name). Two live engines (Colima + Desktop, or Desktop + leftover native `dockerd`) is a blocker (`split_brain`). Same daemon on two paths is **not** a split — Linux Docker Desktop (`~/.docker/desktop/docker.sock`) plus a proxy `/var/run/docker.sock` collapse when `docker info` IDs match. `dc-up` refuses a real split unless `DC_UP_ALLOW_SPLIT=1`. Recover with `dc-engine --fix` (print commands) or `dc-engine --fix --yes` (`docker context use` only — never sudo, never stop an engine).
+`dc-doctor` is read-only. It never starts, stops, prunes, or edits project files. Human text and `--json` share the same 18 checks. `docker_context` reports the **CLI engine + socket** (not just the context name). Two live engines (Colima + Desktop, or Desktop + leftover native `dockerd`) is a blocker (`split_brain`). Same daemon on two paths is **not** a split — Linux Docker Desktop (`~/.docker/desktop/docker.sock`) plus a proxy `/var/run/docker.sock` collapse when `docker info` IDs match. `dc-up` refuses a real split unless `DC_UP_ALLOW_SPLIT=1`. Day-2 **mutate** door is `dc-recover --yes` (start the engine you already have, pick-one + stop extra, context, Linux group). `dc-engine --fix` still prints the recipe; `--yes` only runs `docker context use`. Doctor stays read-only.
 
 ```bash
 dc-doctor                 # this folder
@@ -218,7 +221,7 @@ dc-doctor --json          # agents: one document, schemaVersion 1
 | `1` | one or more blockers (no Docker, no `devcontainer`, below-floor CLI when a floor is set, …) |
 | `2` | invalid invocation only (unknown flag, not a directory) |
 
-Install-time `install.sh` prints host Docker readiness (CLI missing / engine stopped / split-brain) but still installs helpers. It never auto-installs Docker. Day-2 diagnosis is `dc-doctor`; `dc-tui` shows a blocked setup screen when the engine is unavailable. Diagnose **before** `dc-prune --yes`, `--take-ports`, or `dc-up` on a Docker Desktop machine.
+Install-time `install.sh` prints host Docker readiness (CLI missing / engine stopped / split-brain) but still installs helpers. It never auto-installs Docker. Day-2 diagnosis is `dc-doctor`. Day-2 apply is `dc-recover --yes` when an engine is already installed. `dc-tui` shows a blocked setup screen (`[f]` try fix, `[d]` guide, `[c]` copy Colima). Diagnose **before** `dc-prune --yes`, `--take-ports`, or `dc-up` on a Docker Desktop machine.
 
 ## Ports (Colima)
 

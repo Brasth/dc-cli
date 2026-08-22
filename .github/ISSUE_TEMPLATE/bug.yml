@@ -6,8 +6,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Guides first if this is install, ports, or disk: https://dc.brasth.com/guide/
-        Do not paste secrets, `.env`, tokens, or full `docker inspect`.
+        Guides first if this is install, stuck, ports, or disk: https://dc.brasth.com/guide/stuck/
+        Prefer attaching a `dc-recover --report` folder. Do not paste secrets, `.env`, tokens, or full `docker inspect`.
   - type: textarea
     id: what
     attributes:

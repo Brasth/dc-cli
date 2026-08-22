@@ -6,8 +6,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Check https://dc.brasth.com/guide/ first.
-        Do not paste secrets, `.env`, tokens, or full `docker inspect`.
+        Check https://dc.brasth.com/guide/stuck/ first. `dc-recover --yes` if you already have an engine.
+        Prefer a `dc-recover --report` folder. Do not paste secrets, `.env`, or full `docker inspect`.
   - type: textarea
     id: asked
     attributes:
