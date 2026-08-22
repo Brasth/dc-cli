@@ -14,6 +14,7 @@ All paths relative to repo root unless noted.
 | `site/public/videos/walkthrough-disk.mp4` | 1280×720 | Week 1 X post |
 | `site/public/videos/walkthrough-try.mp4` | 1280×720 | Sandbox demo |
 | `site/public/videos/walkthrough-power.mp4` | 1280×720 | Power verbs demo |
+| `site/public/videos/launch-full-demo.mp4` | 1280×720 | **Full tour (~34s)** — stitch of all 8 walkthroughs; upload to YouTube/Loom for PH |
 | `site/public/videos/hero.mp4` | 960×540 | Site hero panel |
 | `site/public/videos/clip-*.mp4` | 1280×720 | Site clip strip |
 
@@ -44,8 +45,11 @@ All paths relative to repo root unless noted.
 ## Regenerate assets
 
 ```bash
-# Synthetic videos (no Docker required)
+# Synthetic videos (no Docker required) — also stitches launch-full-demo.mp4
 python3 scripts/generate-demo-videos.py
+
+# Re-stitch only (when walkthrough MP4s already exist)
+python3 scripts/stitch-launch-demo.py
 
 # Real terminal recordings (requires VHS + Docker + dc-cli)
 cd scripts/demo-tapes && vhs walkthrough-intro.tape
@@ -58,6 +62,7 @@ python3 -c "import cairosvg; cairosvg.svg2png(url='site/public/og.svg', write_to
 
 Replace local paths with:
 
+- `https://dc.brasth.com/videos/launch-full-demo.mp4` — full tour (YouTube/Loom source)
 - `https://dc.brasth.com/videos/walkthrough-intro.mp4`
 - `https://dc.brasth.com/videos/clip-up.mp4`
 - `https://dc.brasth.com/og.png`

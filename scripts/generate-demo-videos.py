@@ -357,6 +357,13 @@ def main() -> None:
             encode_gif(mp4_path, DOCS_ASSETS / mp4_name.replace(".mp4", ".gif"))
         print(f"wrote {mp4_name} ({len(frames)} frames)")
 
+    import sys
+
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from stitch_launch_demo import stitch_launch_demo
+
+    stitch_launch_demo()
+
 
 if __name__ == "__main__":
     main()

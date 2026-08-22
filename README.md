@@ -20,7 +20,7 @@ Site: [dc.brasth.com](https://dc.brasth.com) · Guides: [dc.brasth.com/guide](ht
 | **dc exec** | ![dc exec](docs/assets/clip-exec.gif) |
 | **dc doctor** | ![dc doctor](docs/assets/clip-doctor.gif) |
 
-Full walkthroughs: [intro](https://dc.brasth.com/videos/walkthrough-intro.mp4) · [board](https://dc.brasth.com/videos/walkthrough-board.mp4) · [recover](https://dc.brasth.com/videos/walkthrough-recover.mp4) · [all videos](launch/asset-checklist.md)
+Full walkthroughs: [full demo](https://dc.brasth.com/videos/launch-full-demo.mp4) · [intro](https://dc.brasth.com/videos/walkthrough-intro.mp4) · [board](https://dc.brasth.com/videos/walkthrough-board.mp4) · [recover](https://dc.brasth.com/videos/walkthrough-recover.mp4) · [all videos](launch/asset-checklist.md)
 
 ## Install
 
