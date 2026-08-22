@@ -48,14 +48,96 @@ dc_recover_desktop_guide() {
   printf '%s\n' "https://docs.docker.com/desktop/"
 }
 
+dc_recover_login_user() {
+  if [[ -n "${USER:-}" ]]; then
+    printf '%s\n' "$USER"
+  elif id -un >/dev/null 2>&1; then
+    id -un
+  else
+    printf '%s\n' "root"
+  fi
+}
+
+# Workspace blockers when the host is ready. Sets DC_RECOVER_FOLDER_HINT.
+dc_recover_folder_diagnose() {
+  local ws="${1:-.}" resolved kind p id reason
+  DC_RECOVER_FOLDER_HINT=""
+  [[ "${DC_HOST_CODE:-}" == "ready" ]] || return 0
+  if ! type dc_resolve_workspace >/dev/null 2>&1; then
+    resolved="$ws"
+  else
+    resolved="$(dc_resolve_workspace "$ws" 2>/dev/null)" || return 0
+  fi
+  kind="$(dc_workspace_kind "$resolved" 2>/dev/null || printf 'none\n')"
+  if [[ "$kind" == "none" ]]; then
+    DC_RECOVER_FOLDER_HINT=kind_none
+    return 0
+  fi
+
+  if command -v docker >/dev/null 2>&1; then
+    if docker system df 2>/dev/null | grep -qiE '(^|[^0-9])(9[89]|100)%'; then
+      DC_RECOVER_FOLDER_HINT=enospc
+      return 0
+    fi
+  fi
+
+  if [[ "${DC_HOST_ENGINE_HINT:-}" == "colima" ]] && command -v colima >/dev/null 2>&1; then
+    local guest_pct=""
+    guest_pct="$(colima ssh -- df -h / 2>/dev/null | awk 'NR==2 {print $5}' | tr -d '%')" || true
+    if [[ -n "$guest_pct" && "$guest_pct" -ge 95 ]]; then
+      DC_RECOVER_FOLDER_HINT=colima_full
+      return 0
+    fi
+  fi
+
+  if type dc_net_report_tsv >/dev/null 2>&1; then
+    local miss_c=0
+    while IFS='|' read -r name _kind present creatable _driver _reason; do
+      [[ -n "$name" ]] || continue
+      if [[ "$present" != "1" && "$creatable" == "1" ]]; then
+        miss_c=$((miss_c + 1))
+      fi
+    done < <(dc_net_report_tsv "$resolved")
+    if [[ "$miss_c" -gt 0 ]]; then
+      DC_RECOVER_FOLDER_HINT=missing_nets
+      return 0
+    fi
+  fi
+
+  if type dc_wanted_host_ports >/dev/null 2>&1 && type dc_holders_of_host_port >/dev/null 2>&1 \
+    && type dc_classify_port_holder >/dev/null 2>&1; then
+    local -a ports=()
+    mapfile -t ports < <(dc_wanted_host_ports "$resolved" 2>/dev/null || true)
+    for p in "${ports[@]+"${ports[@]}"}"; do
+      [[ -n "$p" ]] || continue
+      while IFS=$'\t' read -r id _name _compose _folder _hports; do
+        [[ -n "$id" ]] || continue
+        IFS='|' read -r _hkind reason _f _c _tid _tws < <(dc_classify_port_holder "$id" "$resolved")
+        [[ "$reason" == "same-workspace" ]] && continue
+        case "$reason" in
+          foreign|orphan-absent)
+            DC_RECOVER_FOLDER_HINT=port_clash_labeled
+            return 0
+            ;;
+          *)
+            DC_RECOVER_FOLDER_HINT=port_clash_unlabeled
+            return 0
+            ;;
+        esac
+      done < <(dc_holders_of_host_port "$p" 2>/dev/null || true)
+    done
+  fi
+}
+
 # Ranked next step from dc-host + optional folder hint.
 dc_recover_plan() {
-  local code hint folder extra
+  local code hint folder extra login
   dc_recover_clear
   code="${DC_HOST_CODE:-}"
   hint="${DC_HOST_ENGINE_HINT:-unknown}"
   folder="${DC_RECOVER_FOLDER_HINT:-}"
   extra="${DC_ENGINE_LAST_EXTRA:-}"
+  login="$(dc_recover_login_user)"
 
   case "$code" in
     docker_cli_missing)
@@ -104,7 +186,7 @@ dc_recover_plan() {
     docker_permission_denied)
       dc_recover_set fix_socket_group \
         "Docker socket permission denied." \
-        "sudo usermod -aG docker \"$USER\"  # then re-login" \
+        "sudo usermod -aG docker \"$login\"  # then re-login" \
         sudo_docker_group 1
       return 0
       ;;
@@ -265,8 +347,10 @@ dc_recover_apply_sudo_start_docker() {
 }
 
 dc_recover_apply_sudo_docker_group() {
-  echo "dc-recover: sudo usermod -aG docker ${USER}"
-  sudo usermod -aG docker "$USER"
+  local login
+  login="$(dc_recover_login_user)"
+  echo "dc-recover: sudo usermod -aG docker ${login}"
+  sudo usermod -aG docker "$login"
   echo "dc-recover: re-login (or newgrp docker) before dc-tui will work."
 }
 
@@ -275,8 +359,8 @@ dc_recover_apply_context_use() {
     dc_engine_refresh || true
   fi
   if type dc_engine_apply_fix >/dev/null 2>&1; then
-    dc_engine_apply_fix || true
-    return 0
+    dc_engine_apply_fix
+    return $?
   fi
   echo "dc-recover: unset DOCKER_HOST in this shell, then: docker context use default" >&2
   return 1
@@ -307,7 +391,11 @@ dc_recover_apply_stop_extra() {
       case "$(uname -s 2>/dev/null || true)" in
         Darwin)
           echo "dc-recover: quit Docker Desktop (extra engine)"
-          osascript -e 'quit app "Docker"' 2>/dev/null || open -a Docker
+          if osascript -e 'quit app "Docker"' 2>/dev/null; then
+            return 0
+          fi
+          echo "dc-recover: could not quit Docker Desktop — quit it manually, then retry" >&2
+          return 1
           ;;
         *)
           echo "dc-recover: quit Docker Desktop yourself (extra engine)" >&2

@@ -6,6 +6,8 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 # shellcheck source=/dev/null
 source "$ROOT/tests/lib/harness.sh"
 # shellcheck source=/dev/null
+source "$ROOT/lib/dc-common.sh"
+# shellcheck source=/dev/null
 source "$ROOT/lib/dc-engine.sh"
 # shellcheck source=/dev/null
 source "$ROOT/lib/dc-host.sh"
@@ -64,6 +66,15 @@ case_permission() {
   assert_eq "$DC_RECOVER_ID" fix_socket_group
   assert_eq "$DC_RECOVER_APPLY" sudo_docker_group
   assert_eq "$DC_RECOVER_APPLY_ALLOWED" 1
+}
+
+case_permission_no_user() {
+  unset USER
+  plan_from docker_permission_denied linux
+  printf '%s\n' "$DC_RECOVER_COMMAND" | grep -q 'usermod -aG docker'
+  login="$(dc_recover_login_user)"
+  [[ -n "$login" ]]
+  printf '%s\n' "$DC_RECOVER_COMMAND" | grep -q "$login"
 }
 
 case_context() {
@@ -158,6 +169,72 @@ EOF
   grep -q 'systemctl start docker' "$STATE/sudo.log"
 }
 
+case_apply_context_fails() {
+  dc_engine_apply_fix() { return 1; }
+  if dc_recover_apply context_use; then
+    echo "expected context_use failure" >&2
+    return 1
+  fi
+}
+
+case_grow_disk_rejects_desktop() {
+  set +e
+  out="$(DC_RECOVER_SKIP_DIAGNOSE=1 DC_HOST_CODE=ready DC_HOST_ENGINE_HINT=desktop \
+    "$ROOT/bin/dc-recover" --grow-disk 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" -eq 1 ]]
+  printf '%s\n' "$out" | grep -qi 'Colima is the selected engine'
+}
+
+case_folder_missing_nets() {
+  local ws
+  ws="$(mktemp -d "$STATE/ws.XXXX")"
+  printf '%s\n' 'services: {web: {image: alpine}}' >"$ws/compose.yaml"
+  dc_net_report_tsv() {
+    printf '%s\n' 'dc_recover_ext|external|0|1|bridge|missing'
+  }
+  dc_host_set ready "Docker engine reachable" "" linux "rem" "retry"
+  dc_recover_folder_diagnose "$ws"
+  assert_eq "$DC_RECOVER_FOLDER_HINT" missing_nets
+  dc_recover_plan
+  assert_eq "$DC_RECOVER_ID" ensure_nets
+  assert_eq "$DC_RECOVER_APPLY" create_nets
+}
+
+case_cli_json_yes_single() {
+  export HOME="$DC_ENGINE_HOME"
+  mkdir -p "$HOME/.colima/default"
+  : >"$HOME/.colima/default/docker.sock"
+  rm -f "$STATE/bin/docker" "$STATE/bin/colima"
+  cat >"$STATE/bin/docker" <<EOF
+#!/usr/bin/env bash
+if [[ "\${1:-}" == "info" ]]; then
+  echo "Error: Cannot connect to the Docker daemon" >&2
+  exit 1
+fi
+exec "$ROOT/tests/lib/fake-docker" "\$@"
+EOF
+  cat >"$STATE/bin/colima" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+  chmod +x "$STATE/bin/docker" "$STATE/bin/colima"
+  hash -r 2>/dev/null || true
+  set +e
+  out="$("$ROOT/bin/dc-recover" --json --yes 2>/dev/null)"
+  rc=$?
+  set -e
+  [[ "$rc" -ne 0 ]]
+  python3 -c '
+import json,sys
+raw=sys.argv[1].strip()
+assert raw, "empty output"
+json.loads(raw)
+assert raw.count("\"schemaVersion\"") == 1, raw
+' "$out"
+}
+
 case_cli_json_stopped() {
   export HOME="$DC_ENGINE_HOME"
   mk_sock() { mkdir -p "$(dirname "$1")"; : >"$1"; }
@@ -213,6 +290,7 @@ run_case stopped-colima case_stopped_colima
 run_case stopped-desktop case_stopped_desktop
 run_case stopped-linux case_stopped_linux
 run_case permission case_permission
+run_case permission-no-user case_permission_no_user
 run_case context case_context
 run_case split case_split
 run_case missing-v1-no-install case_missing_v1_no_install
@@ -224,6 +302,10 @@ run_case ready-unlabeled case_ready_unlabeled_ports
 run_case apply-colima-start case_apply_colima_start
 run_case apply-stop-extra case_apply_stop_extra_colima
 run_case apply-sudo-start case_apply_sudo_start
+run_case apply-context-fails case_apply_context_fails
+run_case grow-disk-rejects-desktop case_grow_disk_rejects_desktop
+run_case folder-missing-nets case_folder_missing_nets
+run_case cli-json-yes-single case_cli_json_yes_single
 run_case cli-json-stopped case_cli_json_stopped
 run_case cli-no-yes-no-start case_cli_no_yes_does_not_start
 run_case cli-report case_cli_report

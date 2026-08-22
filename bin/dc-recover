@@ -24,6 +24,7 @@ _load() {
 _load dc-common.sh
 _load dc-engine.sh
 _load dc-host.sh
+_load dc-net.sh
 _load dc-recover.sh
 
 json=0
@@ -87,7 +88,6 @@ done
 
 if [[ -n "$grow" ]]; then
   DC_RECOVER_DISK_GIB="$grow"
-  DC_RECOVER_FOLDER_HINT="${DC_RECOVER_FOLDER_HINT:-colima_full}"
 fi
 
 if [[ "${DC_RECOVER_SKIP_DIAGNOSE:-}" != "1" ]]; then
@@ -99,6 +99,21 @@ if [[ "${DC_RECOVER_SKIP_DIAGNOSE:-}" != "1" ]]; then
     cd "$workspace"
   fi
   dc_host_diagnose
+  if [[ "${DC_HOST_CODE:-}" == "ready" ]]; then
+    dc_recover_folder_diagnose "$workspace"
+  fi
+fi
+
+if [[ -n "$grow" ]]; then
+  if [[ "${DC_HOST_ENGINE_HINT:-}" != "colima" ]]; then
+    echo "dc-recover: --grow-disk only applies when Colima is the selected engine (hint=${DC_HOST_ENGINE_HINT:-unknown})" >&2
+    exit 1
+  fi
+  if [[ "${DC_HOST_CODE:-}" != "ready" ]]; then
+    echo "dc-recover: --grow-disk needs a reachable Colima engine" >&2
+    exit 1
+  fi
+  DC_RECOVER_FOLDER_HINT=colima_full
 fi
 
 dc_recover_plan
@@ -110,9 +125,9 @@ if [[ -n "$report" ]]; then
   exit 0
 fi
 
-if [[ "$json" -eq 1 ]]; then
+if [[ "$json" -eq 1 && "$yes" -eq 0 ]]; then
   dc_recover_json
-else
+elif [[ "$json" -eq 0 ]]; then
   dc_recover_print_human
 fi
 
@@ -121,18 +136,32 @@ if [[ "$yes" -eq 1 ]]; then
     echo "dc-recover: nothing safe to apply" >&2
     exit 1
   fi
-  dc_recover_apply "${DC_RECOVER_APPLY}"
+  apply_rc=0
+  if [[ "$json" -eq 1 ]]; then
+    dc_recover_apply "${DC_RECOVER_APPLY}" >&2 || apply_rc=$?
+  else
+    dc_recover_apply "${DC_RECOVER_APPLY}" || apply_rc=$?
+  fi
   if [[ "${DC_RECOVER_SKIP_DIAGNOSE:-}" != "1" ]]; then
     dc_host_diagnose
-    dc_recover_plan
-    if [[ "$json" -eq 1 ]]; then
-      dc_recover_json
-    else
-      echo
-      dc_recover_print_human
+    if [[ "${DC_HOST_CODE:-}" == "ready" ]]; then
+      dc_recover_folder_diagnose "$workspace"
     fi
   fi
-  exit 0
+  dc_recover_plan
+  if [[ "$json" -eq 1 ]]; then
+    dc_recover_json
+  else
+    echo
+    dc_recover_print_human
+  fi
+  if [[ "$apply_rc" -ne 0 ]]; then
+    exit 1
+  fi
+  if [[ "${DC_HOST_CODE:-}" == "ready" && "${DC_RECOVER_ID:-}" == "ready" ]]; then
+    exit 0
+  fi
+  exit 1
 fi
 
 if [[ "${DC_HOST_CODE:-}" == "ready" && "${DC_RECOVER_ID:-}" == "ready" ]]; then
