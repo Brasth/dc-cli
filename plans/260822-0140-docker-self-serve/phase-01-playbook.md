@@ -18,6 +18,8 @@ Recover **ranks**. First matching row wins.
 
 Direction: **C — this-machine engine manager.** Host rows apply. Folder rows call existing verbs.
 
+If `dc-host` sees engine evidence (Desktop.app, Colima, or a docker socket), **install rows do not match**. Start / context / group / stop-extra win. Install is empty-machine only.
+
 ## Rank order
 
 1. Host not ready (`dc-host` code ≠ `ready`)

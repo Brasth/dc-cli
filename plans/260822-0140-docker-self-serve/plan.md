@@ -69,6 +69,23 @@ Folder verbs stay stateless. **Engine lifecycle moves into recover.** Image/volu
 
 C is not “rebuild Docker Desktop.” C is: **install, start, stop, grow, fix group** for the one engine this login uses, then get back to `dc-up`.
 
+## Primary user: they already have Docker
+
+Most dc-cli users already installed Colima, Docker Desktop, or Linux `dockerd`. Recover must treat that as the **main** path. Install-from-zero is only the empty-machine fallback.
+
+If an engine is already present, recover **never installs another one**. It attaches to what is there:
+
+| Already on the machine | Recover does |
+|---|---|
+| Desktop or Colima installed, just quit/stopped | Start that engine. Wait until `dc-host` is ready. |
+| `docker` on PATH, socket permission denied | Linux: offer group add, then tell them to re-login. |
+| CLI points at the wrong context / `DOCKER_HOST` | `unset` guidance + `docker context use` the existing engine. |
+| Two engines live (Desktop + Colima, or Desktop + leftover `dockerd`) | Pick the one they want to keep. Switch context. Stop only the extra. |
+| Engine up, disk/port/net blocked | Existing `dc-df` / `dc-prune` / `--create-nets` / `--take-ports`. Grow Colima disk only after prune. |
+| One healthy engine | Ready. No install. No stop. `dc-tui` / `dc-up`. |
+
+Do not export a Colima `DOCKER_HOST` onto a Desktop laptop. Do not replace Desktop with Colima (or the reverse) unless they confirm a pick-one.
+
 ## C — this-machine engine manager
 
 Recover owns host lifecycle. Doctor stays read-only. Folder verbs stay folder verbs.
@@ -76,11 +93,11 @@ Recover owns host lifecycle. Doctor stays read-only. Folder verbs stay folder ve
 ```
 dc-tui / dc-up
     │
-    ├─ host not ready ──► dc-recover (install | start | stop extra | group | grow)
-    │                         │
-    │                         └─ verify dc-host → ready → back to the board
+    ├─ engine already there, not ready ──► start | context | stop extra | group
+    ├─ no engine at all ──► install default (empty machine only)
     │
-    └─ host ready, folder blocked ──► dc-recover (prune | nets | take-ports | try)
+    └─ host ready, folder blocked ──► prune | nets | take-ports | try
+                              verify dc-host / dc-up → back to the board
 ```
 
 ### What we manage
@@ -95,17 +112,20 @@ dc-tui / dc-up
 
 Confirm every apply. `--yes` is agents/CI for the same allowlist, never a hidden sudo.
 
-### What we still refuse
+### What we still refuse (plain language)
 
-- Image / container / volume zoo (Docker Desktop’s Screens)
-- `docker system prune -af --volumes`
-- Unlabeled port-holder mass-stop (report-only stays)
-- `systemctl disable --now` (too sticky for v1)
-- Rewriting `~/.zshrc` / `~/.bashrc` / Docker config json by hand
-- A `.app` host manager (260815 parked that)
-- Shared remote / multi-user daemon (different product)
-- Auto-fix with no confirm
-- Editing project `.devcontainer`
+These are **not** “we refuse to help.” They are actions recover will **not run for you**, because they destroy data, take over the OS, or turn dc-cli into Docker Desktop.
+
+| Phrase | What it means | Why we do not auto-run it |
+|---|---|---|
+| Container / image / volume zoo | A UI to browse every box, image, and named volume on the daemon (Docker Desktop’s Containers / Images / Volumes screens). | That is a different product. We stay on **this folder** plus **this login’s engine**. `dc-ls` / `dc-df` already list what we own. |
+| `docker system prune -af --volumes` | Docker’s nuclear reclaim: delete unused images **and named volumes**. | Named volumes are databases and `node_modules`. dc-cli exists so people do **not** run this. Recover uses `dc-prune --yes` (cache, dangling images, unused nets, owned orphan sidecars) only. |
+| Unlabeled mass-stop | Stop every container holding a port, even ones we cannot prove belong to a dc-cli workspace. | A random `nginx` or company VPN box can hold `:443`. We stop **labeled** foreign stacks (`--take-ports`). Unknown holders: show the list, user stops them. |
+| `systemctl disable --now` | Linux: stop Docker **and** prevent it from starting at boot. | `stop` is enough to clear split-brain. Disable is a lasting OS change. Easy to leave someone with no Docker after reboot. |
+| Rewriting shell rc | Silently edit `~/.zshrc` / `~/.bashrc` to export `DOCKER_HOST` or add PATH. | That is how Colima vs Desktop split-brain starts. We print `unset DOCKER_HOST` for **this** shell. We do not rewrite their profile. |
+| A macOS `.app` | Shipping `DcCli.app` as a desktop host manager. | Parked in `260815`. Recover is CLI + TUI on the machine they already use. |
+
+We also still refuse: auto-fix with no confirm, editing project `.devcontainer`, a shared team/remote Docker host.
 
 ### Surfaces
 
@@ -127,7 +147,9 @@ One next step on the primary UI. Full recipe behind `?`.
 | Diagnose | `dc-doctor` / `dc-host` stay read-only. No `dc-doctor --fix`. |
 | Mutate door | `dc-recover` only. |
 | Apply | Closed allowlist. Confirm required. |
-| Scope | Install, start, stop-extra, grow Colima disk, Linux group/start/stop. |
+| Primary user | Engine **already installed**. Attach, start, pick-one, prune, grow. |
+| Empty machine | Install only when `dc-host` says no engine evidence. Never install on top of a live engine. |
+| Scope | Start/stop-extra/group/grow **plus** install-from-zero. |
 | Refuse | Zoo, volume-nuke, unlabeled mass-stop, disable-now, rc edits, `.app`, no-confirm. |
 | 260817 | Relaxed for recover host lifecycle only. |
 | Support | `dc-recover --report` redacted bundle. |
@@ -147,12 +169,12 @@ See [phase-01-playbook.md](./phase-01-playbook.md). Host rows now **apply**. Fol
 
 ## Success criteria
 
-- [ ] No engine on a Mac with Homebrew: recover installs the **default** engine, starts it, `dc-host` is ready, `dc-tui` continues.
-- [ ] Engine installed but stopped: recover starts it (Colima / Desktop / Linux sudo).
-- [ ] Two live engines: user picks one; recover switches context **and** stops the extra.
-- [ ] Linux permission denied: recover offers group add, then stops and tells them to re-login.
-- [ ] Colima guest `/` still full after prune: recover grows disk after size confirm.
-- [ ] Folder ENOSPC / missing net / labeled port clash: recover calls existing verbs.
+- [ ] Desktop or Colima already installed but stopped: recover starts **that** engine. No second install.
+- [ ] Two live engines: user picks one; recover switches context **and** stops the extra. Does not install a third.
+- [ ] Wrong `DOCKER_HOST` / context on a machine that already has a working engine: recover points the CLI at it.
+- [ ] Linux permission denied on an existing socket: group add, then re-login. No reinstall.
+- [ ] Engine up, folder blocked (disk / net / labeled ports): existing verbs. Colima grow only after prune.
+- [ ] Empty machine (no engine evidence) + Homebrew: recover installs the **default** engine only then.
 - [ ] `dc-doctor` tests stay green. No volume-nuke. No zoo.
 
 ## Open question (one)
