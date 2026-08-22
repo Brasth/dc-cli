@@ -21,6 +21,13 @@ const clips = [
     src: '/videos/clip-doctor.mp4',
     poster: '/videos/posters/clip-doctor.webp',
   },
+  {
+    id: 'recover',
+    k: 'dc recover',
+    title: 'One next step when stuck',
+    src: '/videos/clip-recover.mp4',
+    poster: '/videos/posters/clip-recover.webp',
+  },
 ];
 ---
 
@@ -28,13 +35,13 @@ const clips = [
   <div class="mx-auto w-full max-w-6xl">
     <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">see it run</p>
     <h2 class="mt-3 max-w-2xl text-3xl leading-tight tracking-tight text-ink md:text-4xl">
-      Three verbs. Thirty seconds.
+      Four verbs. Forty seconds.
     </h2>
     <p class="mt-3 max-w-xl text-sm text-mute">
       Terminal-only recordings — product UI, no editor chrome.
     </p>
 
-    <div class="mt-8 grid gap-4 md:grid-cols-3">
+    <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {
         clips.map((clip) => (
           <figure class="group relative overflow-hidden rounded-sm border border-ink/15 bg-core">

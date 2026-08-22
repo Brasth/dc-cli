@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "site" / "public" / "videos"
 POSTERS = OUT / "posters"
+DOCS_ASSETS = ROOT / "docs" / "assets"
 
 BG = (7, 8, 6)
 CORE = (12, 12, 10)
@@ -24,6 +25,8 @@ LINE = (44, 42, 38)
 W, H = 1280, 720
 HERO_W, HERO_H = 960, 540
 FPS = 24
+
+Job = tuple[str, str, list[tuple[str, tuple[int, int, int]]], int, bool]
 
 
 def font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
@@ -38,7 +41,6 @@ def font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
 
 
 FONT = font(28)
-FONT_SM = font(22)
 FONT_XS = font(18)
 HERO_FONT = font(24)
 HERO_FONT_XS = font(15)
@@ -181,10 +183,25 @@ def encode(frames: list[Image.Image], mp4: Path, poster: Path) -> None:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def main() -> None:
-    OUT.mkdir(parents=True, exist_ok=True)
-    POSTERS.mkdir(parents=True, exist_ok=True)
+def encode_gif(mp4: Path, gif: Path) -> None:
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(mp4),
+            "-vf",
+            "fps=12,scale=640:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse",
+            "-loop",
+            "0",
+            str(gif),
+        ],
+        check=True,
+        capture_output=True,
+    )
 
+
+def all_jobs() -> list[Job]:
     hero_lines = [
         ("$ dc", INK),
         ("  up      start this folder", MUTE),
@@ -215,18 +232,129 @@ def main() -> None:
         ("extraLive  []", MUTE),
         ("exit  0", AMBER),
     ]
+    recover_lines = [
+        ("$ dc recover", INK),
+        ("→ engine stopped (colima)", MUTE),
+        ("→ next: colima start", AMBER),
+        ("$ dc recover --yes", INK),
+        ("→ started colima", AMBER),
+        ("→ dc doctor exit 0", AMBER),
+    ]
+    forward_lines = [
+        ("$ dc forward", INK),
+        ("→ 3000 → 127.0.0.1:3000", MUTE),
+        ("→ 5432 → 127.0.0.1:5432", MUTE),
+        ("→ Colima-safe sidecars", AMBER),
+    ]
+    intro_lines = [
+        ("$ cd ~/demo/dc-app", INK),
+        ("$ dc", INK),
+        ("  board: app · running", MUTE),
+        ("$ dc up", INK),
+        ("→ kind=devcontainer", AMBER),
+        ("$ dc exec", INK),
+        ("root@app:/workspaces/app#", AMBER),
+        ("dc.brasth.com", MUTE),
+    ]
+    board_lines = [
+        ("$ dc", INK),
+        ("  [u] start  [s] stop  [e] shell", MUTE),
+        ("  [l] logs   [t] top   [1-9] ports", MUTE),
+        ("  http://127.0.0.1:3000", AMBER),
+        ("$ dc --all", INK),
+        ("  fleet: 3 labeled workspaces", AMBER),
+    ]
+    daily_lines = [
+        ("$ dc up", INK),
+        ("→ started", AMBER),
+        ("$ dc exec", INK),
+        ("$ dc down", INK),
+        ("→ stopped", AMBER),
+        ("$ cd compose-project && dc up", INK),
+        ("→ kind=compose", AMBER),
+    ]
+    recover_wt_lines = [
+        ("$ dc doctor", INK),
+        ("engine  stopped", MUTE),
+        ("$ dc recover", INK),
+        ("→ next: colima start", AMBER),
+        ("$ dc recover --yes", INK),
+        ("→ engine ready", AMBER),
+    ]
+    ports_lines = [
+        ("$ dc up", INK),
+        ("$ dc forward", INK),
+        ("→ 3000 forwarded", AMBER),
+        ("$ dc net", INK),
+        ("  webnet  bridge  ok", MUTE),
+    ]
+    disk_lines = [
+        ("$ dc df", INK),
+        ("images   4.2G", MUTE),
+        ("volumes  1.1G", MUTE),
+        ("$ dc prune --yes", INK),
+        ("→ reclaimed 2.8G (safe)", AMBER),
+        ("never docker system prune -af --volumes", MUTE),
+    ]
+    try_lines = [
+        ("$ dc up", INK),
+        ("→ no config — refused", MUTE),
+        ("$ dc try", INK),
+        ("→ sandbox started", AMBER),
+        ("$ dc exec", INK),
+        ("root@try:/work#", AMBER),
+    ]
+    power_lines = [
+        ("$ dc db", INK),
+        ("→ TablePlus on :5432", MUTE),
+        ("$ dc files", INK),
+        ("→ yazi in the box", MUTE),
+        ("$ dc stats", INK),
+        ("app  cpu 12%  mem 340MiB", AMBER),
+        ("$ dc ls", INK),
+        ("  app  ~/src/app  running", AMBER),
+    ]
 
-    jobs = [
+    return [
         ("hero.mp4", "hero.webp", hero_lines, 24, True),
         ("clip-up.mp4", "clip-up.webp", up_lines, 20, False),
         ("clip-exec.mp4", "clip-exec.webp", exec_lines, 20, False),
         ("clip-doctor.mp4", "clip-doctor.webp", doctor_lines, 20, False),
+        ("clip-recover.mp4", "clip-recover.webp", recover_lines, 20, False),
+        ("clip-forward.mp4", "clip-forward.webp", forward_lines, 20, False),
+        ("walkthrough-intro.mp4", "walkthrough-intro.webp", intro_lines, 28, False),
+        ("walkthrough-board.mp4", "walkthrough-board.webp", board_lines, 28, False),
+        ("walkthrough-daily.mp4", "walkthrough-daily.webp", daily_lines, 24, False),
+        ("walkthrough-recover.mp4", "walkthrough-recover.webp", recover_wt_lines, 28, False),
+        ("walkthrough-ports.mp4", "walkthrough-ports.webp", ports_lines, 24, False),
+        ("walkthrough-disk.mp4", "walkthrough-disk.webp", disk_lines, 28, False),
+        ("walkthrough-try.mp4", "walkthrough-try.webp", try_lines, 24, False),
+        ("walkthrough-power.mp4", "walkthrough-power.webp", power_lines, 28, False),
     ]
-    for mp4_name, poster_name, lines, hold, is_hero in jobs:
+
+
+def main() -> None:
+    OUT.mkdir(parents=True, exist_ok=True)
+    POSTERS.mkdir(parents=True, exist_ok=True)
+    DOCS_ASSETS.mkdir(parents=True, exist_ok=True)
+
+    gif_targets = {
+        "walkthrough-intro.mp4",
+        "clip-up.mp4",
+        "clip-exec.mp4",
+        "clip-doctor.mp4",
+    }
+
+    for mp4_name, poster_name, lines, hold, is_hero in all_jobs():
         frames = typewriter_frames(lines, hold=hold, hero=is_hero)
         if mp4_name == "hero.mp4":
             frames = frames + frames[-12:] * 2
-        encode(frames, OUT / mp4_name, POSTERS / poster_name)
+        mp4_path = OUT / mp4_name
+        poster_path = POSTERS / poster_name
+        encode(frames, mp4_path, poster_path)
+        shutil.copy2(mp4_path, DOCS_ASSETS / mp4_name)
+        if mp4_name in gif_targets:
+            encode_gif(mp4_path, DOCS_ASSETS / mp4_name.replace(".mp4", ".gif"))
         print(f"wrote {mp4_name} ({len(frames)} frames)")
 
 
