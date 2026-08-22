@@ -30,9 +30,9 @@ faq:
 ---
 
 ```bash
-dc-tui              # this folder (cwd, then git root)
-dc-tui ~/src/app
-dc-tui --all        # every labeled workspace
+dc                  # this folder (cwd, then git root) — same as dc-tui
+dc ~/src/app
+dc --all            # every labeled workspace
 ```
 
 Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `DC_TUI_NO_SPLASH=1` skips it. The compact mark stays in the header.
@@ -79,6 +79,6 @@ Header shows a compact disk line from `dc-df`, an app load pulse from `dc-stats`
 | labeled **app** | `dc-exec` / key `e` | `devcontainer exec` |
 | any other compose **service** | click the stack row, or `dc-exec --service NAME` | start if down, then exec |
 
-There is **no** `dc` meta-binary.
+`dc` with no args (or `dc tui`) is the board. Hyphenated `dc-tui` stays.
 
 See also [ports](/guide/ports/) and the [README TUI](https://github.com/Brasth/dc-cli#tui).

@@ -15,21 +15,23 @@ Upstream only has `up` / `exec`. This repo adds **stop**, **list**, **open**, **
 ```
 this folder
    │
-   ├─ dc-tui          clickable board (default)
-   ├─ dc-doctor       read-only diagnose (human or --json)
-   ├─ dc-recover      one next step; --yes applies (existing engine)
-   ├─ dc-engine       which Docker engine; --fix prints recovery
-   ├─ dc-stats        read-only CPU / RAM / net (this folder)
-   ├─ dc-net          this folder's declared compose nets
-   ├─ dc-up           start the labeled app + publish ports
-   ├─ dc-try          sandbox start when there is no .devcontainer/compose
-   ├─ dc-exec         shell in the app
-   ├─ dc-exec --service NAME   start (if needed) + shell in another service
-   ├─ dc-db           host TablePlus on a declared db port
-   ├─ dc-files        yazi/nnn in the box; Enter opens code/cursor on this container
-   ├─ dc-forward      reconcile owned sidecars (Colima-safe)
-   └─ dc-down         stop the app (sidecars go too)
+   ├─ dc              clickable board (default)
+   ├─ dc doctor       read-only diagnose (human or --json)
+   ├─ dc recover      one next step; --yes applies (existing engine)
+   ├─ dc engine       which Docker engine; --fix prints recovery
+   ├─ dc stats        read-only CPU / RAM / net (this folder)
+   ├─ dc net          this folder's declared compose nets
+   ├─ dc up           start the labeled app + publish ports
+   ├─ dc try          sandbox start when there is no .devcontainer/compose
+   ├─ dc exec         shell in the app
+   ├─ dc exec --service NAME   start (if needed) + shell in another service
+   ├─ dc db           host TablePlus on a declared db port
+   ├─ dc files        yazi/nnn in the box; Enter opens code/cursor on this container
+   ├─ dc forward      reconcile owned sidecars (Colima-safe)
+   └─ dc down         stop the app (sidecars go too)
 ```
+
+Hyphenated names stay (`dc-up`, `dc-exec`, `dc-tui`, …). `dc <verb>` is the same binary.
 
 ## Install
 
@@ -66,33 +68,33 @@ Run these from **this folder**. The kit detects kind: `.devcontainer` → offici
 
 ```bash
 cd /path/to/your/project
-dc-tui                          # or the CLI below
-dc-doctor                       # read-only; --json for agents
-dc-recover                      # one next step; dc-recover --yes to apply
-dc-engine                       # which engine; dc-engine --fix if split
-dc-stats                        # this folder CPU / RAM / net (read-only)
-dc-net                          # this folder declared compose nets
+dc                              # board (or dc-tui)
+dc doctor                       # read-only; --json for agents
+dc recover                      # one next step; dc recover --yes to apply
+dc engine                       # which engine; dc engine --fix if split
+dc stats                        # this folder CPU / RAM / net (read-only)
+dc net                          # this folder declared compose nets
 
-dc-up                           # start the labeled app, then publish ports
-dc-up --create-nets             # missing external nets: create default bridge, then start
-dc-up --take-ports              # clash: stop labeled foreign holders only, retry
-dc-try                          # no .devcontainer/compose: sandbox via external override
-dc-exec                         # bash in the app (starts it if it is down)
-dc-exec --list                  # labeled app + other services in that compose project
-dc-exec --service NAME          # start that compose service if it is down, then bash
-dc-exec --service NAME -- cmd   # same, run a command (works without a TTY)
-dc-db --list                    # classify stack DBs (passwords redacted)
-dc-db                           # open TablePlus on the declared host port
-dc-files                        # yazi/nnn in the box; Enter opens code/cursor on this container
-dc-forward                      # reconcile owned sidecars (needs one app or --id)
-dc-down                         # stop FULL compose stack (app+db+mitm+…)
-dc-down --app                   # labeled app only (+ its sidecars)
-dc-down --rm                    # compose down (remove stack containers)
+dc up                           # start the labeled app, then publish ports
+dc up --create-nets             # missing external nets: create default bridge, then start
+dc up --take-ports              # clash: stop labeled foreign holders only, retry
+dc try                          # no .devcontainer/compose: sandbox via external override
+dc exec                         # bash in the app (starts it if it is down)
+dc exec --list                  # labeled app + other services in that compose project
+dc exec --service NAME          # start that compose service if it is down, then bash
+dc exec --service NAME -- cmd   # same, run a command (works without a TTY)
+dc db --list                    # classify stack DBs (passwords redacted)
+dc db                           # open TablePlus on the declared host port
+dc files                        # yazi/nnn in the box; Enter opens code/cursor on this container
+dc forward                      # reconcile owned sidecars (needs one app or --id)
+dc down                         # stop FULL compose stack (app+db+mitm+…)
+dc down --app                   # labeled app only (+ its sidecars)
+dc down --rm                    # compose down (remove stack containers)
 
 # out of disk (ENOSPC) — report, then safe reclaim
-dc-df                           # Docker + Colima disk report
-dc-prune                        # dry-run
-dc-prune --yes                  # cache + dangling images + nets + orphan sidecars
+dc df                           # Docker + Colima disk report
+dc prune                        # dry-run
+dc prune --yes                  # cache + dangling images + nets + orphan sidecars
 ```
 
 **App vs other services**
@@ -110,9 +112,9 @@ dc-prune --yes                  # cache + dangling images + nets + orphan sideca
 <img width="820" alt="dc-tui board: start, shell, stop, then open attach ports logs top" src="site/public/images/tui.png" />
 
 ```
-dc-tui              # this folder (cwd, then git root)
-dc-tui ~/src/app
-dc-tui --all        # every labeled workspace
+dc                  # this folder (cwd, then git root) — same as dc-tui
+dc ~/src/app
+dc --all            # every labeled workspace
 ```
 
 Primary row: **start** · **shell** · **stop**. Meta row is quieter. **rm** is danger and asks `y/n`. Stack / fleet rows: **up** / **down**, `j`/`k` or click, Enter to open or exec.
@@ -163,9 +165,11 @@ TUI key `t` opens the live overlay. Fleet refuses — this folder only. Sidecar 
 
 ## Commands (all of them)
 
+`dc <verb>` is the same as `dc-<verb>`. `dc` with no args is the board. Hyphenated names stay for scripts.
+
 | Command | Purpose |
 |---|---|
-| `dc-tui [dir]` | this folder |
+| `dc` / `dc-tui [dir]` | this folder |
 | `dc-tui --all` | fleet |
 | `dc-tui --version` / `dc-up --version` | print kit version |
 | `dc-doctor [dir] [--json]` | read-only diagnostics (exit 0 usable / 1 blocker / 2 bad argv) |
@@ -203,7 +207,7 @@ TUI key `t` opens the live overlay. Fleet refuses — this folder only. Sidecar 
 | `dc-prune --volume NAME --yes` | delete **one** named volume |
 | `dc-prune --colima-hint` | grow Colima VM disk guidance |
 
-There is **no** `dc` meta-binary. **Never** `docker system prune -af --volumes` — use `dc-df` / `dc-prune`.
+**Never** `docker system prune -af --volumes` — use `dc df` / `dc prune`.
 
 ## Doctor
 
