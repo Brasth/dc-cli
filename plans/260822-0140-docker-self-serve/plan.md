@@ -100,27 +100,55 @@ This is the smallest change that lets a beginner **stay inside dc-cli** for the 
 
 ### C — Become a Docker host manager
 
-Install engines, start/stop both, group membership, grow qemu disks, image/volume zoo.
+Install Desktop via packages, image/volume zoo, unlabeled mass-stop, auto-fix with no confirm, rewrite shell rc.
 
-Reject. Different product. Breaks the manifesto. High support surface. The 260815 desktop-multi-user plan already said a GUI does not create a host manager.
+Still reject as the product shape. A recover tool can do **more host lifecycle** than B without becoming Docker Desktop.
+
+## Decision (2026-08-22)
+
+User chose **more than B**. Direction is a recover **tool** that finishes host walls, not a copy-paste board.
+
+Recommended interpretation is **B+** (below), not full C. 260817 “no Colima/Desktop start” is relaxed **for `dc-recover` only**. Doctor stays read-only. No daemon UI. No image/volume zoo.
+
+### B+ — recover owns the host lifecycle we already teach
+
+Everything in B, plus three applies that close the walls B still leaves:
+
+| Extra apply | Closes | Guard |
+|---|---|---|
+| `brew install docker colima` then `colima start` | No engine / no `docker` on PATH (macOS + Homebrew) | brew present; user confirms; never install Desktop via brew cask unless they pick Desktop path (open installer only) |
+| Stop the extra engine after they pick which to keep | Split-brain (Desktop shows boxes, `dc-up` fails) | `colima stop` **or** quit Docker.app. Never `sudo systemctl disable`. Never stop both. |
+| Grow Colima disk after prune | Guest `/` still ~100% (`dc-prune --colima-hint` today) | Only after `dc-df` says guest full **and** prune already ran. Confirm size. `colima stop` then start with larger `--disk`. |
+
+Linux without sudo stays print-first unless the user also picks **B++**.
+
+### B++ — B+ plus Linux host sudo (optional, not default)
+
+| Extra apply | Guard |
+|---|---|
+| `sudo systemctl start docker` | Interactive sudo only. No password stored. `sudo -n` fail → print the command. |
+| `sudo usermod -aG docker $USER` | Apply if they confirm. Session cannot finish until re-login — recover must say that and stop. |
+
+B++ is the most we should ever do. It is still not C.
 
 ## Recommendation
 
-Ship **B**, in this order: playbook contract → CLI recover → TUI recover board → support pack → one stuck guide.
+Ship **B+**, same sequence: playbook contract → CLI recover → TUI recover board → support pack → one stuck guide.
 
-Do not invent a second diagnosis engine. `dc-host` + `dc-doctor` stay the source of truth. Recover **ranks** their codes and offers the first safe next action.
+Do not invent a second diagnosis engine. `dc-host` + `dc-doctor` stay the source of truth. Recover **ranks** their codes, applies the first allowed action, verifies.
 
-## Locked decisions (proposed — confirm before implementation)
+## Locked decisions (proposed — extras gated on the B+ vs B++ question)
 
 | Decision | Value |
 |---|---|
 | Product | Still this-folder verbs. Recover is a **host+workspace playbook**, not a Docker Desktop clone. |
 | Diagnose | `dc-doctor` and `dc-host` stay read-only. Never add `--fix` to doctor. |
 | Recover command | New `dc-recover` (not `dc-doctor --fix`). Human + `--json`. |
-| Apply | Closed allowlist only. Confirm required. `--yes` is agents/CI for allowlisted applies. |
-| Refuse | sudo, install engine, stop extra engine, bulk volumes, project edits. Print the exact manual command instead. |
+| Apply | Closed allowlist. Confirm required. `--yes` is agents/CI for allowlisted applies only. |
+| More than B | **B+** extras: brew-install Colima, stop extra engine, grow Colima disk. B++ sudo is a separate yes. |
+| Still refuse (C) | Desktop cask/apt install, `systemctl disable --now`, `docker system prune -af --volumes`, unlabeled mass-stop, rewrite rc files, image/volume zoo, apply with no confirm. |
 | TUI | Blocked setup becomes the recover board. Day-2 blockers (disk / split / missing net) can open the same board. |
-| One next step | Never dump a 12-line recipe as the primary UI. Show **this machine's** first action. Advanced recipe stays behind `?` or `dc-engine --fix`. |
+| One next step | Never dump a 12-line recipe as the primary UI. Show **this machine's** first action. Advanced recipe stays behind `?`. |
 | Support | `dc-recover --report` writes a redacted bundle (doctor json, host json, engine json, df compact). Issues template points at it. |
 | Docs | One `/guide/stuck` door. Existing doctor / no-docker / disk / ports stay task pages. |
 | Agents | `--json` schema includes `next.action`, `next.command`, `next.applyAllowed`, `next.verify`. Skill learns recover before opening an issue. |
@@ -131,14 +159,15 @@ See [phase-01-playbook.md](./phase-01-playbook.md) for the closed table. Summary
 
 | Code / check | Next (human) | Apply allowed? | Verify |
 |---|---|---|---|
-| `docker_cli_missing` / `docker_engine_missing` | Open Desktop guide **or** copy Colima install line | open guide / copy only | `dc-host` ready |
+| `docker_cli_missing` / `docker_engine_missing` | macOS+brew: install Colima. Else Desktop guide. | B+: `brew_install_colima`. Else open/copy | `dc-host` ready |
 | `docker_engine_stopped` + hint=desktop | Start Docker Desktop | yes: launch app | `dc-host` ready |
 | `docker_engine_stopped` + hint=colima | Start Colima | yes: `colima start` | `dc-host` ready |
-| `docker_engine_stopped` + hint=linux | `systemctl start docker` | no (sudo) | `dc-host` ready |
-| `docker_permission_denied` | add user to `docker` group, re-login | no | `dc-host` ready |
+| `docker_engine_stopped` + hint=linux | `systemctl start docker` | B+: print. B++: `sudo_start_docker` | `dc-host` ready |
+| `docker_permission_denied` | add user to `docker` group, re-login | B+: print. B++: `sudo_docker_group` then stop | `dc-host` ready after re-login |
 | `docker_context_invalid` | `unset DOCKER_HOST`; `docker context use default` | context use only | `dc-engine` one engine |
-| `docker_split_brain` | pick this CLI engine; stop the extra **yourself** | context use only | no `extraLive` |
-| disk / ENOSPC | `dc-df` then `dc-prune --yes` | yes after confirm | `dc-up` retry |
+| `docker_split_brain` | pick this CLI engine, then stop the extra | `context_use` + `stop_extra_engine` | no `extraLive` |
+| disk / ENOSPC | `dc-df` then `dc-prune --yes` | `prune_safe` | `dc-up` retry |
+| Colima guest `/` still ~100% after prune | grow VM disk | B+: `colima_grow_disk` | `dc-df` guest not full |
 | missing declared external net | `dc-up --create-nets` | yes after confirm | doctor `required_networks` ok |
 | labeled port clash | `dc-up --take-ports` | existing TTY / flag | `dc-up` |
 | unlabeled port clash | report holders + how to stop them | no | user retry |
@@ -159,29 +188,32 @@ Sequential. Do not start phase 2 until the allowlist in phase 1 is approved.
 
 - [ ] A user who has Colima installed but stopped can recover from `dc-tui` without leaving the board (confirm → start → retry).
 - [ ] A user with Docker Desktop installed but quit can recover the same way.
-- [ ] A user with two live engines gets **one** next step (`docker context use` + "stop the other yourself"), not a dual recipe as the primary UI.
-- [ ] A user with ENOSPC is offered `dc-df` / `dc-prune --yes`, not a GitHub issue.
+- [ ] A user with two live engines picks one; recover switches context **and** stops the extra (`colima stop` or quit Docker.app).
+- [ ] A macOS user with Homebrew and no engine can install Colima from recover after confirm.
+- [ ] A user with ENOSPC is offered `dc-df` / `dc-prune --yes`; if Colima guest is still full, grow-disk after a second confirm.
 - [ ] A user who still cannot recover has one redacted file to paste. No secrets, no `docker inspect`.
 - [ ] `dc-doctor` remains read-only. Existing doctor tests stay green.
-- [ ] No sudo path is added. Install-engine remains a guide, not an apply.
+- [ ] Desktop cask/apt install, `systemctl disable`, and volume-nuke prune stay refused.
 
-## Out of scope
+## Out of scope (C — still refused)
 
-- Installing Docker Desktop / Colima / Engine
-- Stopping or disabling the extra engine
-- Growing Colima / Desktop VM disks
-- Linux `docker` group membership
-- A desktop `.app` host manager (see `260815-1452-desktop-multi-user`)
+- Installing Docker Desktop via brew cask / apt / dmg silent install
+- `systemctl disable --now` or stopping **both** engines
+- Growing Docker Desktop VM disk
 - Daemon-wide image/volume browser
 - Auto-fix without confirm
 - Changing unlabeled-holder policy (still report-only)
+- A desktop `.app` host manager (see `260815-1452-desktop-multi-user`)
+- Rewriting `~/.zshrc` / `~/.bashrc`
+
+Linux sudo (`systemctl start`, `usermod`) is **out of B+**. It is in B++ only if chosen.
 
 ## Open question (one)
 
-**Confirm approach B's allowlist.** Specifically: may `dc-recover --yes` / TUI `f` run `colima start` and launch Docker Desktop when that engine is already installed?
+**Which “more than B” package?**
 
-- **Yes (B)** — recommended. Beginners stay in-product for the most common wall.
-- **No, playbook only (A)** — we only copy/print. Safer, still a bounce.
-- **More than B** — say what (not recommended).
+- **B+ (recommended)** — B plus brew-install Colima, stop the extra engine, grow Colima disk. No sudo.
+- **B++** — B+ plus interactive `sudo systemctl start docker` and `usermod -aG docker` (then they must re-login).
+- **Named extras** — reply with the exact applies you want beyond B+ (I will not add Desktop silent-install, volume-nuke, or a daemon UI).
 
-Do not implement until this is answered.
+Do not implement until this package is picked.
