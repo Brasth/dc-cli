@@ -2,7 +2,7 @@
 title: "Install dc-cli"
 description: "Install dc-cli with one curl (--with-cli standalone) or Homebrew. Release kits include the clickable TUI. Clone with no flags is wrappers only."
 h1: "One curl. Then source your shell."
-updated: 2026-08-20
+updated: 2026-08-22
 howto: true
 steps:
   - name: Run the installer
@@ -49,19 +49,17 @@ The advertised curl passes `--with-cli` so `devcontainer` is on PATH via the **u
 
 `--full` is `--with-cli` + `--with-skill`.
 
-Homes and the exact copy list live in the [README Skill](https://github.com/Brasth/dc-cli#skill) section.
+Homes: `~/.cursor`, `~/.claude`, `~/.codex`, `~/.pi`, `~/.gemini`, `~/.opencode`, `~/.agents/skills`.
 
-Confirm: `dc --help`, `dc up --help`, `dc try --help`, or `dc-tui --help` should print usage. Hyphenated names stay. Homebrew users on an older tap: `brew update && brew upgrade dc-cli` (v0.17.0).
+Confirm: `dc --help` or `dc up --help`. `dc-up` still works. Homebrew on an older tap: `brew update && brew upgrade dc-cli` (v0.18.0).
 
 ## Daily start
 
-Run from **this folder**. `.devcontainer` → official CLI. Compose-only → Compose plugin or standalone. Same verbs.
+Run from **this folder**. `.devcontainer` → official CLI. Compose-only → Compose. Same verbs.
 
 ```bash
 cd /path/to/your/project
 dc
 ```
 
-Or skip the board: `dc up`, then `dc exec`.
-
-Full flag tables live in the [README commands](https://github.com/Brasth/dc-cli#commands-all-of-them).
+Or skip the board: `dc up`, then `dc exec`. Flags: `dc --help`.

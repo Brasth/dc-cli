@@ -10,7 +10,7 @@ steps:
   - name: Install or start an engine
     text: Beginners use Docker Desktop. Lightweight macOS path is brew install docker colima && colima start.
   - name: Recheck
-    text: dc-doctor then dc-tui. On the blocked board press r after Desktop/Colima is ready.
+    text: dc doctor then dc. On the blocked board press r after Desktop/Colima is ready.
 faq:
   - q: Does install fail without Docker?
     a: No. Helpers install. Machine readiness is reported separately. Day-2 diagnosis is dc-doctor.
@@ -27,9 +27,9 @@ dc-cli needs a Docker engine. It does **not** install one for you. If Desktop or
 | Surface | Behavior |
 |---|---|
 | `install.sh` | Helpers still install. Readiness block explains what is missing. |
-| `dc-doctor` | Blocker on `docker_cli` / `docker_daemon` with a host code and remediation. |
-| `dc-up` | Refuses early with the same recovery text. |
-| `dc-tui` | Blocked setup screen: `[f]` try fix (existing engine), `[d]` Desktop guide, `[c]` copy Colima, `[r]` retry, `[q]` quit. |
+| `dc doctor` | Blocker on `docker_cli` / `docker_daemon` with a host code and remediation. |
+| `dc up` | Refuses early with the same recovery text. |
+| `dc` | Blocked setup screen: `[f]` try fix (existing engine), `[d]` Desktop guide, `[c]` copy Colima, `[r]` retry, `[q]` quit. |
 
 ## Codes
 
@@ -45,15 +45,15 @@ dc-cli needs a Docker engine. It does **not** install one for you. If Desktop or
 1. Install [Docker Desktop](https://docs.docker.com/desktop/)
 2. Wait until it is ready
 3. `dc-doctor`
-4. `dc-tui` or `dc-up`
+4. `dc` or `dc up`
 
 ## Lightweight macOS path
 
 ```bash
 brew install docker colima
 colima start
-dc-doctor
-dc-tui
+dc doctor
+dc
 ```
 
 One live engine only — Colima **or** Desktop, not both.

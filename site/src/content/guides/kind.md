@@ -10,7 +10,7 @@ steps:
   - name: Ask doctor
     text: dc-doctor --json . and read workspace.kind. devcontainer, compose, or none.
   - name: Use the same verbs
-    text: dc-tui or dc-up / dc-exec / dc-down. The kit forks. Do not type docker exec NAME.
+    text: dc or dc up / dc exec / dc down. The kit forks. Do not type docker exec NAME.
 faq:
   - q: Do I pick a mode?
     a: No. .devcontainer present → kind=devcontainer even if compose files exist. Else a root compose file → kind=compose. Else dc-up refuses and hints dc-try for a sandbox start.
@@ -35,7 +35,7 @@ faq:
 ```bash
 cd /path/to/your/project
 dc-doctor --json .     # workspace.kind
-dc-tui                 # u start  e shell  s stop
+dc                     # u start  e shell  s stop
 ```
 
 Same board. Same keys. Compose-kind does not invent VS Code attach and does not auto-publish ports.

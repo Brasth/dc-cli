@@ -33,4 +33,4 @@ If Colima guest `/` is still ~100% after prune, the VM disk cap is full: `dc-pru
 
 Named volumes are listed by `dc-df --volumes` but not auto-deleted.
 
-See [README disk](https://github.com/Brasth/dc-cli#disk-full).
+See [stuck](/guide/stuck/) if prune is not enough.
