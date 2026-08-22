@@ -17,6 +17,20 @@
 3. `site/public/videos/walkthrough-recover.mp4` — doctor & recover
 4. `site/public/og.png` — social card (1200×630)
 
+## Video / Loom field (recommended)
+
+Upload `site/public/videos/launch-full-demo.mp4` (~34s, all 8 walkthroughs stitched) to **YouTube (unlisted)** or **Loom**, then paste that link here.
+
+Regenerate:
+
+```bash
+python3 scripts/stitch-launch-demo.py
+# or full rebuild:
+python3 scripts/generate-demo-videos.py
+```
+
+Hosted after deploy: `https://dc.brasth.com/videos/launch-full-demo.mp4`
+
 ## Maker first comment (post at launch)
 
 Hey PH — I built dc-cli because I kept bouncing between VS Code Remote, raw `docker exec`, and Colima port hacks.
