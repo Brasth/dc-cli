@@ -10,7 +10,7 @@ steps:
   - name: Read the summary
     text: usable (exit 0, warnings allowed) or blocked (exit 1). Exit 2 is a bad flag or path only.
   - name: Then recover
-    text: Use existing commands — dc-engine --fix, dc-up, dc-up --create-nets, dc-net --ensure, dc-forward --status, dc-df, dc-prune. Doctor does not run them.
+    text: Use dc-recover --yes for an existing engine (start, pick-one, context, group). Or dc-engine --fix, dc-up, dc-up --create-nets, dc-net --ensure, dc-forward --status, dc-df, dc-prune. Doctor does not run them.
 faq:
   - q: Does dc-doctor fix anything?
     a: No. It is read-only. install.sh prints host Docker readiness but never auto-installs an engine. See the no-docker guide.

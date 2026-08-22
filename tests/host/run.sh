@@ -34,7 +34,7 @@ run_case() {
 }
 
 case_cli_missing() {
-  PATH="/usr/bin:/bin"
+  harness_path_no_docker "$STATE/bin"
   unset DOCKER_HOST
   dc_host_diagnose
   assert_eq "$DC_HOST_CODE" docker_cli_missing
@@ -95,7 +95,7 @@ case_up_blocks_when_cli_missing() {
   local ws rc out
   ws="$(mktemp -d "$STATE/ws.XXXX")"
   printf '%s\n' 'services: {web: {image: alpine}}' >"$ws/compose.yaml"
-  PATH="/usr/bin:/bin:$ROOT/bin"
+  harness_path_no_docker "$STATE/bin:$ROOT/bin"
   set +e
   out="$(dc-up "$ws" 2>&1)"
   rc=$?

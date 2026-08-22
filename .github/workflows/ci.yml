@@ -15,11 +15,11 @@ jobs:
       - name: bash -n
         run: |
           bash -n install.sh
-          bash -n lib/dc-common.sh lib/dc-floor.sh lib/dc-install-yazi.sh lib/dc-exec-color.sh lib/dc-net.sh lib/dc-engine.sh
+          bash -n lib/dc-common.sh lib/dc-floor.sh lib/dc-install-yazi.sh lib/dc-exec-color.sh lib/dc-net.sh lib/dc-engine.sh lib/dc-host.sh lib/dc-recover.sh
           bash -n scripts/pack-release.sh scripts/print-release-shas.sh scripts/check-floor-qual.sh
           bash -n bin/dc-up bin/dc-exec bin/dc-down bin/dc-ps bin/dc-forward
-          bash -n bin/dc-ls bin/dc-open bin/dc-tui bin/dc-df bin/dc-prune bin/dc-doctor bin/dc-engine bin/dc-net
-          bash -n tests/lib/fake-docker tests/lib/harness.sh tests/safety/run.sh tests/install/run.sh tests/doctor/run.sh tests/forward/run.sh tests/files/run.sh tests/exec/run.sh tests/net/run.sh tests/engine/run.sh
+          bash -n bin/dc-ls bin/dc-open bin/dc-tui bin/dc-df bin/dc-prune bin/dc-doctor bin/dc-engine bin/dc-recover bin/dc-net
+          bash -n tests/lib/fake-docker tests/lib/harness.sh tests/safety/run.sh tests/install/run.sh tests/doctor/run.sh tests/forward/run.sh tests/files/run.sh tests/exec/run.sh tests/net/run.sh tests/engine/run.sh tests/host/run.sh tests/recover/run.sh
       - name: safety gates
         run: bash tests/safety/run.sh
       - name: installer gates
@@ -28,6 +28,10 @@ jobs:
         run: bash tests/doctor/run.sh
       - name: engine identity gates
         run: bash tests/engine/run.sh
+      - name: host readiness gates
+        run: bash tests/host/run.sh
+      - name: recover playbook gates
+        run: bash tests/recover/run.sh
       - name: net gates
         run: bash tests/net/run.sh
       - name: forward reconcile gates
@@ -56,6 +60,7 @@ jobs:
           "$RUNNER_TEMP/dc-bin/dc-ls" --help
           "$RUNNER_TEMP/dc-bin/dc-open" --help
           "$RUNNER_TEMP/dc-bin/dc-tui" --help
+          "$RUNNER_TEMP/dc-bin/dc-recover" --help
       - name: dc-ls empty json
         run: |
           PREFIX="$RUNNER_TEMP/dc-bin" bash install.sh --prefix "$RUNNER_TEMP/dc-bin" >/dev/null

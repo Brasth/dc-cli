@@ -21,6 +21,10 @@ type hostReport struct {
 	Remediation   string `json:"remediation"`
 	Actions       string `json:"actions"`
 	GuideURL      string `json:"guideUrl"`
+	NextID        string `json:"nextId"`
+	NextCommand   string `json:"nextCommand"`
+	NextApply     string `json:"nextApply"`
+	ApplyAllowed  bool   `json:"applyAllowed"`
 }
 
 // runHostDiagnose is swapped in tests.
@@ -53,8 +57,15 @@ eng="$(dirname "$lib")/dc-engine.sh"
 # shellcheck disable=SC1090
 [[ -f "$eng" ]] && . "$eng"
 # shellcheck disable=SC1090
+rec="$(dirname "$lib")/dc-recover.sh"
+# shellcheck disable=SC1090
 . "$lib"
+# shellcheck disable=SC1090
+[[ -f "$rec" ]] && . "$rec"
 dc_host_diagnose
+if type dc_recover_plan >/dev/null 2>&1; then
+  dc_recover_plan
+fi
 dc_host_json
 `
 	out, err := exec.Command("bash", "-c", script).Output()
@@ -70,6 +81,29 @@ dc_host_json
 
 func (h hostReport) blocked() bool {
 	return h.Code != "" && h.Code != "ready"
+}
+
+func (h hostReport) canApply() bool {
+	if !h.ApplyAllowed {
+		return false
+	}
+	switch h.NextApply {
+	case "launch_desktop", "colima_start", "sudo_start_docker", "sudo_docker_group",
+		"context_use", "stop_extra_engine", "colima_grow_disk", "prune_safe",
+		"create_nets", "take_ports":
+		return true
+	default:
+		return false
+	}
+}
+
+var runHostRecover = defaultRunHostRecover
+
+func defaultRunHostRecover() error {
+	cmd := exec.Command("dc-recover", "--yes")
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
 
 func openHostGuide(url string) error {

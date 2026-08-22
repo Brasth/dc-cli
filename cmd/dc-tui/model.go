@@ -449,6 +449,15 @@ func (m model) handleHostKey(k string) (tea.Model, tea.Cmd) {
 	case "r":
 		m = m.withStatus("checking Docker…")
 		return m.beginHardReload()
+	case "f":
+		if !m.host.canApply() {
+			return m.withStatus("nothing safe to apply — use d / c, or dc-recover --report"), nil
+		}
+		if err := runHostRecover(); err != nil {
+			return m.withErr("dc-recover: " + err.Error()), nil
+		}
+		m = m.withStatus("applied fix — checking Docker…")
+		return m.beginHardReload()
 	case "d":
 		url := m.host.GuideURL
 		if err := openHostGuide(url); err != nil {
