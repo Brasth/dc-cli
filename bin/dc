@@ -25,6 +25,7 @@ dc — this folder. Two spellings, same command.
   dc down / dc-down              stop the stack
   dc doctor / dc-doctor          read-only diagnose
   dc recover / dc-recover        one next step (--yes applies)
+  dc upgrade / dc-upgrade        check / install latest release
   dc try / dc-try                sandbox when there is no config
 
   dc exec --service NAME
@@ -37,7 +38,7 @@ EOF
 
 is_verb() {
   case "$1" in
-    tui|doctor|recover|engine|up|try|exec|down|ls|open|db|files|forward|ps|df|stats|net|prune)
+    tui|doctor|recover|engine|upgrade|up|try|exec|down|ls|open|db|files|forward|ps|df|stats|net|prune)
       return 0
       ;;
     *)

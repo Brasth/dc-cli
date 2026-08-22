@@ -126,6 +126,9 @@ func (m model) layout() (string, []button, int) {
 	infoW := max(12, w-12)
 	if m.fleet {
 		info := logoWord.Render("dc-cli") + mutedStyle.Render("  "+cliVersion()) + mutedStyle.Render("  fleet") + "  " + mutedStyle.Render("j/k · enter")
+		if banner := m.updateBanner(); banner != "" {
+			info += "\n" + warnStyle.Render(trunc(banner, w))
+		}
 		b.WriteString(clipBlock(joinLogo(m.headerLogo(), info, w), w) + "\n\n")
 	} else {
 		base := filepath.Base(m.workspace)
@@ -160,6 +163,9 @@ func (m model) layout() (string, []button, int) {
 			}
 			info.WriteString(kv("nets", trunc(line+"  n=nets", max(8, infoW-12))))
 		}
+		if banner := m.updateBanner(); banner != "" {
+			info.WriteString("\n" + warnStyle.Render(trunc(banner, infoW)))
+		}
 		b.WriteString(clipBlock(joinLogo(m.headerLogo(), strings.TrimRight(info.String(), "\n"), w), w) + "\n\n")
 	}
 
@@ -181,6 +187,9 @@ func (m model) layout() (string, []button, int) {
 	}
 	if m.confirm == "try" {
 		b.WriteString("\n" + warnStyle.Render("no .devcontainer/compose — start sandbox via dc-try? y/n") + "\n")
+	}
+	if m.confirm == "upgrade" {
+		b.WriteString("\n" + warnStyle.Render(trunc("upgrade dc-cli to "+m.updateLatest+" via dc-upgrade --yes? y/n", w)) + "\n")
 	}
 	if m.status != "" {
 		b.WriteString("\n" + statusStyle.Render(trunc(m.status, w)) + "\n")
@@ -225,7 +234,7 @@ func (m model) layout() (string, []button, int) {
 		}
 	}
 
-	if m.confirm == "rm" || m.confirm == "try" {
+	if m.confirm == "rm" || m.confirm == "try" || m.confirm == "upgrade" {
 		b.WriteString("\n" + hintStyle.Render("y confirm  n/esc cancel  q quit") + "\n")
 	} else if !m.fleet && len(m.webLinks()) > 0 {
 		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  b db  m files  n nets  1-9 url  j/k  enter  ? more  q quit") + "\n")
@@ -243,6 +252,8 @@ func leaveLine(kind string) string {
 		return "leaving to start — board returns when it finishes"
 	case "files":
 		return "leaving to files — quit the manager to return"
+	case "upgrade":
+		return "leaving to upgrade — board exits when it finishes"
 	default:
 		return "leaving to shell — exit to return"
 	}
@@ -296,6 +307,7 @@ func morePanel(editor string, width int) string {
 		"  files    yazi/nnn in the box; Enter opens code/cursor on this container (m)",
 		"  fleet    list every labeled workspace",
 		"  disk     dc-df report (d key). Reclaim: dc-prune --yes (CLI)",
+		"  upgrade  U when a newer release is available → dc-upgrade --yes",
 		"",
 		"open ≠ attach. Zed attaches itself. Sublime cannot.",
 	}

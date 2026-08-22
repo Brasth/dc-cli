@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+# Check for / apply a newer dc-cli release (channel-aware).
+set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$_here/../lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-common.sh"
+elif [[ -f "${XDG_DATA_HOME:-$HOME/.local/share}/dc-cli/generations/current/lib/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${XDG_DATA_HOME:-$HOME/.local/share}/dc-cli/generations/current/lib/dc-common.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-common.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-common.sh"
+else
+  echo "dc-upgrade: missing dc-common.sh" >&2
+  exit 1
+fi
+
+REPO="${DC_REPO:-Brasth/dc-cli}"
+INSTALL_URL="${DC_INSTALL_URL:-https://raw.githubusercontent.com/${REPO}/main/install.sh}"
+check_only=0
+yes=0
+
+usage() {
+  cat <<'EOF'
+dc-upgrade — check for or install the latest dc-cli release
+
+  dc-upgrade              show plan; prompt before applying
+  dc-upgrade --check      installed / latest / channel only (no mutate)
+  dc-upgrade --yes        apply without prompt
+  dc-upgrade --help
+
+Exit codes for --check:
+  0  current (or dev — no release upgrade)
+  1  update available
+  2  could not resolve latest (offline / API error)
+
+Homebrew installs run: brew update && brew upgrade dc-cli
+Curl / generation installs re-run install.sh --ref latest --with-cli
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --check) check_only=1 ;;
+    --yes|-y) yes=1 ;;
+    --version|-V) dc_cli_print_version "$(basename "$0")"; exit 0 ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      echo "Unknown arg: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+IFS=$'\t' read -r state installed latest channel <<<"$(dc_cli_update_info)"
+
+print_status() {
+  printf 'installed: %s\n' "${installed:-unknown}"
+  printf 'latest:    %s\n' "${latest:-unknown}"
+  printf 'channel:   %s\n' "${channel:-unknown}"
+  printf 'state:     %s\n' "${state:-unknown}"
+}
+
+if [[ "$check_only" -eq 1 ]]; then
+  print_status
+  case "$state" in
+    available) exit 1 ;;
+    current|dev) exit 0 ;;
+    *) exit 2 ;;
+  esac
+fi
+
+print_status
+echo
+
+case "$state" in
+  current)
+    echo "Already on the latest release."
+    exit 0
+    ;;
+  dev)
+    echo "Refusing upgrade: this install reports version 'dev' (local tree)." >&2
+    echo "Use a release kit, Homebrew, or: bash install.sh --ref latest" >&2
+    exit 2
+    ;;
+  unknown)
+    echo "Could not resolve the latest release (offline or GitHub API error)." >&2
+    echo "Retry later, or install manually:" >&2
+    echo "  curl -fsSL ${INSTALL_URL} | bash -s -- --with-cli --ref latest" >&2
+    exit 2
+    ;;
+  available)
+    ;;
+  *)
+    echo "Unexpected update state: $state" >&2
+    exit 2
+    ;;
+esac
+
+plan_line() {
+  case "$channel" in
+    homebrew)
+      printf 'Plan: brew update && brew upgrade dc-cli  (%s → %s)\n' "$installed" "$latest"
+      ;;
+    *)
+      printf 'Plan: re-run install.sh --ref latest --with-cli  (%s → %s)\n' "$installed" "$latest"
+      ;;
+  esac
+}
+
+plan_line
+
+if [[ "$yes" -ne 1 ]]; then
+  printf 'Apply upgrade? [y/N] '
+  read -r ans || true
+  case "${ans:-}" in
+    y|Y|yes|YES) ;;
+    *)
+      echo "Cancelled."
+      exit 0
+      ;;
+  esac
+fi
+
+apply_homebrew() {
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "brew not found on PATH" >&2
+    exit 1
+  fi
+  brew update
+  brew upgrade dc-cli
+}
+
+apply_curl() {
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "curl not found on PATH" >&2
+    exit 1
+  fi
+  # Match the advertised installer; --with-cli is idempotent when CLI is present.
+  curl -fsSL "$INSTALL_URL" | bash -s -- --with-cli --ref latest
+}
+
+case "$channel" in
+  homebrew) apply_homebrew ;;
+  *) apply_curl ;;
+esac
+
+echo
+echo "Upgrade finished. Confirm with: dc-upgrade --check"

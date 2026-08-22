@@ -43,6 +43,135 @@ dc_cli_print_version() {
   printf '%s %s\n' "${1:-dc-cli}" "$(dc_cli_version)"
 }
 
+# Install channel: homebrew | source | unknown. Override with DC_CLI_CHANNEL for tests.
+dc_cli_channel() {
+  if [[ -n "${DC_CLI_CHANNEL:-}" ]]; then
+    printf '%s\n' "$DC_CLI_CHANNEL"
+    return 0
+  fi
+  if command -v brew >/dev/null 2>&1 && brew list --versions dc-cli >/dev/null 2>&1; then
+    printf '%s\n' "homebrew"
+    return 0
+  fi
+  if [[ -L "${XDG_DATA_HOME:-$HOME/.local/share}/dc-cli/generations/current" ]]; then
+    printf '%s\n' "source"
+    return 0
+  fi
+  printf '%s\n' "unknown"
+}
+
+# Cache dir for latest-release probes (override DC_CLI_CACHE_DIR in tests).
+dc_cli_cache_dir() {
+  if [[ -n "${DC_CLI_CACHE_DIR:-}" ]]; then
+    printf '%s\n' "$DC_CLI_CACHE_DIR"
+    return 0
+  fi
+  printf '%s\n' "${XDG_CACHE_HOME:-$HOME/.cache}/dc-cli"
+}
+
+# True when a<=b numerically (x.y.z). Empty args fail.
+dc_cli_semver_le() {
+  local a="$1" b="$2"
+  [[ -n "$a" && -n "$b" ]] || return 1
+  a="${a#v}"
+  b="${b#v}"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$a" "$b" <<'PY'
+import sys
+def parts(s):
+    out = []
+    for p in s.split("."):
+        try:
+            out.append(int(p))
+        except ValueError:
+            out.append(0)
+    while len(out) < 3:
+        out.append(0)
+    return out[:3]
+a, b = parts(sys.argv[1]), parts(sys.argv[2])
+sys.exit(0 if a <= b else 1)
+PY
+    return
+  fi
+  [[ "$a" == "$b" ]]
+}
+
+# True when a < b (strict).
+dc_cli_semver_lt() {
+  local a="${1#v}" b="${2#v}"
+  [[ -n "$a" && -n "$b" ]] || return 1
+  [[ "$a" == "$b" ]] && return 1
+  dc_cli_semver_le "$a" "$b"
+}
+
+# Latest GitHub release tag without leading v. Override DC_CLI_LATEST_TAG for tests.
+# Uses a ~6h cache under dc_cli_cache_dir. Offline/API failure returns non-zero.
+dc_cli_latest_tag() {
+  local repo="${DC_REPO:-Brasth/dc-cli}"
+  local cache_dir cache_file now age body tag ttl=21600
+  if [[ -n "${DC_CLI_LATEST_TAG:-}" ]]; then
+    printf '%s\n' "${DC_CLI_LATEST_TAG#v}"
+    return 0
+  fi
+  cache_dir="$(dc_cli_cache_dir)"
+  cache_file="$cache_dir/latest-check"
+  now="$(date +%s 2>/dev/null || echo 0)"
+  if [[ -f "$cache_file" ]]; then
+    # format: epoch\ntag
+    local cached_at cached_tag
+    cached_at="$(sed -n '1p' "$cache_file" 2>/dev/null || true)"
+    cached_tag="$(sed -n '2p' "$cache_file" 2>/dev/null || true)"
+    if [[ -n "$cached_at" && -n "$cached_tag" && "$now" =~ ^[0-9]+$ && "$cached_at" =~ ^[0-9]+$ ]]; then
+      age=$((now - cached_at))
+      if [[ "$age" -ge 0 && "$age" -lt "$ttl" ]]; then
+        printf '%s\n' "${cached_tag#v}"
+        return 0
+      fi
+    fi
+  fi
+  body="$(curl -fsSL --max-time 8 "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null)" || return 1
+  if command -v python3 >/dev/null 2>&1; then
+    tag="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])' <<<"$body" 2>/dev/null)" || return 1
+  else
+    tag="$(printf '%s\n' "$body" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  fi
+  [[ -n "$tag" ]] || return 1
+  tag="${tag#v}"
+  mkdir -p "$cache_dir" 2>/dev/null || true
+  printf '%s\n%s\n' "$now" "$tag" >"$cache_file" 2>/dev/null || true
+  printf '%s\n' "$tag"
+}
+
+# Prints: state installed latest channel
+# state is one of: current | available | unknown | dev
+dc_cli_update_info() {
+  local ver latest chan
+  ver="$(dc_cli_version)"
+  ver="${ver#v}"
+  chan="$(dc_cli_channel)"
+  if [[ -z "$ver" || "$ver" == "dev" ]]; then
+    printf '%s\t%s\t%s\t%s\n' "dev" "${ver:-dev}" "" "$chan"
+    return 0
+  fi
+  if ! latest="$(dc_cli_latest_tag)"; then
+    printf '%s\t%s\t%s\t%s\n' "unknown" "$ver" "" "$chan"
+    return 0
+  fi
+  latest="${latest#v}"
+  if dc_cli_semver_lt "$ver" "$latest"; then
+    printf '%s\t%s\t%s\t%s\n' "available" "$ver" "$latest" "$chan"
+  else
+    printf '%s\t%s\t%s\t%s\n' "current" "$ver" "$latest" "$chan"
+  fi
+}
+
+# Prints just the state token from dc_cli_update_info.
+dc_cli_update_state() {
+  local line
+  line="$(dc_cli_update_info)"
+  printf '%s\n' "${line%%$'\t'*}"
+}
+
 dc_json_escape() {
   local s="$1"
   if command -v python3 >/dev/null 2>&1; then

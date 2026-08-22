@@ -38,7 +38,7 @@ Use automatically for official @devcontainers/cli without editing project .devco
 - One engine per machine. Desktop UI is not proof the CLI is talking to that VM. Do not export Colima `DOCKER_HOST` onto a Desktop laptop. Linux Desktop socket is `~/.docker/desktop/docker.sock`. Leftover native `dockerd` on `/var/run` is a real extra engine — `dc-engine --fix`.
 
 ## Verification
-1. `dc --help`, `dc up --help`, `dc-df --help`, `dc-prune --help`, `dc-up --help`, `dc-doctor --help`, `dc-recover --help`, `dc-engine --help`, `dc-stats --help`, `dc-net --help` work. `dc-doctor` and `dc-stats` are read-only. `dc-recover` without `--yes` is read-only. `dc-engine` without `--fix --yes` is read-only. `dc-net` without `--ensure` is read-only.
+1. `dc --help`, `dc up --help`, `dc-df --help`, `dc-prune --help`, `dc-up --help`, `dc-doctor --help`, `dc-recover --help`, `dc-upgrade --help`, `dc-engine --help`, `dc-stats --help`, `dc-net --help` work. `dc-doctor` and `dc-stats` are read-only. `dc-upgrade --check` is read-only. `dc-recover` without `--yes` is read-only. `dc-engine` without `--fix --yes` is read-only. `dc-net` without `--ensure` is read-only.
 2. `dc-prune` without `--yes` is dry-run (exit 0, no delete).
 3. `dc-prune --volume x` without `--yes` does not delete.
 4. `dc-ls --json --all` with no containers prints `[]`.
