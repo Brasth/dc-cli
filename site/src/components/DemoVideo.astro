@@ -1,0 +1,82 @@
+---
+interface Props {
+  src: string;
+  poster: string;
+  class?: string;
+  id?: string;
+  /** Full-bleed background plane (avoid for hero — use framed instead) */
+  fill?: boolean;
+  /** Inset terminal panel — crisp, no upscale blur */
+  framed?: boolean;
+  label?: string;
+}
+
+const {
+  src,
+  poster,
+  class: className = '',
+  id,
+  fill = false,
+  framed = false,
+  label = 'Product demo',
+} = Astro.props;
+---
+
+<div
+  class:list={[
+    'demo-video relative overflow-hidden bg-core',
+    fill && 'absolute inset-0 bg-page',
+    framed && 'aspect-video w-full',
+    className,
+  ]}
+  data-demo-video
+>
+  <video
+    id={id}
+    class:list={[
+      'h-full w-full',
+      framed ? 'object-cover object-top' : 'object-cover',
+    ]}
+    poster={poster}
+    muted
+    playsinline
+    loop
+    preload="metadata"
+    aria-label={label}
+    data-demo-src={src}
+  >
+  </video>
+  <img
+    class="demo-video-poster absolute inset-0 h-full w-full object-cover object-top"
+    src={poster}
+    alt=""
+    width="960"
+    height="540"
+    decoding="async"
+    hidden
+  />
+</div>
+
+<script>
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll<HTMLElement>('[data-demo-video]').forEach((wrap) => {
+    const video = wrap.querySelector('video');
+    const poster = wrap.querySelector<HTMLImageElement>('.demo-video-poster');
+    if (!video) return;
+    const src = video.dataset.demoSrc;
+    if (reduce) {
+      video.removeAttribute('autoplay');
+      video.pause();
+      video.classList.add('hidden');
+      if (poster) poster.hidden = false;
+      return;
+    }
+    if (src) {
+      video.src = src;
+      video.setAttribute('autoplay', '');
+      void video.play().catch(() => {
+        if (poster) poster.hidden = false;
+      });
+    }
+  });
+</script>

@@ -1,222 +1,25 @@
 ---
-const fields = [
-  { k: 'this folder', v: '~/src/app', tone: '' },
-  { k: 'status', v: 'running  ready', tone: 'ok' },
-  { k: 'editor', v: 'zed', tone: '' },
-];
-
-const primary = [
-  { key: 'u', label: 'start', cmd: 'dc up', run: 'start this folder (DC or compose)', danger: false, meta: false },
-  { key: 'e', label: 'shell', cmd: 'dc exec', run: 'exec into the app (never raw docker exec)', danger: false, meta: false },
-  { key: 's', label: 'stop', cmd: 'dc down', run: 'stop full compose stack', danger: false, meta: false },
-];
-
-const meta = [
-  { key: 'o', label: 'open', cmd: 'dc open', run: 'open bind-mount in the host editor', danger: false, meta: true },
-  { key: 'a', label: 'attach', cmd: 'dc open --attach', run: 'VS Code Remote into the app', danger: false, meta: true },
-  { key: 'p', label: 'ports', cmd: 'dc forward', run: 'reconcile owned sidecars (Colima)', danger: false, meta: true },
-  { key: 'l', label: 'logs', cmd: 'docker logs -f', run: 'follow selected stack row, q back', danger: false, meta: true },
-  { key: 't', label: 'top', cmd: 'dc stats', run: 'CPU / RAM for this folder, q back', danger: false, meta: true },
-  { key: 'n', label: 'nets', cmd: 'dc net', run: 'this folder declared compose nets, y create+start', danger: false, meta: true },
-];
-
-const extras = [
-  { key: 'b', label: 'db', cmd: 'dc db', run: 'open TablePlus on a declared db port', danger: false, meta: true },
-  { key: 'm', label: 'files', cmd: 'dc files', run: 'yazi/nnn in the box; Enter opens code/cursor on this container', danger: false, meta: true },
-];
-
-const rest = [
-  { key: 'f', label: 'fleet', cmd: 'dc --all', run: 'other labeled workspaces', danger: false, meta: true },
-  { key: '?', label: 'more', cmd: 'legend', run: 'key legend', danger: false, meta: true },
-  { key: 'q', label: 'quit', cmd: 'q', run: 'exit board', danger: false, meta: true },
-  { key: 'x', label: 'rm', cmd: 'dc down --rm', run: 'asks y/n, then compose down', danger: true, meta: false },
-];
-
-const urls = [
-  { key: '1', label: '1 http://127.0.0.1:9001', cmd: 'open http://127.0.0.1:9001', run: 'open published website in the host browser' },
-  { key: '2', label: '2 http://127.0.0.1:5173', cmd: 'open http://127.0.0.1:5173', run: 'open published website in the host browser' },
-];
-
-const stack = [
-  { name: 'app-1', svc: 'app', status: 'up', img: 'node:22' },
-  { name: 'db-1', svc: 'db', status: 'up', img: 'postgres:16' },
-  { name: 'mitm-1', svc: 'mitm', status: 'exited', img: 'alpine/socat' },
-];
 ---
 
-<section id="board" class="px-4 pb-10 md:px-6 md:pb-12" aria-label="dc-tui board">
+<section id="board" class="px-4 pb-10 pt-4 md:px-6 md:pb-12" aria-label="dc-tui board">
+  <div class="mx-auto mb-6 w-full max-w-6xl">
+    <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">try without installing</p>
+    <h2 class="mt-3 max-w-2xl text-2xl leading-tight tracking-tight text-ink md:text-3xl">
+      Play the board — same keys as dc-tui.
+    </h2>
+    <p class="mt-2 max-w-xl text-sm text-mute">
+      Stateful sandbox: start/stop updates the stack, logs and top overlays, rm confirms y/n.
+      Install for your real folder.
+    </p>
+  </div>
   <div class="board-shell mx-auto w-full max-w-6xl">
-    <div class="board-frame">
-      <header class="flex flex-wrap items-start gap-3 px-4 pt-4">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" fill="none" aria-hidden="true">
-          <rect x="5" y="5" width="54" height="54" rx="14" stroke="#8A8680" stroke-width="2"></rect>
-          <rect x="16" y="16" width="32" height="32" rx="8" stroke="#8A8680" stroke-width="1.75"></rect>
-          <rect x="40" y="12" width="7" height="7" rx="1.5" fill="#6FCF7B"></rect>
-        </svg>
-        <div class="min-w-0 flex-1">
-          <p class="font-mono text-sm font-semibold text-[#F4F1EA]">dc-cli <span class="font-normal text-[#8ecf7a]">app</span></p>
-          <p class="font-mono text-[11px] text-mute">~/src/app</p>
-          <p class="font-mono text-[11px] text-mute" id="board-load">load  cpu 12.4%  mem 410M / —  t=top</p>
-          <p class="font-mono text-[11px] text-mute" id="board-disk">disk  docker 42% · colima 61%  d=df</p>
-          <p class="font-mono text-[11px] text-mute" id="board-nets">nets  missing shared-net  n=nets</p>
-        </div>
-      </header>
-
-      <dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 px-4 font-mono text-[12px] leading-5">
-        {
-          fields.map((f) => (
-            <>
-              <dt class="text-mute">{f.k}</dt>
-              <dd class:list={[f.tone === 'ok' ? 'text-[#8ecf7a]' : 'text-ink/85']}>{f.v}</dd>
-            </>
-          ))
-        }
-      </dl>
-
-      <div class="mt-4 flex flex-col gap-1.5 px-4" role="toolbar" aria-label="dc-tui actions">
-        <div class="flex flex-wrap gap-1.5">
-          {
-            primary.map((b) => (
-              <button type="button" class="board-btn" data-key={b.key} data-cmd={b.cmd} data-run={b.run}>
-                {b.label}
-              </button>
-            ))
-          }
-        </div>
-        <div class="flex flex-wrap gap-1.5">
-          {
-            meta.map((b) => (
-              <button type="button" class="board-btn is-meta" data-key={b.key} data-cmd={b.cmd} data-run={b.run}>
-                {b.label}
-              </button>
-            ))
-          }
-        </div>
-        <div class="flex flex-wrap gap-1.5">
-          {
-            extras.map((b) => (
-              <button type="button" class="board-btn is-meta" data-key={b.key} data-cmd={b.cmd} data-run={b.run}>
-                {b.label}
-              </button>
-            ))
-          }
-        </div>
-        <div class="flex flex-wrap gap-1.5">
-          {
-            rest.map((b) => (
-              <button
-                type="button"
-                class:list={['board-btn', b.danger ? 'is-danger' : 'is-meta']}
-                data-key={b.key}
-                data-cmd={b.cmd}
-                data-run={b.run}
-              >
-                {b.label}
-              </button>
-            ))
-          }
-        </div>
-        <div class="flex flex-wrap gap-1.5">
-          {
-            urls.map((b) => (
-              <button type="button" class="board-btn" data-key={b.key} data-cmd={b.cmd} data-run={b.run}>
-                {b.label}
-              </button>
-            ))
-          }
-        </div>
-      </div>
-      <p class="px-4 pt-2 font-mono text-[11px] text-mute" id="board-hint">
-        u start · e shell · s stop · t top · n nets · b db · m files · 1-9 url · j/k enter · x rm asks y/n · q quit
-      </p>
-
-      <ul class="mt-4 border-t border-white/5" id="board-stack">
-        {
-          stack.map((row) => (
-            <li
-              class="board-row grid grid-cols-[1fr_auto] items-baseline gap-3 px-4 py-2 font-mono text-[12px] md:grid-cols-[7rem_5rem_5rem_1fr]"
-              data-svc={row.svc}
-            >
-              <span class="text-ink">{row.name}</span>
-              <span class="text-mute">{row.svc}</span>
-              <span class:list={[row.status === 'up' ? 'text-[#8ecf7a]' : 'text-[#d36b6b]']}>
-                {row.status}
-              </span>
-              <span class="hidden text-mute md:inline">{row.img}</span>
-            </li>
-          ))
-        }
-      </ul>
-
-      <pre class="board-log max-h-28 overflow-y-auto border-t border-white/5 px-4 py-3 font-mono text-[11px] leading-5 text-[#8ecf7a]" id="board-log" aria-live="polite">$ ready — this folder · click start or press u</pre>
-    </div>
+    <div class="board-frame" id="board-root"></div>
   </div>
 </section>
 
 <script>
-  const hint = document.getElementById('board-hint');
-  const log = document.getElementById('board-log');
-  const buttons = [...document.querySelectorAll<HTMLButtonElement>('.board-btn')];
-  const rows = [...document.querySelectorAll<HTMLElement>('.board-row')];
-  let pendingRm = false;
+  import { mountBoard } from '../lib/board-mount';
 
-  function write(line: string) {
-    if (!log) return;
-    const prev = log.textContent ?? '';
-    const next = `${prev}\n$ ${line}`.split('\n').slice(-6).join('\n');
-    log.textContent = next;
-    log.scrollTop = log.scrollHeight;
-  }
-
-  function fire(btn: HTMLButtonElement) {
-    const cmd = btn.dataset.cmd ?? '';
-    const run = btn.dataset.run ?? '';
-    btn.classList.add('is-on');
-    window.setTimeout(() => btn.classList.remove('is-on'), 180);
-    if (btn.dataset.key === 'x') {
-      pendingRm = true;
-      if (hint) hint.textContent = 'remove stack containers? y/n';
-      write('rm  # confirm y/n');
-      return;
-    }
-    pendingRm = false;
-    if (hint) hint.textContent = `${cmd}  —  ${run}`;
-    write(`${cmd}  # ${run}`);
-  }
-
-  for (const btn of buttons) {
-    btn.addEventListener('pointerenter', () => {
-      if (hint) hint.textContent = `${btn.dataset.cmd}  —  ${btn.dataset.run}`;
-    });
-    btn.addEventListener('click', () => fire(btn));
-  }
-
-  for (const row of rows) {
-    row.addEventListener('click', () => {
-      pendingRm = false;
-      write(`dc exec --service ${row.dataset.svc}  # start if down, then shell`);
-      if (hint) hint.textContent = `stack  —  exec ${row.dataset.svc}`;
-    });
-  }
-
-  window.addEventListener('keydown', (event) => {
-    const target = event.target as HTMLElement | null;
-    if (target && /^(INPUT|TEXTAREA|BUTTON)$/.test(target.tagName)) return;
-    if (pendingRm && (event.key === 'y' || event.key === 'n' || event.key === 'Escape')) {
-      event.preventDefault();
-      pendingRm = false;
-      if (event.key === 'y') {
-        if (hint) hint.textContent = 'dc down --rm  —  compose down';
-        write('dc down --rm  # confirmed');
-      } else {
-        if (hint) hint.textContent = 'rm cancelled';
-        write('rm cancelled');
-      }
-      return;
-    }
-    const btn = buttons.find((b) => b.dataset.key === event.key);
-    if (!btn) return;
-    event.preventDefault();
-    fire(btn);
-  });
+  const root = document.getElementById('board-root');
+  if (root) mountBoard(root);
 </script>

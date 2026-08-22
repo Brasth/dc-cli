@@ -181,17 +181,34 @@ li {
   transform: scale(0.96);
 }
 
+.board-btn.is-disabled,
+.board-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .board-row {
   cursor: pointer;
   transition-property: background-color;
   transition-duration: 180ms;
 }
 
-.board-row:hover {
+.board-row:hover,
+.board-row.is-selected {
   background: rgb(255 255 255 / 0.05);
 }
 
-.board-log {
+.board-row.is-selected {
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.board-overlay {
+  min-height: 18rem;
+}
+
+.board-foot {
+  border-top: 1px solid rgb(255 255 255 / 0.05);
   background: #141414;
 }
 
