@@ -25,6 +25,13 @@ jobs:
         working-directory: site
     steps:
       - uses: actions/checkout@v7
+      - name: Generate TUI tour video
+        working-directory: .
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          python3 -m pip install --user pillow
+          python3 scripts/generate-tui-tour.py
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
