@@ -601,4 +601,4 @@ if ! command -v devcontainer >/dev/null 2>&1; then
 fi
 echo "Stop/remove: dc-down (upstream CLI has no down)."
 echo "dc-up --ports REPLACES project devcontainer.json (not a merge)."
-echo "Stock standalone --node-version pins a Node major only (mutable patch).\n
+echo "Stock standalone --node-version pins a Node major only (mutable patch)."
