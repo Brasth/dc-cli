@@ -1,0 +1,45 @@
+---
+interface Props {
+  class?: string;
+}
+
+const { class: className = '' } = Astro.props;
+
+const productUrl =
+  'https://www.producthunt.com/products/dc-cli?embed=true&utm_source=embed&utm_medium=post_embed';
+const logoUrl =
+  'https://ph-files.imgix.net/53f60889-5269-4b49-8dd3-f96b8d2f7d3b.png?auto=compress,format&codec=mozjpeg&cs=strip&fit=crop&h=80&w=80';
+const tagline = 'Dev containers from your terminal — no VS Code required';
+---
+
+<article
+  class:list={[
+    'max-w-md rounded-sm border border-ink/15 bg-core p-5 shadow-[0_2px_8px_rgba(0,0,0,0.25)]',
+    className,
+  ]}
+  aria-label="dc-cli on Product Hunt"
+>
+  <div class="flex items-center gap-3">
+    <img
+      src={logoUrl}
+      alt=""
+      width="64"
+      height="64"
+      loading="lazy"
+      decoding="async"
+      class="h-16 w-16 shrink-0 rounded-sm object-cover"
+    />
+    <div class="min-w-0 flex-1">
+      <h3 class="truncate font-mono text-lg font-medium tracking-tight text-ink">dc-cli</h3>
+      <p class="mt-1 line-clamp-2 text-sm leading-snug text-mute">{tagline}</p>
+    </div>
+  </div>
+  <a
+    href={productUrl}
+    target="_blank"
+    rel="noopener noreferrer"
+    class="mt-4 inline-flex min-h-10 items-center gap-1 rounded-sm bg-[#ff6154] px-4 font-mono text-xs font-medium text-white transition-opacity duration-300 hover:opacity-90"
+  >
+    Check it out on Product Hunt →
+  </a>
+</article>
