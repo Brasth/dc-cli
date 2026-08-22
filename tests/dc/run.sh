@@ -116,7 +116,8 @@ case_real_up_help() {
 
 case_both_spellings_same_help() {
   local v spaced dashed
-  for v in tui up exec down doctor recover engine try ls open db files forward ps df stats net prune; do
+  # dc-ps has no --help and talks to Docker; skip it here.
+  for v in tui up exec down doctor recover engine try ls open db files forward df stats net prune; do
     spaced="$("$ROOT/bin/dc" "$v" --help)"
     dashed="$("$ROOT/bin/dc-$v" --help)"
     [[ -n "$spaced" && "$spaced" == "$dashed" ]]
