@@ -588,7 +588,7 @@ echo
 echo "Next:"
 echo "  open a new terminal (or: source ~/.bashrc / ~/.zshrc)"
 echo "  dc                # this folder board"
-echo "  dc --help         # verbs (dc up = dc-up, still installed)"
+echo "  dc --help         # two spellings: dc up and dc-up"
 echo "  dc --all          # fleet"
 echo "  dc doctor         # read-only diagnostics"
 echo "  dc recover        # one next step; dc recover --yes to apply"
@@ -601,4 +601,4 @@ if ! command -v devcontainer >/dev/null 2>&1; then
 fi
 echo "Stop/remove: dc-down (upstream CLI has no down)."
 echo "dc-up --ports REPLACES project devcontainer.json (not a merge)."
-echo "Stock standalone --node-version pins a Node major only (mutable patch)."
+echo "Stock standalone --node-version pins a Node major only (mutable patch).\n

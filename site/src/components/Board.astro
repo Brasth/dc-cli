@@ -6,30 +6,30 @@ const fields = [
 ];
 
 const primary = [
-  { key: 'u', label: 'start', cmd: 'dc-up', run: 'start this folder (DC or compose)', danger: false, meta: false },
-  { key: 'e', label: 'shell', cmd: 'dc-exec', run: 'exec into the app (never raw docker exec)', danger: false, meta: false },
-  { key: 's', label: 'stop', cmd: 'dc-down', run: 'stop full compose stack', danger: false, meta: false },
+  { key: 'u', label: 'start', cmd: 'dc up', run: 'start this folder (DC or compose)', danger: false, meta: false },
+  { key: 'e', label: 'shell', cmd: 'dc exec', run: 'exec into the app (never raw docker exec)', danger: false, meta: false },
+  { key: 's', label: 'stop', cmd: 'dc down', run: 'stop full compose stack', danger: false, meta: false },
 ];
 
 const meta = [
-  { key: 'o', label: 'open', cmd: 'dc-open', run: 'open bind-mount in the host editor', danger: false, meta: true },
-  { key: 'a', label: 'attach', cmd: 'dc-open --attach', run: 'VS Code Remote into the app', danger: false, meta: true },
-  { key: 'p', label: 'ports', cmd: 'dc-forward', run: 'reconcile owned sidecars (Colima)', danger: false, meta: true },
+  { key: 'o', label: 'open', cmd: 'dc open', run: 'open bind-mount in the host editor', danger: false, meta: true },
+  { key: 'a', label: 'attach', cmd: 'dc open --attach', run: 'VS Code Remote into the app', danger: false, meta: true },
+  { key: 'p', label: 'ports', cmd: 'dc forward', run: 'reconcile owned sidecars (Colima)', danger: false, meta: true },
   { key: 'l', label: 'logs', cmd: 'docker logs -f', run: 'follow selected stack row, q back', danger: false, meta: true },
-  { key: 't', label: 'top', cmd: 'dc-stats', run: 'CPU / RAM for this folder, q back', danger: false, meta: true },
-  { key: 'n', label: 'nets', cmd: 'dc-net', run: 'this folder declared compose nets, y create+start', danger: false, meta: true },
+  { key: 't', label: 'top', cmd: 'dc stats', run: 'CPU / RAM for this folder, q back', danger: false, meta: true },
+  { key: 'n', label: 'nets', cmd: 'dc net', run: 'this folder declared compose nets, y create+start', danger: false, meta: true },
 ];
 
 const extras = [
-  { key: 'b', label: 'db', cmd: 'dc-db', run: 'open TablePlus on a declared db port', danger: false, meta: true },
-  { key: 'm', label: 'files', cmd: 'dc-files', run: 'yazi/nnn in the box; Enter opens code/cursor on this container', danger: false, meta: true },
+  { key: 'b', label: 'db', cmd: 'dc db', run: 'open TablePlus on a declared db port', danger: false, meta: true },
+  { key: 'm', label: 'files', cmd: 'dc files', run: 'yazi/nnn in the box; Enter opens code/cursor on this container', danger: false, meta: true },
 ];
 
 const rest = [
-  { key: 'f', label: 'fleet', cmd: 'dc-tui --all', run: 'other labeled workspaces', danger: false, meta: true },
+  { key: 'f', label: 'fleet', cmd: 'dc --all', run: 'other labeled workspaces', danger: false, meta: true },
   { key: '?', label: 'more', cmd: 'legend', run: 'key legend', danger: false, meta: true },
   { key: 'q', label: 'quit', cmd: 'q', run: 'exit board', danger: false, meta: true },
-  { key: 'x', label: 'rm', cmd: 'dc-down --rm', run: 'asks y/n, then compose down', danger: true, meta: false },
+  { key: 'x', label: 'rm', cmd: 'dc down --rm', run: 'asks y/n, then compose down', danger: true, meta: false },
 ];
 
 const urls = [
@@ -194,7 +194,7 @@ const stack = [
   for (const row of rows) {
     row.addEventListener('click', () => {
       pendingRm = false;
-      write(`dc-exec --service ${row.dataset.svc}  # start if down, then shell`);
+      write(`dc exec --service ${row.dataset.svc}  # start if down, then shell`);
       if (hint) hint.textContent = `stack  —  exec ${row.dataset.svc}`;
     });
   }
@@ -206,8 +206,8 @@ const stack = [
       event.preventDefault();
       pendingRm = false;
       if (event.key === 'y') {
-        if (hint) hint.textContent = 'dc-down --rm  —  compose down';
-        write('dc-down --rm  # confirmed');
+        if (hint) hint.textContent = 'dc down --rm  —  compose down';
+        write('dc down --rm  # confirmed');
       } else {
         if (hint) hint.textContent = 'rm cancelled';
         write('rm cancelled');
