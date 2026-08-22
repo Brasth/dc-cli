@@ -247,7 +247,21 @@ dc_recover_apply_colima_start() {
 
 dc_recover_apply_sudo_start_docker() {
   echo "dc-recover: sudo systemctl start docker"
-  sudo systemctl start docker
+  if sudo systemctl start docker 2>/dev/null; then
+    return 0
+  fi
+  if pgrep -x dockerd >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "dc-recover: systemctl unavailable — starting dockerd"
+  sudo dockerd >/tmp/dockerd-dc-recover.log 2>&1 &
+  local i
+  for i in $(seq 1 50); do
+    [[ -S /var/run/docker.sock || -S /run/docker.sock ]] && return 0
+    sleep 0.2
+  done
+  echo "dc-recover: dockerd did not become ready" >&2
+  return 1
 }
 
 dc_recover_apply_sudo_docker_group() {
