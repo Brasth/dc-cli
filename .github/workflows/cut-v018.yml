@@ -1,0 +1,74 @@
+# One-shot: publish v0.18.0 from the #3 merge commit, then delete this file.
+# MCP cannot create tags; a GITHUB_TOKEN tag would not retrigger release.yml.
+name: cut-v018
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/cut-v018.yml
+permissions:
+  contents: write
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: darwin
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 0c9bd7d4d9e58d19739c2078fde355926bc7857e
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.24"
+      - name: Pack
+        run: |
+          bash -n scripts/pack-release.sh
+          scripts/pack-release.sh v0.18.0 ${{ matrix.goos }} ${{ matrix.goarch }} dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dc-cli-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+  publish:
+    needs: pack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 0c9bd7d4d9e58d19739c2078fde355926bc7857e
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Tag and create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create v0.18.0 dist/*.tar.gz \
+            --repo "$GITHUB_REPOSITORY" \
+            --target 0c9bd7d4d9e58d19739c2078fde355926bc7857e \
+            --title v0.18.0 \
+            --generate-notes
+      - name: Remove this workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout -B main origin/main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f .github/workflows/cut-v018.yml
+          git commit -m "chore: remove one-shot v0.18.0 release workflow"
+          git push origin main
