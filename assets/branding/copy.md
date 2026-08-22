@@ -21,8 +21,5 @@ curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bas
 After:
 `source ~/.zshrc` or `~/.bashrc`
 
-Secondary CTA:
-GitHub
-
 Footer:
 MIT. Canvilled / Brasth.
