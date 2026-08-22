@@ -56,4 +56,4 @@ dc-up
 
 Stops **other** labeled workspaces only. Unlabeled, ambiguous, or inspect-unknown holders are **report-only** — they are not stopped. Prefer stopping a sibling stack over editing project compose ports.
 
-Full flag table: [README ports](https://github.com/Brasth/dc-cli#ports-colima) and [host port conflict](https://github.com/Brasth/dc-cli#host-port-conflict).
+Flags: `dc up --help` and `dc forward --help`.
