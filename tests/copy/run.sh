@@ -30,6 +30,8 @@ check assets/branding/copy.md "$CURL"
 check site/src/components/Hero.astro "$H1"
 check site/src/layouts/Layout.astro 'dc-cli — Dev containers from your terminal'
 check README.md "$H1"
+check README.md 'dc up` starts this folder'
+check README.md 'dc try'
 check site/src/lib/install.ts "$CURL"
 check install.sh 'dc try'
 check install.sh 'dc recover'
@@ -52,6 +54,8 @@ for pat in 'dc --all' 'dc upgrade' 'dc engine --fix'; do
   fi
 done
 absent site/src/components/Hero.astro 'Host-global helpers around the official Dev Containers CLI.'
+absent README.md 'host-global helpers'
+absent site/src/components/PainPayoff.astro 'Host-global wrappers'
 
 echo
 if [[ "$FAILED" -gt 0 ]]; then
