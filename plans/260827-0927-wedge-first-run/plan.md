@@ -58,24 +58,24 @@ DevPod (~15k stars) already owns desktop + SSH + any backend. crib / `dev` / bri
 
 | # | Phase | Status | Plan tasks |
 |---|---|---|---|
-| 1 | Copy contract + CI try | proposed | Task 1 |
-| 2 | Site, branding, README, launch copy | proposed | Task 2 |
-| 3 | Install Next + `dc-up` TTY try + TUI string | proposed | Tasks 3–5 |
-| 4 | Recover `try_sandbox` + skill | proposed | Tasks 6–7 |
-| 5 | Verify suites | proposed | Task 8 |
-| 6 | Text the 4 users + Show HN / PH | proposed | Task 9 (ops) |
+| 1 | Copy contract + CI try | done | Task 1 |
+| 2 | Site, branding, README, launch copy | done | Task 2 |
+| 3 | Install Next + `dc-up` TTY try + TUI string | done | Tasks 3–5 |
+| 4 | Recover `try_sandbox` + skill | done | Tasks 6–7 |
+| 5 | Verify suites | done | Task 8 |
+| 6 | Text the 4 users + Show HN / PH | pending | Task 9 (ops) |
 
 ## Success
 
-- [ ] Hero, `<title>`, `assets/branding/copy.md`, and README lead with **Dev containers from your terminal.**
-- [ ] `tests/copy/run.sh` and `tests/try/run.sh` run in CI
-- [ ] Install Next is `source` → `cd` → `dc` → `dc try` → `dc recover`
-- [ ] Non-TTY `dc-up` on `kind=none` still exits 1 and mentions `dc-try`
-- [ ] TTY / `DC_UP_TRY_PROMPT=1` + `y` runs `dc-try --yes`
-- [ ] `dc-up --yes` on `kind=none` does not start a sandbox
-- [ ] Recover `kind_none` has `applyAllowed=1` and `--yes` runs `dc-try --yes`
-- [ ] `go test ./cmd/dc-tui` still green
-- [ ] No desktop, no empty-machine brew install, no `.devcontainer` writes
+- [x] Hero, `<title>`, `assets/branding/copy.md`, and README lead with **Dev containers from your terminal.**
+- [x] `tests/copy/run.sh` and `tests/try/run.sh` run in CI
+- [x] Install Next is `source` → `cd` → `dc` → `dc try` → `dc recover`
+- [x] Non-TTY `dc-up` on `kind=none` still exits 1 and mentions `dc-try`
+- [x] TTY / `DC_UP_TRY_PROMPT=1` + `y` runs `dc-try --yes`
+- [x] `dc-up --yes` on `kind=none` does not start a sandbox
+- [x] Recover `kind_none` has `applyAllowed=1` and `--yes` runs `dc-try --yes`
+- [x] `go test ./cmd/dc-tui` still green
+- [x] No desktop, no empty-machine brew install, no `.devcontainer` writes
 
 ## Cook
 
