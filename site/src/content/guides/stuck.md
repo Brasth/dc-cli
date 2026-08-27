@@ -40,6 +40,4 @@ dc-recover --report ./out  # redacted bundle for a GitHub issue
 
 It does **not** run `docker system prune -af --volumes`, stop unlabeled port holders, `systemctl disable --now`, or edit `~/.zshrc`.
 
-If the host is ready and the folder has no `.devcontainer` or compose file, recover’s next step is `dc-try`.
-
 No engine at all? See [No Docker engine](/guide/no-docker/). Diagnose only? [dc-doctor](/guide/doctor/).

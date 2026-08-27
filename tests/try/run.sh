@@ -112,7 +112,7 @@ case_up_tty_no() {
   rc=$?
   set -e
   assert_eq "$rc" 1
-  printf '%s\n' "$out" | grep -qi 'sandbox'
+  printf '%s\n' "$out" | grep -q 'dc-up: aborted'
 }
 
 case_up_tty_yes() {

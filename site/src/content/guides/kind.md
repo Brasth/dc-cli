@@ -32,7 +32,7 @@ faq:
 |---|---|---|---|
 | `.devcontainer` present | `devcontainer` | official CLI, then `dc-forward` | official `devcontainer exec` |
 | else root compose file | `compose` | Compose `-p NAME -f FILES up -d` (`docker compose` or `docker-compose`) | Compose exec (1 / `app` / `web` / refuse) |
-| else | none | `dc-up` refuses; `dc-try` sandbox | after try, labeled `dc-exec` |
+| else | none | `dc try` sandbox; TTY `dc up` offers it | after try, labeled `dc-exec` |
 
 ```bash
 cd /path/to/your/project
