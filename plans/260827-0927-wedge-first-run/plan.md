@@ -1,7 +1,7 @@
 ---
 title: "Wedge first-run — product + website"
 description: "Deepen the existing wedge. First minute gets a shell. Homepage sells that win. Do not expand scope."
-status: proposed
+status: implemented
 priority: P0
 branch: feature/wedge-first-run-plan-955f
 tags:
