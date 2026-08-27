@@ -131,6 +131,39 @@ case_ready_unlabeled_ports() {
   assert_eq "$DC_RECOVER_APPLY_ALLOWED" 0
 }
 
+case_kind_none_allows_try() {
+  plan_from ready unknown "ready" kind_none
+  assert_eq "$DC_RECOVER_ID" try_sandbox
+  printf '%s\n' "$DC_RECOVER_COMMAND" | grep -q 'dc-try'
+  assert_eq "$DC_RECOVER_APPLY" try_sandbox
+  assert_eq "$DC_RECOVER_APPLY_ALLOWED" 1
+}
+
+# After dc-try, folder is still kind=none (external override). A labeled
+# running/created app for this folder must not keep ranking try_sandbox.
+case_kind_none_live_sandbox_ready() {
+  local ws
+  ws="$(mktemp -d "$STATE/ws.XXXX")"
+  fake_add_container tryapp tryapp running "devcontainer.local_folder=$ws"
+  dc_host_set ready "Docker engine reachable" "" linux "rem" "retry"
+  dc_recover_folder_diagnose "$ws"
+  assert_eq "$DC_RECOVER_FOLDER_HINT" ""
+  dc_recover_plan
+  assert_eq "$DC_RECOVER_ID" ready
+}
+
+case_apply_try_sandbox() {
+  cat >"$STATE/bin/dc-try" <<'EOF'
+#!/usr/bin/env bash
+echo "dc-try $*" >>"${DC_FAKE_STATE}/dc-try.log"
+exit 0
+EOF
+  chmod +x "$STATE/bin/dc-try"
+  hash -r 2>/dev/null || true
+  dc_recover_apply try_sandbox
+  grep -q 'dc-try --yes \.' "$STATE/dc-try.log"
+}
+
 case_apply_colima_start() {
   cat >"$STATE/bin/colima" <<'EOF'
 #!/usr/bin/env bash
@@ -299,6 +332,9 @@ run_case ready case_ready
 run_case ready-enospc case_ready_enospc
 run_case ready-grow case_ready_grow
 run_case ready-unlabeled case_ready_unlabeled_ports
+run_case kind-none-try case_kind_none_allows_try
+run_case kind-none-live-sandbox case_kind_none_live_sandbox_ready
+run_case apply-try-sandbox case_apply_try_sandbox
 run_case apply-colima-start case_apply_colima_start
 run_case apply-stop-extra case_apply_stop_extra_colima
 run_case apply-sudo-start case_apply_sudo_start

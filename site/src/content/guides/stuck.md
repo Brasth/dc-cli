@@ -36,7 +36,10 @@ dc-recover --report ./out  # redacted bundle for a GitHub issue
 | Bad `DOCKER_HOST` / context | point the CLI at the existing engine |
 | Linux permission denied | `usermod -aG docker`, then re-login |
 | Disk full | `dc-prune --yes`; Colima guest still full → `--grow-disk` |
+| Host ready, folder has no config | `dc-try` (sandbox; `--yes` applies `try_sandbox`) |
 
 It does **not** run `docker system prune -af --volumes`, stop unlabeled port holders, `systemctl disable --now`, or edit `~/.zshrc`.
+
+If the host is ready and the folder has no `.devcontainer` or compose file, recover’s next step is `dc-try`.
 
 No engine at all? See [No Docker engine](/guide/no-docker/). Diagnose only? [dc-doctor](/guide/doctor/).
