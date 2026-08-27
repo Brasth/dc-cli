@@ -586,15 +586,11 @@ doctor
 
 echo
 echo "Next:"
-echo "  open a new terminal (or: source ~/.bashrc / ~/.zshrc)"
-echo "  dc                # this folder board"
-echo "  dc --help         # two spellings: dc up and dc-up"
-echo "  dc --all          # fleet"
-echo "  dc doctor         # read-only diagnostics"
-echo "  dc recover        # one next step; dc recover --yes to apply"
-echo "  dc upgrade        # check / install latest release"
-echo "  dc engine --fix   # which Docker engine / recover context"
-echo "  dc try            # sandbox start when no .devcontainer/compose"
+echo "  source ~/.zshrc   # or ~/.bashrc"
+echo "  cd /path/to/your/project"
+echo "  dc                # board — start this folder"
+echo "  dc try            # no .devcontainer or compose"
+echo "If Docker is quit or split: dc recover"
 if ! command -v devcontainer >/dev/null 2>&1; then
   echo "Official CLI not installed. Need it (standalone):"
   echo "  ${ADVERTISED_CURL}"
