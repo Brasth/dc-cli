@@ -128,6 +128,20 @@ _up_kind="$(dc_workspace_kind "$_up_ws")"
 if [[ "$_up_kind" == "none" ]]; then
   echo "dc-up: this folder is not a workspace (no .devcontainer, no compose file)." >&2
   echo "dc-up: sandbox start without project config: dc-try \"$_up_ws\"" >&2
+  if [[ "${yes:-0}" == "1" ]]; then
+    echo "dc-up: --yes does not start a sandbox. Use: dc-try --yes \"$_up_ws\"" >&2
+    exit 1
+  fi
+  if [[ "${DC_UP_TRY_PROMPT:-}" == "1" || -t 0 ]]; then
+    printf 'Start a sandbox with dc-try? [y/N] ' >&2
+    read -r _ans || _ans=
+    if [[ "$_ans" == [yY] || "$_ans" == [yY][eE][sS] ]]; then
+      exec dc-try --yes "$_up_ws"
+    fi
+    echo "dc-up: aborted" >&2
+    exit 1
+  fi
+  echo "dc-up: non-interactive; start a sandbox with: dc-try --yes \"$_up_ws\"" >&2
   exit 1
 fi
 if [[ "$_up_kind" == "compose" && -n "$override" ]]; then
