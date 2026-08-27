@@ -470,6 +470,14 @@ func TestClickTryStartConfirms(t *testing.T) {
 	}
 }
 
+func TestTryConfirmCopy(t *testing.T) {
+	m := model{workspace: "/tmp/app", hoverStack: -1, confirm: "try", width: 80, height: 24}
+	s := m.View()
+	if !strings.Contains(s, "No config — start a sandbox?") {
+		t.Fatalf("try confirm copy: %q", s)
+	}
+}
+
 func TestTryConfirmYesLeaves(t *testing.T) {
 	m := model{workspace: "/tmp/app", hoverStack: -1, confirm: "try"}
 	got, cmd := m.handleConfirmKey("y")
