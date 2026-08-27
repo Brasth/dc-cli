@@ -94,6 +94,43 @@ case_up_hint_on_none() {
   printf '%s\n' "$out" | grep -q 'dc-try'
 }
 
+case_up_yes_does_not_try() {
+  local ws rc
+  ws="$(mktemp -d "$STATE/ws.XXXX")"
+  set +e
+  dc-up --yes "$ws" >/dev/null 2>&1
+  rc=$?
+  set -e
+  assert_eq "$rc" 1
+}
+
+case_up_tty_no() {
+  local ws rc out
+  ws="$(mktemp -d "$STATE/ws.XXXX")"
+  set +e
+  out="$(printf 'n\n' | DC_UP_TRY_PROMPT=1 dc-up "$ws" 2>&1)"
+  rc=$?
+  set -e
+  assert_eq "$rc" 1
+  printf '%s\n' "$out" | grep -q 'dc-up: aborted'
+}
+
+case_up_tty_yes() {
+  local ws log
+  ws="$(mktemp -d "$STATE/ws.XXXX")"
+  printf '%s\n' 'module x' >"$ws/go.mod"
+  cat >"$STATE/bin/devcontainer" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >>"$STATE/devc.log"
+exit 0
+EOF
+  chmod +x "$STATE/bin/devcontainer"
+  printf 'y\n' | DC_UP_TRY_PROMPT=1 dc-up "$ws" >/dev/null
+  [[ -f "$STATE/devc.log" ]]
+  log="$(cat "$STATE/devc.log")"
+  printf '%s\n' "$log" | grep -q -- '--override-config'
+}
+
 case_try_up_argv() {
   local ws log
   ws="$(mktemp -d "$STATE/ws.XXXX")"
@@ -127,6 +164,9 @@ run_case print-outside case_print_writes_outside
 run_case refuse-devcontainer case_refuse_devcontainer
 run_case refuse-compose case_refuse_compose
 run_case up-hint-none case_up_hint_on_none
+run_case up-yes-does-not-try case_up_yes_does_not_try
+run_case up-tty-no case_up_tty_no
+run_case up-tty-yes case_up_tty_yes
 run_case try-up-argv case_try_up_argv
 run_case force-profile case_force_profile
 

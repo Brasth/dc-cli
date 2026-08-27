@@ -70,8 +70,26 @@ dc_recover_folder_diagnose() {
   fi
   kind="$(dc_workspace_kind "$resolved" 2>/dev/null || printf 'none\n')"
   if [[ "$kind" == "none" ]]; then
-    DC_RECOVER_FOLDER_HINT=kind_none
-    return 0
+    # dc-try sandboxes stay kind=none (external override). A labeled
+    # running/created app for this folder means try already succeeded —
+    # do not keep ranking try_sandbox or --yes re-plans forever.
+    local has_try_app=0 id st
+    if type dc_ids_for_workspace >/dev/null 2>&1 && command -v docker >/dev/null 2>&1; then
+      while IFS= read -r id; do
+        [[ -n "$id" ]] || continue
+        st="$(docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || true)"
+        case "$st" in
+          running|created)
+            has_try_app=1
+            break
+            ;;
+        esac
+      done < <(dc_ids_for_workspace "$resolved" 2>/dev/null || true)
+    fi
+    if [[ "$has_try_app" -eq 0 ]]; then
+      DC_RECOVER_FOLDER_HINT=kind_none
+      return 0
+    fi
   fi
 
   if command -v docker >/dev/null 2>&1; then
@@ -249,8 +267,9 @@ dc_recover_plan() {
     kind_none)
       dc_recover_set try_sandbox \
         "This folder has no .devcontainer or compose file." \
-        "dc-try" \
-        none 0
+        "dc-try --yes" \
+        try_sandbox 1 \
+        "dc-try"
       ;;
     *)
       dc_recover_set ready \
@@ -440,6 +459,12 @@ dc_recover_apply_take_ports() {
   dc-up --take-ports
 }
 
+dc_recover_apply_try_sandbox() {
+  command -v dc-try >/dev/null 2>&1 || { echo "dc-recover: dc-try not on PATH" >&2; return 1; }
+  echo "dc-recover: dc-try --yes ."
+  dc-try --yes .
+}
+
 dc_recover_apply_open_guide() {
   local url
   url="$(dc_recover_desktop_guide)"
@@ -465,6 +490,7 @@ dc_recover_apply() {
     prune_safe) dc_recover_apply_prune_safe ;;
     create_nets) dc_recover_apply_create_nets ;;
     take_ports) dc_recover_apply_take_ports ;;
+    try_sandbox) dc_recover_apply_try_sandbox ;;
     open_guide) dc_recover_apply_open_guide ;;
     copy|none|"")
       echo "dc-recover: nothing to apply (${apply:-none})" >&2

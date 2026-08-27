@@ -186,7 +186,7 @@ func (m model) layout() (string, []button, int) {
 		b.WriteString("\n" + warnStyle.Render("remove stack containers? y/n") + "\n")
 	}
 	if m.confirm == "try" {
-		b.WriteString("\n" + warnStyle.Render("no .devcontainer/compose — start sandbox via dc-try? y/n") + "\n")
+		b.WriteString("\n" + warnStyle.Render("No config — start a sandbox? y/n") + "\n")
 	}
 	if m.confirm == "upgrade" {
 		b.WriteString("\n" + warnStyle.Render(trunc("upgrade dc-cli to "+m.updateLatest+" via dc-upgrade --yes? y/n", w)) + "\n")

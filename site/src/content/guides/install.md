@@ -1,7 +1,7 @@
 ---
 title: "Install dc-cli"
 description: "Install dc-cli with one curl (--with-cli standalone) or Homebrew. Release kits include the clickable TUI. Clone with no flags is wrappers only."
-h1: "One curl. Then source your shell."
+h1: "One curl. Then dc."
 updated: 2026-08-22
 howto: true
 steps:

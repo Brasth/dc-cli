@@ -33,9 +33,9 @@ Hosted after deploy: `https://dc.brasth.com/videos/launch-full-demo.mp4`
 
 ## Maker first comment (post at launch)
 
-Hey PH — I built dc-cli because I kept bouncing between VS Code Remote, raw `docker exec`, and Colima port hacks.
+Hey PH — I built dc-cli so I could start a folder from the terminal: dc up, or dc try when there is no config, then dc exec. No VS Code. Wraps the official Dev Containers CLI. Never edits .devcontainer.
 
-dc-cli wraps the *official* Dev Containers CLI with host-global verbs: `dc up`, `dc exec`, `dc doctor`, and a TUI board. It never edits your `.devcontainer`.
+dc-cli also has a TUI board for ports, logs, disk, and fleet.
 
 When Docker blocks you, `dc recover` gives one next step.
 

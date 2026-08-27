@@ -1,6 +1,8 @@
 # DC-CLI
 
-**Dev containers from your terminal** — host-global helpers around official [`@devcontainers/cli`](https://github.com/devcontainers/cli). **No VS Code required. Does not edit** project `.devcontainer`.
+**Dev containers from your terminal.**
+
+`dc up` starts this folder. No config? `dc try`. No VS Code. Never edits project `.devcontainer`. Wraps official [`@devcontainers/cli`](https://github.com/devcontainers/cli).
 
 Site: [dc.brasth.com](https://dc.brasth.com) · Guides: [dc.brasth.com/guide](https://dc.brasth.com/guide/) · Issues: [dc.brasth.com/issues](https://dc.brasth.com/issues/) · Videos: [dc.brasth.com/#demo](https://dc.brasth.com/#demo)
 
@@ -8,7 +10,7 @@ Site: [dc.brasth.com](https://dc.brasth.com) · Guides: [dc.brasth.com/guide](ht
 
 [Full intro video](https://dc.brasth.com/videos/walkthrough-intro.mp4) · [board](https://dc.brasth.com/videos/walkthrough-board.mp4) · [recover](https://dc.brasth.com/videos/walkthrough-recover.mp4)
 
-`.devcontainer` → official CLI. Else a root compose file → Compose. Else `dc up` refuses (use `dc try` for a sandbox).
+`.devcontainer` → official CLI. Else a root compose file → Compose. Else `dc try` (sandbox). `dc up` on a TTY offers that sandbox; non-TTY prints the `dc-try` hint.
 
 **Two spellings, same command:** `dc up` = `dc-up`. `dc` with no args is the board.
 
@@ -37,7 +39,8 @@ Then `source ~/.zshrc` or `~/.bashrc`. Homebrew: `brew tap Brasth/dc-cli && brew
 ```bash
 cd /path/to/your/project
 dc              # board (same as dc-tui)
-dc up           # start
+dc up           # start (TTY offers a sandbox if no config)
+dc try          # sandbox when there is no config
 dc exec         # shell in the app
 dc down         # stop the stack
 ```
@@ -70,7 +73,7 @@ Stuck engine: `dc doctor` then `dc recover --yes`. Disk: `dc df` then `dc prune 
 | `dc ls` / `dc-ls` | labeled apps | [power](https://dc.brasth.com/videos/walkthrough-power.mp4) |
 | `dc ps` / `dc-ps` | docker + labels | — |
 
-Task guides: [board](https://dc.brasth.com/guide/tui/) · [kind](https://dc.brasth.com/guide/kind/) · [doctor](https://dc.brasth.com/guide/doctor/) · [ports](https://dc.brasth.com/guide/ports/) · [disk](https://dc.brasth.com/guide/disk/) · [stuck](https://dc.brasth.com/guide/stuck/).
+Task guides: [install](https://dc.brasth.com/guide/install/) · [try](https://dc.brasth.com/guide/try/) · [board](https://dc.brasth.com/guide/tui/) · [kind](https://dc.brasth.com/guide/kind/) · [doctor](https://dc.brasth.com/guide/doctor/) · [ports](https://dc.brasth.com/guide/ports/) · [disk](https://dc.brasth.com/guide/disk/) · [stuck](https://dc.brasth.com/guide/stuck/).
 
 ## Platform
 

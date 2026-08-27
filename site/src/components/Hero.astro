@@ -19,11 +19,15 @@ import { installCommand } from '../lib/install';
       <h1
         class="mt-5 font-mono text-[clamp(2rem,4.8vw,3.5rem)] leading-[0.95] font-medium tracking-[-0.06em] text-ink"
       >
-        Host-global helpers around the official Dev Containers CLI.
+        Dev containers from your terminal.
       </h1>
       <p class="mt-4 max-w-xl text-[15px] leading-relaxed text-mute md:text-base">
-        Start, exec, stop, ports, doctor, disk. No VS Code required. Does not edit project
+        <span class="font-mono text-ink/80">dc up</span> starts this folder. No config?
+        <span class="font-mono text-ink/80">dc try</span>. No VS Code. Never edits
         <span class="font-mono text-ink/80">.devcontainer</span>.
+      </p>
+      <p class="mt-2 max-w-xl font-mono text-[12px] text-mute">
+        Wraps the official Dev Containers CLI.
       </p>
       <div class="mt-7 flex flex-wrap gap-2">
         <button
