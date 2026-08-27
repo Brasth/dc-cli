@@ -1,6 +1,6 @@
 # DC-CLI
 
-**Dev containers from your terminal** — host-global helpers around official [`@devcontainers/cli`](https://github.com/devcontainers/cli). **No VS Code required. Does not edit** project `.devcontainer`.
+**Dev containers from your terminal.** — host-global helpers around official [`@devcontainers/cli`](https://github.com/devcontainers/cli). **No VS Code required. Does not edit** project `.devcontainer`.
 
 Site: [dc.brasth.com](https://dc.brasth.com) · Guides: [dc.brasth.com/guide](https://dc.brasth.com/guide/) · Issues: [dc.brasth.com/issues](https://dc.brasth.com/issues/) · Videos: [dc.brasth.com/#demo](https://dc.brasth.com/#demo)
 
@@ -8,7 +8,7 @@ Site: [dc.brasth.com](https://dc.brasth.com) · Guides: [dc.brasth.com/guide](ht
 
 [Full intro video](https://dc.brasth.com/videos/walkthrough-intro.mp4) · [board](https://dc.brasth.com/videos/walkthrough-board.mp4) · [recover](https://dc.brasth.com/videos/walkthrough-recover.mp4)
 
-`.devcontainer` → official CLI. Else a root compose file → Compose. Else `dc up` refuses (use `dc try` for a sandbox).
+`.devcontainer` → official CLI. Else a root compose file → Compose. Else `dc try` (sandbox). `dc up` on a TTY offers that sandbox; non-TTY prints the `dc-try` hint.
 
 **Two spellings, same command:** `dc up` = `dc-up`. `dc` with no args is the board.
 

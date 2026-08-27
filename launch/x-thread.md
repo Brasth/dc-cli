@@ -3,9 +3,9 @@
 ## Pin tweet
 
 ```
-dc-cli — dev containers from your terminal.
+Dev containers from your terminal.
 
-dc up · dc exec · dc doctor · TUI board
+dc up · dc try · dc exec · TUI board
 
 No VS Code. Never touches your .devcontainer.
 
@@ -21,9 +21,9 @@ Attach: `docs/assets/walkthrough-intro.gif` or `site/public/videos/walkthrough-i
 ### 1/7 — Hook
 
 ```
-I kept bouncing between VS Code Remote, raw docker exec, and Colima port hacks.
+Dev containers from your terminal.
 
-So I built dc-cli — dev containers from the terminal.
+dc up starts this folder. No config? dc try. Then dc exec.
 
 30s demo 👇
 ```
@@ -44,11 +44,12 @@ Without dc-cli:
 ### 3/7 — Solution
 
 ```
-dc-cli adds host-global verbs around the *official* Dev Containers CLI:
+Dev containers from your terminal.
 
 dc up      start this folder
+dc try     sandbox when there is no config
 dc exec    shell, never raw docker exec
-dc doctor  read-only diagnose
+dc recover one next step when Docker blocks you
 
 Never edits your .devcontainer.
 ```

@@ -1,10 +1,13 @@
 # Locked copy
 
 H1 (hero, brand-first with logo mark):
-Host-global helpers around the official Dev Containers CLI.
+Dev containers from your terminal.
 
 Sub:
-Start, exec, stop, ports, doctor, disk. No VS Code required. Does not edit project `.devcontainer`.
+`dc up` starts this folder. No config? `dc try`. No VS Code. Never edits `.devcontainer`.
+
+Trust (smaller, under sub):
+Wraps the official Dev Containers CLI.
 
 Primary CTA:
 Copy install
@@ -19,7 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bas
 ```
 
 After:
-`source ~/.zshrc` or `~/.bashrc`
+`source ~/.zshrc` or `~/.bashrc`, then `dc`
 
 Footer:
 MIT. Canvilled / Brasth.

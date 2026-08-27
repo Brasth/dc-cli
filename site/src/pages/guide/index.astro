@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import Page from '../../layouts/Page.astro';
 import { breadcrumbs, siteUrl } from '../../lib/schema';
 
-const order = ['install', 'kind', 'tui', 'doctor', 'stuck', 'no-docker', 'ports', 'disk', 'try'];
+const order = ['install', 'try', 'tui', 'stuck', 'kind', 'doctor', 'no-docker', 'ports', 'disk'];
 const guides = await getCollection('guides');
 const cards = order
   .map((id) => guides.find((entry) => entry.id === id))

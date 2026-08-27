@@ -9,9 +9,11 @@ Show HN: dc-cli – dev containers from the terminal without VS Code
 ## Body
 
 ```
-dc-cli adds host-global verbs around the official Dev Containers CLI: dc up, dc exec, dc doctor, plus a TUI board for ports/logs/disk.
+dc up starts this folder. No config? dc try. dc exec is the shell — never raw docker exec.
 
-No VS Code required; never edits .devcontainer. When Docker blocks you, dc recover gives one next step.
+The board (dc / dc-tui) covers ports, logs, disk, and fleet. When Docker blocks you, dc recover gives one next step.
+
+Folder-scoped wrappers around the official Dev Containers CLI — not a new engine. Never edits .devcontainer.
 
 MIT, macOS/Linux.
 

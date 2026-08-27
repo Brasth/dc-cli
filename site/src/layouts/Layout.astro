@@ -9,10 +9,10 @@ interface Props {
   schema?: Record<string, unknown>[];
 }
 
-const title = Astro.props.title ?? 'dc-cli — host-global Dev Containers helpers';
+const title = Astro.props.title ?? 'dc-cli — Dev containers from your terminal';
 const description =
   Astro.props.description ??
-  'Start, exec, stop, ports, disk, and stats for this folder. Dev Container or compose. No VS Code required. Does not edit project .devcontainer.';
+  'dc up starts this folder. dc exec is the shell. No config? dc try. No VS Code required. Never edits project .devcontainer.';
 const noindex = Astro.props.noindex ?? false;
 const site = 'https://dc.brasth.com';
 const rawPath = Astro.props.path ?? Astro.url.pathname;
