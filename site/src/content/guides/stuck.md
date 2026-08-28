@@ -36,7 +36,7 @@ dc-recover --report ./out  # redacted bundle for a GitHub issue
 | Bad `DOCKER_HOST` / context | point the CLI at the existing engine |
 | Linux permission denied | `usermod -aG docker`, then re-login |
 | Disk full | `dc-prune --yes`; Colima guest still full → `--grow-disk` |
-| Host ready, folder has no config | `dc-try` (sandbox; `--yes` applies `try_sandbox`) |
+| Host ready, folder has no config | `dc-try` (sandbox + default localhost ports; `--yes` applies `try_sandbox`) |
 
 It does **not** run `docker system prune -af --volumes`, stop unlabeled port holders, `systemctl disable --now`, or edit `~/.zshrc`.
 

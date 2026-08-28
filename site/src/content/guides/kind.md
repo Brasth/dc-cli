@@ -15,7 +15,7 @@ faq:
   - q: Do I pick a mode?
     a: No. .devcontainer present → kind=devcontainer even if compose files exist. Else a root compose file → kind=compose.
   - q: What if none?
-    a: dc try is the start path; on a TTY dc up offers that sandbox. Agents use dc-try --yes.
+    a: dc try is the start path (sandbox + default localhost ports); on a TTY dc up offers that sandbox. Agents use dc-try --yes.
   - q: Does compose-kind publish Colima ports?
     a: Not automatically. dc-forward stays opt-in and still wants a labeled app or --id. Folder attach (a) is N/A. dc-files Enter still opens VS Code on that running box. Cursor needs kind=devcontainer (dev-container+); compose-kind falls back to a bind-mount host path.
   - q: What if two folders share a compose project name?
@@ -32,7 +32,7 @@ faq:
 |---|---|---|---|
 | `.devcontainer` present | `devcontainer` | official CLI, then `dc-forward` | official `devcontainer exec` |
 | else root compose file | `compose` | Compose `-p NAME -f FILES up -d` (`docker compose` or `docker-compose`) | Compose exec (1 / `app` / `web` / refuse) |
-| else | none | `dc try` sandbox; TTY `dc up` offers it | after try, labeled `dc-exec` |
+| else | none | `dc try` sandbox + localhost ports; TTY `dc up` offers it | after try, labeled `dc-exec` |
 
 ```bash
 cd /path/to/your/project

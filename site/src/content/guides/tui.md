@@ -24,7 +24,7 @@ faq:
   - q: How do I open TablePlus on the stack database?
     a: b or dc-db. Uses the host port you already set on the db service (compose ports or a well-known forwardPorts number). No declared map → refuse. Two DBs need dc-db --service NAME.
   - q: What is the difference between d and t?
-    a: d dumps dc-df (disk document). t opens live CPU/RAM for this folder via dc-stats. Fleet refuses t. Desktop guest is cap only — it never invents a live percent. Reclaim stays dc-prune.
+    a: d dumps dc-df (disk document). t opens live CPU/RAM for this folder via dc-stats. Fleet refuses t. Desktop guest is cap only — it never invents a live percent. When disk looks critical, P confirms dc-prune --yes on the board.
   - q: What does n / nets do?
     a: n lists this folder's declared compose networks. Missing external:true names can be created as a default bridge (y then dc-up --create-nets). Compose-managed nets are shown, not created. Overlay, custom IPAM, and inspect-unknown are refused. Fleet refuses n.
 ---
@@ -35,7 +35,7 @@ dc ~/src/app
 dc --all            # every labeled workspace
 ```
 
-Startup draws the **dc-cli** mark (host frame + phosphor pip). Any key skips. `DC_TUI_NO_SPLASH=1` skips it. The compact mark stays in the header.
+Startup draws the **dc-cli** mark (host frame + phosphor pip) on first launch. Any key skips. After a successful start or shell the splash stays off. `DC_TUI_NO_SPLASH=1` skips it always. The compact mark stays in the header.
 
 While containers are discovered the header shows **checking…** — not **stopped**. **stopped** is only after a successful empty result. Discovery failure shows **unknown** (`r` retries). Manual reload keeps the last snapshot and shows **refreshing…**. Fleet / folder switches clear old context first.
 
@@ -51,7 +51,7 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 
 | Button | Key | Does |
 |---|---|---|
-| **start** | `u` | `dc up` — `.devcontainer` uses official CLI + forward; compose-kind uses `docker compose` (no forward) |
+| **start** | `u` | `dc up` — `.devcontainer` uses official CLI + forward; compose-kind uses `docker compose` (no forward); no config confirms then `dc try` (default localhost ports) |
 | **shell** | `e` | `dc exec` — **app** only |
 | **stop** | `s` | full stack `dc down` |
 | **rm** | `x` | `dc-down --rm` after `y` |
@@ -68,10 +68,10 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 | **fleet** | `f` | other workspaces |
 | **upgrade** | `U` | when a newer release is available — confirms then `dc-upgrade --yes` |
 | **more** / **quit** | `?` / `q` | legend / exit |
-| **disk** | `d` | `dc-df` report (stays in TUI) |
+| **disk** | `d` | `dc-df` report (stays in TUI). `P` = safe prune when the header says CRITICAL |
 | **rows** | `j`/`k`, Enter | cursor; fleet opens a folder, stack execs |
 
-Header shows a compact disk line from `dc-df`, an app load pulse from `dc-stats`, and declared compose nets when present. When a newer GitHub release exists, a banner points at `U` / `dc upgrade`. `d` is still the disk document. `t` is live CPU/RAM for this folder (`q` back). `n` lists this folder's required nets (`y` creates missing `external: true` bridge nets, then `dc-up --create-nets`). Fleet refuses `t` and `n`. Desktop guest is cap only. Reclaim stays CLI-only (`dc-prune --yes`). CLI twins: `dc-stats` / `dc-net`.
+Header shows a compact disk line from `dc-df`, an app load pulse from `dc-stats`, and declared compose nets when present. When a newer GitHub release exists, a banner points at `U` / `dc upgrade`. `d` is still the disk document. When usage looks ≥85%, the disk line says **CRITICAL** and `P` confirms `dc-prune --yes` on the board. `t` is live CPU/RAM for this folder (`q` back). `n` lists this folder's required nets (`y` creates missing `external: true` bridge nets, then `dc-up --create-nets`). Fleet refuses `t` and `n`. Desktop guest is cap only. CLI twins: `dc-stats` / `dc-net`. Docker not ready opens the **Recover** board — `[f]` applies `dc-recover --yes`, then start/shell return.
 
 ## App vs other services
 

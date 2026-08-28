@@ -10,7 +10,7 @@ steps:
   - name: Dry-run
     text: dc-prune prints what it would delete. Exit 0. Nothing removed.
   - name: Reclaim
-    text: dc-prune --yes. Then retry dc-up.
+    text: dc-prune --yes, or P on the board when the disk line says CRITICAL. Then retry dc-up.
 ---
 
 When `dc-up` fails with **no space left** / ENOSPC:
@@ -18,7 +18,7 @@ When `dc-up` fails with **no space left** / ENOSPC:
 ```bash
 dc-df                    # images / cache / volumes + Colima guest df
 dc-prune                 # dry-run
-dc-prune --yes           # safe set only
+dc-prune --yes           # safe set only (same as TUI P when CRITICAL)
 dc-up                    # retry
 ```
 
