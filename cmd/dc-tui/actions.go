@@ -43,12 +43,19 @@ func (m model) reloadCmd() tea.Cmd {
 			}
 		}
 		disk := ""
+		diskGuest := ""
 		if dout, err := exec.Command("dc-df", "--json").Output(); err == nil {
 			var df struct {
 				Compact string `json:"compact"`
+				Colima  *struct {
+					GuestRoot string `json:"guest_root"`
+				} `json:"colima"`
 			}
 			if json.Unmarshal(dout, &df) == nil {
 				disk = strings.TrimSpace(df.Compact)
+				if df.Colima != nil {
+					diskGuest = strings.TrimSpace(df.Colima.GuestRoot)
+				}
 			}
 		}
 		fwd := mergePairs(listFwdMaps(ws), listStackPorts(stack))
@@ -66,6 +73,7 @@ func (m model) reloadCmd() tea.Cmd {
 			stack:     stack,
 			fwdMaps:   fwd,
 			disk:      disk,
+			diskGuest: diskGuest,
 			nets:      nets,
 			host:      host,
 			hostErr:   hostErr,
@@ -283,6 +291,32 @@ func (m model) stayCmd(name string, args ...string) (tea.Model, tea.Cmd) {
 		return m.beginSoftReload()
 	}
 	return m.beginHardReload()
+}
+
+func diskLooksCritical(compact, guest string) bool {
+	return highestPercent(compact, guest) >= 85
+}
+
+func highestPercent(parts ...string) int {
+	best := 0
+	for _, s := range parts {
+		for i := 0; i < len(s); i++ {
+			if s[i] < '0' || s[i] > '9' {
+				continue
+			}
+			n := 0
+			j := i
+			for j < len(s) && s[j] >= '0' && s[j] <= '9' {
+				n = n*10 + int(s[j]-'0')
+				j++
+			}
+			if j < len(s) && s[j] == '%' && n > best {
+				best = n
+			}
+			i = j
+		}
+	}
+	return best
 }
 
 func compactLines(msg string, n int) string {
