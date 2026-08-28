@@ -212,7 +212,7 @@ func (m model) layout() (string, []button, int) {
 		case m.load == loadFailed && !m.loaded:
 			b.WriteString(mutedStyle.Render("  (status unknown — press r)") + "\n")
 		case len(m.rows) == 0:
-			b.WriteString(mutedStyle.Render("  (empty — dc-up in a project)") + "\n")
+			b.WriteString(mutedStyle.Render("  (empty — dc-up in a project, or dc try for no config)") + "\n")
 		default:
 			for i, r := range m.rows {
 				line := formatFleetRow(r, w)

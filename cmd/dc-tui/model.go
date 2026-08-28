@@ -578,7 +578,7 @@ func (m model) activateRow() (tea.Model, tea.Cmd) {
 	m.clampCursor()
 	if m.fleet {
 		if len(m.rows) == 0 {
-			return m.withStatus("empty — dc-up in a project"), nil
+			return m.withStatus("empty — dc-up in a project, or dc try for no config"), nil
 		}
 		return m.openRow(m.cursor)
 	}
