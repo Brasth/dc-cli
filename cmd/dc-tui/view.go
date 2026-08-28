@@ -64,48 +64,45 @@ func (m model) hostView() string {
 		w = 80
 	}
 	var b strings.Builder
-	b.WriteString(titleStyle.Render("Docker setup required") + "\n\n")
-	b.WriteString(errStyle.Render(trunc(m.host.Summary, w)) + "\n")
-	if m.host.Code != "" {
-		b.WriteString(mutedStyle.Render(trunc("code: "+m.host.Code, w)) + "\n")
-	}
+	b.WriteString(titleStyle.Render("Recover") + "\n")
+	b.WriteString(mutedStyle.Render("one next step — apply stays in dc-cli, then the board returns") + "\n\n")
+	hostLine := m.host.Code
 	if m.host.EngineHint != "" && m.host.EngineHint != "unknown" {
-		b.WriteString(mutedStyle.Render(trunc("engine hint: "+m.host.EngineHint, w)) + "\n")
+		hostLine += "  hint=" + m.host.EngineHint
+	}
+	if hostLine != "" {
+		b.WriteString(kv("host", trunc(hostLine, max(8, w-12))) + "\n")
+	}
+	if m.host.Summary != "" {
+		b.WriteString(errStyle.Render(trunc(m.host.Summary, w)) + "\n")
 	}
 	if m.host.Detail != nil && strings.TrimSpace(*m.host.Detail) != "" {
 		b.WriteString(mutedStyle.Render(trunc(*m.host.Detail, w)) + "\n")
 	}
 	b.WriteString("\n")
-	switch m.host.Code {
-	case "docker_cli_missing", "docker_engine_missing":
-		b.WriteString(okStyle.Render("Recommended: Docker Desktop") + "\n")
+	if m.host.NextID != "" {
+		b.WriteString(kv("next", trunc(m.host.NextID, max(8, w-12))) + "\n")
+	}
+	if m.host.NextCommand != "" {
+		b.WriteString(okStyle.Render(trunc("Run: "+m.host.NextCommand, w)) + "\n")
+	} else if m.host.Remediation != "" {
+		b.WriteString(okStyle.Render(trunc(m.host.Remediation, w)) + "\n")
+	}
+	if m.host.canApply() {
+		b.WriteString(statusStyle.Render(trunc("[f] apply this step — then start / shell", w)) + "\n")
+	} else if m.host.Code == "docker_cli_missing" || m.host.Code == "docker_engine_missing" {
 		guide := m.host.GuideURL
 		if guide == "" {
 			guide = "https://docs.docker.com/desktop/"
 		}
+		b.WriteString(okStyle.Render("Empty machine — install an engine, then retry") + "\n")
 		b.WriteString(mutedStyle.Render(trunc(guide, w)) + "\n")
 		b.WriteString(mutedStyle.Render("Lightweight: brew install docker colima && colima start") + "\n")
-	case "docker_engine_stopped":
-		switch m.host.EngineHint {
-		case "desktop":
-			b.WriteString(okStyle.Render("Start Docker Desktop, wait until ready") + "\n")
-		case "colima":
-			b.WriteString(okStyle.Render("Run: colima start") + "\n")
-		default:
-			b.WriteString(okStyle.Render("Start your Docker engine, then retry") + "\n")
-		}
-	default:
-		if m.host.Remediation != "" {
-			b.WriteString(okStyle.Render(trunc(m.host.Remediation, w)) + "\n")
-		}
-	}
-	if m.host.NextCommand != "" {
-		b.WriteString(mutedStyle.Render(trunc("next: "+m.host.NextCommand, w)) + "\n")
 	}
 	b.WriteString("\n")
-	hints := "[d] Desktop guide  [c] copy Colima setup  [r] check again  [q] quit"
+	hints := "[r] check again  [d] Desktop guide  [c] copy Colima setup  [q] quit"
 	if m.host.canApply() {
-		hints = "[f] try fix  " + hints
+		hints = "[f] apply  " + hints
 	}
 	b.WriteString(hintStyle.Render(hints) + "\n")
 	if m.status != "" {
@@ -155,7 +152,13 @@ func (m model) layout() (string, []button, int) {
 			info.WriteString(kv("load", trunc(m.pulse+"  t=top", max(8, infoW-12))) + "\n")
 		}
 		if m.disk != "" {
-			info.WriteString(kv("disk", trunc(m.disk+"  d=df", max(8, infoW-12))))
+			diskHint := m.disk + "  d=df"
+			if m.diskCritical {
+				diskHint = m.disk + "  CRITICAL  P=prune"
+				info.WriteString(kv("disk", trunc(diskHint, max(8, infoW-12))))
+			} else {
+				info.WriteString(kv("disk", trunc(diskHint, max(8, infoW-12))))
+			}
 		}
 		if line := netHeaderLine(m.net); line != "" {
 			if m.disk != "" {
@@ -190,6 +193,9 @@ func (m model) layout() (string, []button, int) {
 	}
 	if m.confirm == "upgrade" {
 		b.WriteString("\n" + warnStyle.Render(trunc("upgrade dc-cli to "+m.updateLatest+" via dc-upgrade --yes? y/n", w)) + "\n")
+	}
+	if m.confirm == "prune" {
+		b.WriteString("\n" + warnStyle.Render("safe prune (cache + dangling + orphan sidecars)? y/n") + "\n")
 	}
 	if m.status != "" {
 		b.WriteString("\n" + statusStyle.Render(trunc(m.status, w)) + "\n")
@@ -234,7 +240,7 @@ func (m model) layout() (string, []button, int) {
 		}
 	}
 
-	if m.confirm == "rm" || m.confirm == "try" || m.confirm == "upgrade" {
+	if m.confirm == "rm" || m.confirm == "try" || m.confirm == "upgrade" || m.confirm == "prune" {
 		b.WriteString("\n" + hintStyle.Render("y confirm  n/esc cancel  q quit") + "\n")
 	} else if !m.fleet && len(m.webLinks()) > 0 {
 		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  b db  m files  n nets  1-9 url  j/k  enter  ? more  q quit") + "\n")
@@ -306,7 +312,7 @@ func morePanel(editor string, width int) string {
 		"  db       open TablePlus (etc.) on a declared db port (b)",
 		"  files    yazi/nnn in the box; Enter opens code/cursor on this container (m)",
 		"  fleet    list every labeled workspace",
-		"  disk     dc-df report (d key). Reclaim: dc-prune --yes (CLI)",
+		"  disk     dc-df report (d key). P = dc-prune --yes when disk looks critical",
 		"  upgrade  U when a newer release is available → dc-upgrade --yes",
 		"",
 		"open ≠ attach. Zed attaches itself. Sublime cannot.",

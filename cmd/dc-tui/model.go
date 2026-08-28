@@ -65,6 +65,8 @@ type model struct {
 	hover      string
 	hoverStack int // -1 = none
 	disk       string
+	diskGuest  string
+	diskCritical bool
 	confirm    string // "", "rm", "try", or "upgrade"
 	cursor     int
 	leaving    string // "", "start", "shell", "logs"
@@ -110,6 +112,7 @@ type reloadMsg struct {
 	stack     []stackSvc
 	fwdMaps   []portPair
 	disk      string
+	diskGuest string
 	nets      netReport
 	host      hostReport
 	hostErr   error
@@ -154,6 +157,8 @@ func (m model) clearContextData() model {
 	m.netErr = ""
 	m.pulse = ""
 	m.disk = ""
+	m.diskGuest = ""
+	m.diskCritical = false
 	m.cursor = 0
 	m.hoverStack = -1
 	m.confirm = ""
@@ -193,6 +198,8 @@ func (m model) applyReload(msg reloadMsg) model {
 			m.stack = nil
 			m.fwdMaps = nil
 			m.disk = ""
+			m.diskGuest = ""
+			m.diskCritical = false
 			m.net = netReport{}
 			m.pulse = ""
 		}
@@ -216,6 +223,8 @@ func (m model) applyReload(msg reloadMsg) model {
 	m.stack = msg.stack
 	m.fwdMaps = msg.fwdMaps
 	m.disk = msg.disk
+	m.diskGuest = msg.diskGuest
+	m.diskCritical = diskLooksCritical(msg.disk, msg.diskGuest)
 	m.net = msg.nets
 	m.load = loadReady
 	m.loaded = true
@@ -278,6 +287,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil && !benignLeaveErr(msg.action, msg.err) {
 			m = m.withErr(msg.err.Error())
 		} else {
+			if msg.action == "u" || msg.action == "try" || msg.action == "e" || strings.HasPrefix(msg.action, "exec-") {
+				markActivated()
+			}
 			m = m.withStatus(backStatus(msg.action))
 		}
 		// ExecProcess disables mouse on ReleaseTerminal and never restores it.
@@ -419,6 +431,12 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "d":
 		return m.stayCmd("dc-df")
+	case "P":
+		if !m.diskCritical {
+			return m.withStatus("disk ok — dc prune --yes if you still want reclaim"), nil
+		}
+		m.confirm = "prune"
+		return m, nil
 	case "t":
 		if reason := m.actionBlockReason("t"); reason != "" {
 			return m.refuse(reason)
@@ -479,7 +497,7 @@ func (m model) handleHostKey(k string) (tea.Model, tea.Cmd) {
 		if err := runHostRecover(); err != nil {
 			return m.withErr("dc-recover: " + err.Error()), nil
 		}
-		m = m.withStatus("applied fix — checking Docker…")
+		m = m.withStatus("applied — checking Docker, then the board returns…")
 		return m.beginHardReload()
 	case "d":
 		url := m.host.GuideURL
@@ -508,6 +526,9 @@ func (m model) handleConfirmKey(k string) (tea.Model, tea.Cmd) {
 		if which == "upgrade" {
 			return m.startLeave("upgrade", "upgrade")
 		}
+		if which == "prune" {
+			return m.stayCmd("dc-prune", "--yes")
+		}
 		return m.stayCmd("dc-down", "--rm", m.workspace)
 	case "n", "esc":
 		which := m.confirm
@@ -517,6 +538,9 @@ func (m model) handleConfirmKey(k string) (tea.Model, tea.Cmd) {
 		}
 		if which == "upgrade" {
 			return m.withStatus("upgrade cancelled"), nil
+		}
+		if which == "prune" {
+			return m.withStatus("prune cancelled"), nil
 		}
 		return m.withStatus("rm cancelled"), nil
 	case "q", "ctrl+c":
@@ -535,6 +559,8 @@ func (m model) confirmAction() string {
 		return "dc-try --yes"
 	case "upgrade":
 		return "dc-upgrade --yes"
+	case "prune":
+		return "dc-prune --yes"
 	default:
 		return ""
 	}
@@ -632,6 +658,12 @@ func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
 		if which == "try" {
 			return m.withStatus("try cancelled"), nil
 		}
+		if which == "upgrade" {
+			return m.withStatus("upgrade cancelled"), nil
+		}
+		if which == "prune" {
+			return m.withStatus("prune cancelled"), nil
+		}
 		return m.withStatus("rm cancelled"), nil
 	}
 	for _, b := range buttons {
@@ -699,7 +731,7 @@ func (m model) actionBlockReason(key string) string {
 		return ""
 	}
 	switch key {
-	case "q", "?", "h", "f", "r", "d":
+	case "q", "?", "h", "f", "r", "d", "P":
 		return ""
 	case "u":
 		// Config-based start remains available while discovery is pending/unknown.

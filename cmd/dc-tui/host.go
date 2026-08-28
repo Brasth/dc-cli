@@ -90,7 +90,7 @@ func (h hostReport) canApply() bool {
 	switch h.NextApply {
 	case "launch_desktop", "colima_start", "sudo_start_docker", "sudo_docker_group",
 		"context_use", "stop_extra_engine", "colima_grow_disk", "prune_safe",
-		"create_nets", "take_ports":
+		"create_nets", "take_ports", "try_sandbox":
 		return true
 	default:
 		return false

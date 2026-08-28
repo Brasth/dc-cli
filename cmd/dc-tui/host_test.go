@@ -21,7 +21,7 @@ func TestHostViewShowsSetup(t *testing.T) {
 	}
 	s := m.View()
 	for _, want := range []string{
-		"Docker setup required",
+		"Recover",
 		"Docker engine is not running",
 		"Start Docker Desktop",
 		"[d] Desktop guide",
@@ -51,7 +51,8 @@ func TestHostViewShowsTryFixWhenApplyAllowed(t *testing.T) {
 	s := m.View()
 	for _, want := range []string{
 		"colima start",
-		"[f] try fix",
+		"[f] apply",
+		"then start / shell",
 	} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("missing %q in:\n%s", want, s)
@@ -114,7 +115,7 @@ func TestHostKeyFixRunsRecover(t *testing.T) {
 	if !called {
 		t.Fatal("expected recover apply")
 	}
-	if !strings.Contains(mm.status, "fix") && !strings.Contains(mm.status, "checking") {
+	if !strings.Contains(mm.status, "applied") && !strings.Contains(mm.status, "checking") {
 		t.Fatalf("status=%q", mm.status)
 	}
 	if cmd == nil {
@@ -146,6 +147,13 @@ func TestApplyReloadHostBlock(t *testing.T) {
 	}
 	if m.load != loadFailed {
 		t.Fatalf("load=%v", m.load)
+	}
+}
+
+func TestHostCanApplyTrySandbox(t *testing.T) {
+	h := hostReport{ApplyAllowed: true, NextApply: "try_sandbox"}
+	if !h.canApply() {
+		t.Fatal("try_sandbox must be applyable from recover board")
 	}
 }
 
