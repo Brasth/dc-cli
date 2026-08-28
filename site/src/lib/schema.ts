@@ -1,5 +1,5 @@
 export const siteUrl = 'https://dc.brasth.com';
-export const latestRelease = 'v0.19.0';
+export const latestRelease = 'v0.20.0';
 
 export function breadcrumbs(items: { name: string; path: string }[]) {
   return {
