@@ -39,6 +39,7 @@ workspace="."
 profile=""
 yes=0
 print_only=0
+no_forward=0
 
 usage() {
   cat <<'EOF'
@@ -48,11 +49,13 @@ dc-try — sandbox start for folders without .devcontainer or compose
   dc-try --yes [workspace]        skip confirm (agents / TUI)
   dc-try --profile NAME [...]     force go|python|node|generic
   dc-try --print [workspace]      write override + print paths; do not start
+  dc-try --no-forward             skip sidecar port publish after start
   dc-try --help
 
 Writes a complete override config under
   $XDG_STATE_HOME/dc-cli/try/<hash>/override.json
-Never edits the project. No ports, hooks, or package installs.
+Never edits the project. Default localhost ports (profile-aware) + dc-forward.
+No hooks or package installs.
 
 If the folder already has .devcontainer or a root compose file, use dc-up.
 EOF
@@ -62,6 +65,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --yes|-y) yes=1 ;;
     --print) print_only=1 ;;
+    --no-forward) no_forward=1 ;;
     --profile)
       shift
       [[ $# -ge 1 ]] || { echo "--profile needs a name" >&2; exit 2; }
@@ -170,6 +174,23 @@ if [[ "$rc" -ne 0 ]]; then
   exit "$rc"
 fi
 
+if [[ "$no_forward" -eq 1 || "${DC_FORWARD:-1}" == "0" ]]; then
+  echo "dc-try: started ($profile). Shell: dc-exec \"$ws\"  (ports skipped)"
+  echo "dc-try: stop with: dc-down \"$ws\""
+  exit 0
+fi
+
+fwd="$(command -v dc-forward 2>/dev/null || true)"
+if [[ -z "$fwd" && -x "$(dirname "$0")/dc-forward" ]]; then
+  fwd="$(dirname "$0")/dc-forward"
+fi
+if [[ -n "$fwd" ]]; then
+  echo "dc-try: publishing default ports (dc-forward)..."
+  if ! "$fwd" "$ws"; then
+    echo "dc-try: sandbox ready, forwarding incomplete — try dc-forward \"$ws\"" >&2
+  fi
+fi
 echo "dc-try: started ($profile). Shell: dc-exec \"$ws\""
+echo "dc-try: localhost ports: $(dc_try_ports_for "$profile")"
 echo "dc-try: stop with: dc-down \"$ws\""
 exit 0

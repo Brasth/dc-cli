@@ -71,12 +71,23 @@ dc_try_valid_profile() {
   esac
 }
 
+# Default localhost ports for a try sandbox (profile-aware).
+# Printed as a JSON array fragment, e.g. 3000, 5173
+dc_try_ports_for() {
+  case "$1" in
+    node) printf '%s' '3000, 5173' ;;
+    python) printf '%s' '8000, 5000' ;;
+    go) printf '%s' '8080' ;;
+    generic|*) printf '%s' '3000, 8080' ;;
+  esac
+}
+
 # Write complete override + metadata under state dir. Prints override path.
 # Args: abs_workspace [profile]
 dc_try_ensure_override() {
   local abs="$1"
   local profile="${2:-}"
-  local tdir image name override meta tmpo tmpm now base
+  local tdir image name override meta tmpo tmpm now base ports
 
   [[ -d "$abs" ]] || return 1
   abs="$(cd "$abs" && pwd)"
@@ -100,12 +111,15 @@ dc_try_ensure_override() {
 
   tmpo="$(mktemp "$tdir/override.XXXXXX")"
   tmpm="$(mktemp "$tdir/metadata.XXXXXX")"
-  # Complete replacement config — no hooks, ports, features, or project scripts.
+  ports="$(dc_try_ports_for "$profile")"
+  # Complete replacement config — no hooks, features, or project scripts.
+  # forwardPorts so localhost works after dc-forward (Colima / Desktop).
   cat >"$tmpo" <<EOF
 {
   "name": "$(dc_json_escape "$name")",
   "image": "$(dc_json_escape "$image")",
-  "workspaceFolder": "/workspaces/$(dc_json_escape "$base")"
+  "workspaceFolder": "/workspaces/$(dc_json_escape "$base")",
+  "forwardPorts": [${ports}]
 }
 EOF
   cat >"$tmpm" <<EOF
@@ -114,6 +128,7 @@ EOF
   "profile": "$(dc_json_escape "$profile")",
   "image": "$(dc_json_escape "$image")",
   "override": "$(dc_json_escape "$override")",
+  "ports": [${ports}],
   "updatedAt": "$(dc_json_escape "$now")"
 }
 EOF

@@ -56,6 +56,8 @@ case_print_writes_outside() {
   [[ "$override" == "$STATE/try-state/"* ]]
   python3 -m json.tool <"$override" >/dev/null
   grep -q 'javascript-node' "$override"
+  grep -q 'forwardPorts' "$override"
+  grep -q '3000' "$override"
   after="$(find "$ws" -type f | sort | cksum)"
   assert_eq "$after" "$before" "repo mutated"
 }
@@ -159,6 +161,18 @@ case_force_profile() {
   printf '%s\n' "$out" | grep -q 'devcontainers/base'
 }
 
+case_try_ports_by_profile() {
+  local ws override
+  ws="$(mktemp -d "$STATE/ws.XXXX")"
+  printf '%s\n' 'module x' >"$ws/go.mod"
+  dc-try --print "$ws" >/dev/null
+  override="$(dc_try_dir "$(cd "$ws" && pwd)")/override.json"
+  grep -q '"forwardPorts": \[8080\]' "$override"
+  assert_eq "$(dc_try_ports_for node)" "3000, 5173"
+  assert_eq "$(dc_try_ports_for python)" "8000, 5000"
+  assert_eq "$(dc_try_ports_for generic)" "3000, 8080"
+}
+
 run_case detect-profiles case_detect_profiles
 run_case print-outside case_print_writes_outside
 run_case refuse-devcontainer case_refuse_devcontainer
@@ -169,6 +183,7 @@ run_case up-tty-no case_up_tty_no
 run_case up-tty-yes case_up_tty_yes
 run_case try-up-argv case_try_up_argv
 run_case force-profile case_force_profile
+run_case try-ports-profile case_try_ports_by_profile
 
 echo
 if [[ "$FAILED" -gt 0 ]]; then

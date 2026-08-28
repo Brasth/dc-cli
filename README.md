@@ -57,7 +57,7 @@ Stuck engine: `dc doctor` then `dc recover --yes`. Disk: `dc df` then `dc prune 
 | `dc up` / `dc-up` | start this folder | [daily](https://dc.brasth.com/videos/walkthrough-daily.mp4) |
 | `dc exec` / `dc-exec` | app shell (`--service NAME` for siblings) | [clip](https://dc.brasth.com/videos/clip-exec.mp4) |
 | `dc down` / `dc-down` | stop the stack (`--app`, `--rm`) | [daily](https://dc.brasth.com/videos/walkthrough-daily.mp4) |
-| `dc try` / `dc-try` | sandbox when there is no config | [try](https://dc.brasth.com/videos/walkthrough-try.mp4) |
+| `dc try` / `dc-try` | sandbox when there is no config (default localhost ports) | [try](https://dc.brasth.com/videos/walkthrough-try.mp4) |
 | `dc doctor` / `dc-doctor` | read-only diagnose | [clip](https://dc.brasth.com/videos/clip-doctor.mp4) |
 | `dc recover` / `dc-recover` | one next step (`--yes` applies) | [recover](https://dc.brasth.com/videos/walkthrough-recover.mp4) |
 | `dc upgrade` / `dc-upgrade` | check / install latest release | — |

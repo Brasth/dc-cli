@@ -21,7 +21,7 @@ faq:
   - q: What profiles exist?
     a: go (go.mod), python (pyproject.toml / requirements.txt / Pipfile), node (package.json). Exactly one signal wins. Zero or many → generic base image.
   - q: Does it publish ports?
-    a: Not in MVP. No forwardPorts in the generated config. Use a real .devcontainer when you need declared ports.
+    a: Yes — default localhost ports by profile (node 3000/5173, python 8000/5000, go 8080, generic 3000/8080), then dc-forward. Skip with --no-forward. A real .devcontainer still wins for custom ports.
 ---
 
 `dc-try` is the growth path for folders that would otherwise be `kind=none`.
@@ -31,6 +31,7 @@ faq:
 | `dc-try --print .` | write override + print; do not start |
 | `dc-try .` | confirm, then start |
 | `dc-try --yes .` | start without prompt (TUI / agents) |
+| `dc-try --no-forward .` | start without sidecar port publish |
 | `dc-try --profile node .` | force a profile |
 
 ```bash
