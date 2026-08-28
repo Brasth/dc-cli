@@ -11,6 +11,7 @@ Marketing copy and asset references for self-submission. Videos live at `https:/
 | X (Twitter) | [x-thread.md](x-thread.md) |
 | Facebook | [facebook-post.md](facebook-post.md) |
 | Asset checklist | [asset-checklist.md](asset-checklist.md) |
+| **Launch execution** | [execution.md](execution.md) — silent-user retry, PH/HN checklist |
 
 ## Install (use everywhere)
 
