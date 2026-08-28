@@ -48,7 +48,8 @@ Keys:
 
 open = files on the host. attach = VS Code Remote URI.
 Zed attaches itself (Project: Open Remote → Connect Dev Container). Sublime cannot.
-start needs .devcontainer.
+start: .devcontainer/compose → dc-up; else confirm → dc-try sandbox.
+If Docker is quit: dc recover --yes (or [R] recover).
 EOF
 }
 
@@ -88,7 +89,7 @@ choose_action() {
       echo "  $i) $item" >&2
       i=$((i + 1))
     done
-    printf 'number (or u/e/o/a/s/x/l/t/n/b/m/f/q): ' >&2
+    printf 'number (or u/e/o/a/s/x/l/t/n/b/m/R/f/q): ' >&2
     local k
     read -r k
     if [[ "$k" =~ ^[0-9]+$ ]]; then
@@ -112,6 +113,7 @@ choose_action() {
       b|B) echo "[b] db" ;;
       m|M) echo "[m] files" ;;
       f|F) echo "[f] fleet" ;;
+      R) echo "[R] recover" ;;
       q|Q|"") echo "[q] quit" ;;
       *) echo "[q] quit" ;;
     esac
@@ -173,16 +175,29 @@ print("\t".join([
     local pick key
     pick="$(choose_action "workspace $ws" \
       "[u] start" "[e] shell" "[o] open host" "[a] attach vscode" \
-      "[p] ports" "[b] db" "[m] files" "[s] stop" "[x] rm" "[l] logs" "[t] top" "[n] nets" "[f] fleet" "[q] quit")" || return 1
+      "[p] ports" "[b] db" "[m] files" "[s] stop" "[x] rm" "[l] logs" "[t] top" "[n] nets" "[R] recover" "[f] fleet" "[q] quit")" || return 1
     key="$(action_key "$pick")"
     case "$key" in
       u)
-        if ! dc_has_devcontainer "$ws"; then
-          echo "No .devcontainer in $ws. Add one, or use CLI: dc-up --ports (REPLACE)." >&2
+        kind="$(dc_workspace_kind "$ws" 2>/dev/null || echo none)"
+        if [[ "$kind" == "none" ]]; then
+          printf 'No config — start a sandbox with dc-try? [y/N] '
+          local try_ans
+          read -r try_ans || try_ans="n"
+          if [[ "$try_ans" == "y" || "$try_ans" == "Y" || "$try_ans" == "yes" ]]; then
+            echo "→ dc-try --yes $ws"
+            dc-try --yes "$ws" || true
+          else
+            echo "start cancelled (add .devcontainer / compose, or dc-try)"
+          fi
           continue
         fi
         echo "→ dc-up $ws"
         dc-up "$ws" || true
+        ;;
+      R)
+        echo "→ dc-recover --yes"
+        dc-recover --yes || true
         ;;
       p)
         echo "→ dc-forward $ws"

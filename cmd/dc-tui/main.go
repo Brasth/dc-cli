@@ -47,7 +47,7 @@ func main() {
 		hasCompose: hasRootCompose(ws),
 		editor:     pickEditor(),
 		hoverStack: -1,
-		splashOn:   os.Getenv("DC_TUI_NO_SPLASH") == "",
+		splashOn:   shouldShowSplash(),
 		load:       loadPending,
 		loadGen:    1,
 	}
@@ -68,7 +68,7 @@ const helpText = `dc-tui — this folder's devcontainer (click buttons or keys)
   dc-tui --version
   dc-tui --help
 
-Logo splash on start (any key skips). DC_TUI_NO_SPLASH=1 to skip.
+Logo splash on first launch (any key skips). Skipped after a successful start or shell. DC_TUI_NO_SPLASH=1 to skip.
 
 Primary: start (u)  shell (e)  stop (s)
 Meta:    open (o)  attach (a)  ports (p)  logs (l)  top (t)  nets (n)  db (b)  files (m)  fleet (f)  more (?)  quit (q)
@@ -77,7 +77,7 @@ Update:  U         when a newer release is available (dc-upgrade --yes)
 Urls:    click or 1-9  open a published website (http/https) in the browser
 Rows:    j/k or arrows, enter (fleet = open folder, stack = exec)
 Restart: R  selected stack sibling only (not the labeled app). r still reloads. Fleet refuses.
-Disk:    d  (stays in the board). Reclaim is CLI-only: dc-prune --yes
+Disk:    d  (stays in the board). P = safe prune when disk looks critical.
 Top:     t  live CPU/RAM for this folder (stays in the board). Fleet refuses.
 Nets:    n  this folder's declared compose nets (stays in the board). y creates missing externals then start. Fleet refuses.
 
