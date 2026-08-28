@@ -435,6 +435,22 @@ npm_engines_ok() {
   [[ "$host" -ge "$major" ]]
 }
 
+if [[ "$WITH_CLI" -eq 0 && "$WITH_CLI_NPM" -eq 0 ]] && ! command -v devcontainer >/dev/null 2>&1; then
+  echo
+  echo "WARNING: wrappers-only install. dc-up / dc-try will fail until the official CLI is on PATH."
+  echo "Advertised retry:"
+  echo "  ${ADVERTISED_CURL}"
+  if [[ "${DC_INSTALL_OFFER_CLI:-}" == "1" || ( -t 0 && "${DC_INSTALL_OFFER_CLI:-}" != "0" ) ]]; then
+    printf 'Install official CLI now (--with-cli)? [Y/n] '
+    _offer=""
+    read -r _offer || _offer=""
+    case "$_offer" in
+      ""|y|Y|yes|YES) WITH_CLI=1 ;;
+      *) echo "Skipping official CLI. Re-run the advertised curl when you want dc-up." ;;
+    esac
+  fi
+fi
+
 if [[ "$WITH_CLI" -eq 1 || "$WITH_CLI_NPM" -eq 1 ]]; then
   if command -v devcontainer >/dev/null 2>&1; then
     echo "devcontainer already on PATH: $(command -v devcontainer)"

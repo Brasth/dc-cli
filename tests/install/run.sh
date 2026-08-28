@@ -152,10 +152,12 @@ echo "npm should not run" >&2
 exit 99
 EOF
   chmod +x "$home/fake/npm"
-  PATH="$home/fake:/usr/bin:/bin" HOME="$home" \
+  out="$(PATH="$home/fake:/usr/bin:/bin" HOME="$home" \
     DC_GENERATION_ROOT="$home/share/generations" PREFIX="$prefix" \
-    DC_SKIP_TUI_BUILD=1 DC_SKIP_YAZI=1 \
-    bash "$ROOT/install.sh" --prefix "$prefix" >/dev/null
+    DC_SKIP_TUI_BUILD=1 DC_SKIP_YAZI=1 DC_INSTALL_OFFER_CLI=0 \
+    bash "$ROOT/install.sh" --prefix "$prefix" 2>&1)"
+  printf '%s\n' "$out" | grep -q 'WARNING: wrappers-only'
+  printf '%s\n' "$out" | grep -q -- '--with-cli'
   rm -rf "$home"
 }
 
