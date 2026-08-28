@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Got a shell? / got stuck?
+    url: https://github.com/Brasth/dc-cli/issues/new?template=feedback.yml
+    about: Activation feedback — helps us fix first-run drop-off.
   - name: Read the guides
     url: https://dc.brasth.com/guide/
     about: Install, TUI keys, Colima ports, and disk full.

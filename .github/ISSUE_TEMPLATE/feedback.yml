@@ -1,0 +1,48 @@
+name: Activation feedback
+description: Tell us where you got stuck — did you get a shell?
+title: "[feedback] "
+labels: ["question", "first-run"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We use this to improve first-run conversion. Check https://dc.brasth.com/guide/stuck/ first.
+        Do not paste secrets, `.env`, or full `docker inspect`.
+  - type: dropdown
+    id: got_shell
+    attributes:
+      label: Did you get a shell with dc exec?
+      options:
+        - "Yes — dc exec worked"
+        - "No — I never got a shell"
+        - "Not sure / still trying"
+    validations:
+      required: true
+  - type: dropdown
+    id: stuck_at
+    attributes:
+      label: Where did you get stuck? (skip if you got a shell)
+      options:
+        - "Install / curl / source ~/.zshrc"
+        - "dc command not found"
+        - "Docker not running / Colima / Desktop"
+        - "No config folder — dc try / sandbox"
+        - "dc up failed"
+        - "Other"
+        - "N/A — got a shell"
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: Commands you ran and what happened
+      description: e.g. install output, dc doctor, dc recover --report
+    validations:
+      required: true
+  - type: textarea
+    id: platform
+    attributes:
+      label: Platform
+      description: macOS / Linux / WSL, Docker Desktop or Colima version if known
+    validations:
+      required: false
