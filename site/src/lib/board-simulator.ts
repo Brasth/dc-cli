@@ -2,6 +2,8 @@ export type BoardView = 'board' | 'logs' | 'top' | 'nets' | 'more';
 
 export type StackStatus = 'up' | 'exited';
 
+export type DemoMode = 'configured' | 'none';
+
 export interface StackRow {
   name: string;
   svc: string;
@@ -32,12 +34,13 @@ export interface BoardSnapshot {
   netsLine: string;
   stack: StackRow[];
   cursor: number;
-  confirm: '' | 'rm';
+  confirm: '' | 'rm' | 'try';
   leaving: '' | 'start' | 'shell' | 'logs' | 'files';
   status: string;
   err: string;
   refreshing: boolean;
   running: boolean;
+  hasConfig: boolean;
   logName: string;
   logLines: string[];
   logFollow: boolean;
@@ -58,7 +61,7 @@ type BtnSpec = {
   disabled?: boolean;
 };
 
-const INITIAL_STACK: StackRow[] = [
+const CONFIGURED_STACK: StackRow[] = [
   { name: 'app-1', svc: 'app', status: 'up', img: 'node:22' },
   { name: 'db-1', svc: 'db', status: 'up', img: 'postgres:16' },
   { name: 'mitm-1', svc: 'mitm', status: 'exited', img: 'alpine/socat' },
@@ -75,6 +78,11 @@ const SAMPLE_LOGS = [
   '2026-08-22T05:00:25.773Z GET /api/ports 200 19ms',
 ];
 
+export interface BoardSimulatorOptions {
+  /** configured = running devcontainer stack; none = empty folder, dc try path */
+  demoMode?: DemoMode;
+}
+
 /** logOffset is lines from the end (0 = latest / follow). */
 export function visibleLogLines(lines: string[], offset: number, windowSize = 6): string[] {
   const off = Math.max(0, Number.isFinite(offset) ? offset : 0);
@@ -87,42 +95,69 @@ export function visibleLogLines(lines: string[], offset: number, windowSize = 6)
 
 export class BoardSimulator {
   private view: BoardView = 'board';
-  private workspace = '~/src/app';
-  private folderStatus: BoardSnapshot['folderStatus'] = 'running';
+  private demoMode: DemoMode;
+  private workspace: string;
+  private folderStatus: BoardSnapshot['folderStatus'];
   private editor = 'zed';
-  private stack: StackRow[] = INITIAL_STACK.map((r) => ({ ...r }));
+  private stack: StackRow[];
   private cursor = 0;
-  private confirm: '' | 'rm' = '';
+  private confirm: '' | 'rm' | 'try' = '';
   private leaving: BoardSnapshot['leaving'] = '';
   private status = '';
   private err = '';
   private refreshing = false;
-  private running = true;
+  private running: boolean;
+  private hasConfig: boolean;
   private logName = 'app-1';
   private logLines = [...SAMPLE_LOGS];
   private logFollow = true;
   private logOffset = 0;
-  private topRows: TopRow[] = [
-    { svc: 'app', cpu: 12.4, mem: '410M / 2G', net: '1.2M / 84K' },
-    { svc: 'db', cpu: 3.1, mem: '128M / 1G', net: '420K / 210K' },
-  ];
+  private topRows: TopRow[];
   private topCursor = 0;
-  private nets: NetRow[] = [
-    { name: 'shared-net', exists: false, external: true },
-    { name: 'default', exists: true, external: false },
-  ];
-  private urls = [
-    { key: '1', label: 'http://127.0.0.1:9001', url: 'http://127.0.0.1:9001' },
-    { key: '2', label: 'http://127.0.0.1:5173', url: 'http://127.0.0.1:5173' },
-  ];
-  private hint =
-    'u start · e shell · s stop · t top · n nets · b db · m files · 1-9 url · j/k enter · x rm asks y/n · q quit';
+  private nets: NetRow[];
+  private urls: { key: string; label: string; url: string }[];
+  private hint: string;
   private timers: number[] = [];
   private onChange: (snap: BoardSnapshot) => void;
 
-  constructor(onChange: (snap: BoardSnapshot) => void) {
+  constructor(onChange: (snap: BoardSnapshot) => void, options: BoardSimulatorOptions = {}) {
     this.onChange = onChange;
-    this.schedule(() => this.tickPulse(), 2200);
+    this.demoMode = options.demoMode ?? 'configured';
+    if (this.demoMode === 'none') {
+      this.workspace = '~/scratch';
+      this.folderStatus = 'stopped';
+      this.stack = [];
+      this.running = false;
+      this.hasConfig = false;
+      this.topRows = [];
+      this.nets = [{ name: 'default', exists: true, external: false }];
+      this.urls = [];
+      this.hint = 'no config — press u to start a sandbox (dc try) · e shell after start · ? more';
+      this.status = 'No .devcontainer or compose — press u to try a sandbox';
+    } else {
+      this.workspace = '~/src/app';
+      this.folderStatus = 'running';
+      this.stack = CONFIGURED_STACK.map((r) => ({ ...r }));
+      this.running = true;
+      this.hasConfig = true;
+      this.topRows = [
+        { svc: 'app', cpu: 12.4, mem: '410M / 2G', net: '1.2M / 84K' },
+        { svc: 'db', cpu: 3.1, mem: '128M / 1G', net: '420K / 210K' },
+      ];
+      this.nets = [
+        { name: 'shared-net', exists: false, external: true },
+        { name: 'default', exists: true, external: false },
+      ];
+      this.urls = [
+        { key: '1', label: 'http://127.0.0.1:9001', url: 'http://127.0.0.1:9001' },
+        { key: '2', label: 'http://127.0.0.1:5173', url: 'http://127.0.0.1:5173' },
+      ];
+      this.hint =
+        'u start · e shell · s stop · t top · n nets · b db · m files · 1-9 url · j/k enter · x rm asks y/n · q quit';
+    }
+    if (this.demoMode === 'configured') {
+      this.schedule(() => this.tickPulse(), 2200);
+    }
   }
 
   destroy() {
@@ -138,7 +173,7 @@ export class BoardSimulator {
       editor: this.editor,
       loadPulse: this.running ? 'cpu 12.4%  mem 410M / —' : 'cpu —  mem —',
       disk: 'docker 42% · colima 61%',
-      netsLine: 'missing shared-net',
+      netsLine: this.hasConfig ? 'missing shared-net' : '—',
       stack: this.stack.map((r) => ({ ...r })),
       cursor: this.cursor,
       confirm: this.confirm,
@@ -147,6 +182,7 @@ export class BoardSimulator {
       err: this.err,
       refreshing: this.refreshing,
       running: this.running,
+      hasConfig: this.hasConfig,
       logName: this.logName,
       logLines: [...this.logLines],
       logFollow: this.logFollow,
@@ -160,6 +196,20 @@ export class BoardSimulator {
   }
 
   handleKey(key: string): boolean {
+    if (this.confirm === 'try') {
+      if (key === 'y') {
+        this.confirm = '';
+        this.startSandbox();
+        return true;
+      }
+      if (key === 'n' || key === 'Escape') {
+        this.confirm = '';
+        this.setStatus('try cancelled');
+        return true;
+      }
+      return false;
+    }
+
     if (this.confirm === 'rm') {
       if (key === 'y') {
         this.confirm = '';
@@ -178,7 +228,9 @@ export class BoardSimulator {
       if (key === 'q' || key === 'Escape' || key === 'l') {
         this.view = 'board';
         this.hint =
-          'u start · e shell · s stop · t top · n nets · b db · m files · 1-9 url · j/k enter · x rm asks y/n · q quit';
+          this.demoMode === 'none'
+            ? 'no config — press u to start a sandbox (dc try) · e shell after start · ? more'
+            : 'u start · e shell · s stop · t top · n nets · b db · m files · 1-9 url · j/k enter · x rm asks y/n · q quit';
         this.emit();
         return true;
       }
@@ -247,12 +299,14 @@ export class BoardSimulator {
     }
 
     if (key === 'j' || key === 'ArrowDown') {
+      if (this.stack.length === 0) return false;
       this.cursor = Math.min(this.cursor + 1, this.stack.length - 1);
       this.syncLogTarget();
       this.emit();
       return true;
     }
     if (key === 'k' || key === 'ArrowUp') {
+      if (this.stack.length === 0) return false;
       this.cursor = Math.max(0, this.cursor - 1);
       this.syncLogTarget();
       this.emit();
@@ -298,16 +352,28 @@ export class BoardSimulator {
         return true;
       case 'e':
         if (this.blocked()) return false;
+        if (!this.running) {
+          this.setStatus('start first — press u (or confirm sandbox on no-config folders)');
+          return true;
+        }
         this.startLeave('shell', () => {
           this.setStatus('shell exited — board resumed');
         });
         return true;
       case 's':
         if (this.blocked()) return false;
+        if (!this.running) {
+          this.setStatus('nothing running');
+          return true;
+        }
         this.stopStack();
         return true;
       case 'x':
         if (this.blocked()) return false;
+        if (!this.running) {
+          this.setStatus('nothing to remove');
+          return true;
+        }
         this.confirm = 'rm';
         this.hint = 'remove stack containers? y/n';
         this.emit();
@@ -370,26 +436,26 @@ export class BoardSimulator {
     return [
       [
         { key: 'u', label: 'start', primary: true, disabled: !this.canStart() },
-        { key: 'e', label: 'shell', primary: true, disabled: blocked },
-        { key: 's', label: 'stop', primary: true, disabled: blocked },
+        { key: 'e', label: 'shell', primary: true, disabled: blocked || !this.running },
+        { key: 's', label: 'stop', primary: true, disabled: blocked || !this.running },
       ],
       [
-        { key: 'o', label: 'open', meta: true, disabled: blocked },
-        { key: 'a', label: 'attach', meta: true, disabled: blocked },
-        { key: 'p', label: 'ports', meta: true, disabled: blocked },
+        { key: 'o', label: 'open', meta: true, disabled: blocked || !this.running },
+        { key: 'a', label: 'attach', meta: true, disabled: blocked || !this.running },
+        { key: 'p', label: 'ports', meta: true, disabled: blocked || !this.running },
         { key: 'l', label: 'logs', meta: true, disabled: blocked || !this.canFollowLogs() },
         { key: 't', label: 'top', meta: true, disabled: blocked || !this.running },
         { key: 'n', label: 'nets', meta: true, disabled: blocked },
       ],
       [
-        { key: 'b', label: 'db', meta: true, disabled: blocked },
-        { key: 'm', label: 'files', meta: true, disabled: blocked },
+        { key: 'b', label: 'db', meta: true, disabled: blocked || !this.running },
+        { key: 'm', label: 'files', meta: true, disabled: blocked || !this.running },
       ],
       [
         { key: 'f', label: 'fleet', meta: true },
         { key: '?', label: 'more', meta: true },
         { key: 'q', label: 'quit', meta: true },
-        { key: 'x', label: 'rm', danger: true, disabled: blocked },
+        { key: 'x', label: 'rm', danger: true, disabled: blocked || !this.running },
       ],
       this.urls.map((u) => ({
         key: `url:${u.url}`,
@@ -418,6 +484,13 @@ export class BoardSimulator {
   }
 
   private startUp() {
+    if (this.demoMode === 'none' && !this.hasConfig && !this.running) {
+      this.confirm = 'try';
+      this.hint = 'No config — start a sandbox? y/n';
+      this.status = '';
+      this.emit();
+      return;
+    }
     this.folderStatus = 'starting';
     this.leaving = 'start';
     this.setStatus('');
@@ -435,6 +508,25 @@ export class BoardSimulator {
         { svc: 'db', cpu: 3.1, mem: '128M / 1G', net: '420K / 210K' },
         { svc: 'mitm', cpu: 0.4, mem: '12M / 256M', net: '8K / 8K' },
       ];
+      this.emit();
+    }, 900);
+  }
+
+  private startSandbox() {
+    this.folderStatus = 'starting';
+    this.leaving = 'start';
+    this.setStatus('');
+    this.emit();
+    this.schedule(() => {
+      this.leaving = '';
+      this.running = true;
+      this.folderStatus = 'running';
+      this.stack = [{ name: 'sandbox-1', svc: 'app', status: 'up', img: 'ubuntu:24.04' }];
+      this.cursor = 0;
+      this.logName = 'sandbox-1';
+      this.topRows = [{ svc: 'app', cpu: 2.1, mem: '64M / 512M', net: '12K / 8K' }];
+      this.setStatus('dc try — sandbox started · press e for shell');
+      this.hint = 'e shell · s stop · ? more · install dc-cli for your real folder';
       this.emit();
     }, 900);
   }
@@ -531,7 +623,9 @@ export class BoardSimulator {
       return;
     }
     const cpu = 10 + Math.random() * 8;
-    this.topRows[0] = { ...this.topRows[0], cpu: Math.round(cpu * 10) / 10 };
+    if (this.topRows[0]) {
+      this.topRows[0] = { ...this.topRows[0], cpu: Math.round(cpu * 10) / 10 };
+    }
     this.emit();
     this.schedule(() => this.tickPulse(), 2200);
   }

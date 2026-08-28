@@ -23,7 +23,7 @@ const compact = Astro.props.compact ?? false;
     )
   }
   <div class="board-shell mx-auto w-full max-w-6xl">
-    <div class="board-frame" id="board-root"></div>
+    <div class="board-frame" id="board-root" data-demo={compact ? 'none' : 'configured'}></div>
   </div>
 </section>
 

@@ -100,11 +100,12 @@ function renderBoardMain(root: HTMLElement, s: BoardSnapshot, sim: BoardSimulato
 
     ${s.leaving ? `<p class="px-4 font-mono text-[11px] text-amber">${esc(leaveLine(s.leaving))}</p>` : ''}
     ${s.confirm === 'rm' ? `<p class="px-4 font-mono text-[11px] text-amber">remove stack containers? y/n</p>` : ''}
+    ${s.confirm === 'try' ? `<p class="px-4 font-mono text-[11px] text-amber">No config — start a sandbox? y/n</p>` : ''}
     ${s.status ? `<p class="px-4 font-mono text-[11px] text-[#8ecf7a]">${esc(s.status)}</p>` : ''}
     ${s.err ? `<p class="px-4 font-mono text-[11px] text-[#d36b6b]">${esc(s.err)}</p>` : ''}
 
-    <ul class="mt-4 border-t border-white/5" id="board-stack">${renderStack(s)}</ul>
-    <p class="board-foot px-4 py-3 font-mono text-[11px] text-mute">Sandbox demo — install <span class="text-ink/80">dc-cli</span> to run against your folder.</p>
+    <ul class="mt-4 border-t border-white/5" id="board-stack">${s.stack.length ? renderStack(s) : '<li class="px-4 py-3 font-mono text-[11px] text-mute">(no containers — press u to start)</li>'}</ul>
+    <p class="board-foot px-4 py-3 font-mono text-[11px] text-mute">${s.hasConfig ? 'Sandbox demo — install <span class="text-ink/80">dc-cli</span> to run against your folder.' : 'First-run demo — no config folder. Press <span class="text-ink/80">u</span> then <span class="text-ink/80">y</span> to try a sandbox, then <span class="text-ink/80">e</span> for shell.'}</p>
   `;
 }
 
@@ -168,9 +169,11 @@ function renderMore(root: HTMLElement) {
   `;
 }
 
-export function mountBoard(root: HTMLElement) {
+export function mountBoard(root: HTMLElement, options: { demoMode?: 'configured' | 'none' } = {}) {
   let hoverKey = '';
-  const sim = new BoardSimulator((snap) => paint(snap));
+  const fromDom = root.dataset.demo === 'none' ? 'none' : root.dataset.demo === 'configured' ? 'configured' : undefined;
+  const demoMode = options.demoMode ?? fromDom ?? 'configured';
+  const sim = new BoardSimulator((snap) => paint(snap), { demoMode });
 
   function paint(s: BoardSnapshot) {
     switch (s.view) {
