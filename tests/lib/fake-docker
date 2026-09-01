@@ -143,12 +143,18 @@ case "$cmd" in
       if [[ -z "$_id" ]]; then
         _id="$(read_file "$STATE/info_id")"
       fi
+      _root="$(read_file "$STATE/info_root")"
+      if [[ -z "$_root" ]]; then
+        _root="$STATE/docker-root"
+        mkdir -p "$_root"
+      fi
       out="$fmt"
       out="${out//\{\{.NCPU\}\}/$ncpu}"
       out="${out//\{\{.MemTotal\}\}/$mem}"
       out="${out//\{\{.OperatingSystem\}\}/$os}"
       out="${out//\{\{.Name\}\}/$name}"
       out="${out//\{\{.ID\}\}/$_id}"
+      out="${out//\{\{.DockerRootDir\}\}/$_root}"
       printf '%s\n' "$out"
       exit 0
     fi
@@ -202,8 +208,47 @@ case "$cmd" in
     exit 0
     ;;
   system)
+    _sys_sub="${1:-}"
+    shift || true
+    _fmt=""
+    if [[ "$_sys_sub" == "df" ]]; then
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --format|-f)
+            _fmt="${2:-}"
+            shift 2
+            ;;
+          --format=*)
+            _fmt="${1#--format=}"
+            shift
+            ;;
+          *) shift ;;
+        esac
+      done
+    fi
+    if [[ -n "$_fmt" ]]; then
+      for _row in \
+        "Images|5|2|1.227GB|861.9MB (70%)" \
+        "Containers|2|0|12B|12B (100%)" \
+        "Local Volumes|2|1|36.01MB|0B (0%)" \
+        "Build Cache|0|0|0B|0B"
+      do
+        IFS='|' read -r _typ _total _active _size _reclaim <<<"$_row"
+        _out="$_fmt"
+        _out="${_out//\{\{.Type\}\}/$_typ}"
+        _out="${_out//\{\{.TotalCount\}\}/$_total}"
+        _out="${_out//\{\{.Active\}\}/$_active}"
+        _out="${_out//\{\{.Size\}\}/$_size}"
+        _out="${_out//\{\{.Reclaimable\}\}/$_reclaim}"
+        printf '%s\n' "$_out"
+      done
+      exit 0
+    fi
     echo "TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE"
-    echo "Images          0         0         0B        0B"
+    echo "Images          5         2         1.227GB   861.9MB (70%)"
+    echo "Containers      2         0         12B       12B (100%)"
+    echo "Local Volumes   2         1         36.01MB   0B (0%)"
+    echo "Build Cache     0         0         0B        0B"
     exit 0
     ;;
   builder)

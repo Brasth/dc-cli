@@ -319,6 +319,68 @@ case_cli_report() {
   grep -q 'do not paste .env' "$dest/README.txt"
 }
 
+case_folder_system_df_not_enospc() {
+  local ws
+  ws="$(mktemp -d "$STATE/ws.XXXX")"
+  printf '%s\n' 'services: {web: {image: alpine}}' >"$ws/compose.yaml"
+  printf '%s\n' "/no/such/docker-root" >"$STATE/info_root"
+  dc_host_set ready "Docker engine reachable" "" linux "rem" "retry"
+  dc_recover_folder_diagnose "$ws"
+  assert_eq "$DC_RECOVER_FOLDER_HINT" ""
+}
+
+case_folder_host_df_enospc() {
+  local ws
+  ws="$(mktemp -d "$STATE/ws.XXXX")"
+  printf '%s\n' 'services: {web: {image: alpine}}' >"$ws/compose.yaml"
+  cat >"$STATE/bin/df" <<'EOF'
+#!/usr/bin/env bash
+pct="${DC_FAKE_DF_PCT:-98}"
+echo "Filesystem 1024-blocks Used Available Capacity Mounted on"
+echo "/dev/fake 100000 98000 2000 ${pct}% /"
+EOF
+  chmod +x "$STATE/bin/df"
+  hash -r 2>/dev/null || true
+  dc_host_set ready "Docker engine reachable" "" linux "rem" "retry"
+  dc_recover_folder_diagnose "$ws"
+  assert_eq "$DC_RECOVER_FOLDER_HINT" enospc
+}
+
+case_grow_disk_requires_colima_full() {
+  set +e
+  out="$(DC_RECOVER_SKIP_DIAGNOSE=1 DC_HOST_CODE=ready DC_HOST_ENGINE_HINT=colima \
+    "$ROOT/bin/dc-recover" --grow-disk 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" -eq 1 ]]
+  printf '%s\n' "$out" | grep -qi 'guest disk >=95%'
+  ! printf '%s\n' "$out" | grep -qi 'applying'
+}
+
+case_apply_sudo_start_no_dockerd() {
+  cat >"$STATE/bin/sudo" <<'EOF'
+#!/usr/bin/env bash
+echo "sudo $*" >>"${DC_FAKE_STATE}/sudo.log"
+exit 1
+EOF
+  chmod +x "$STATE/bin/sudo"
+  cat >"$STATE/bin/pgrep" <<'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+  chmod +x "$STATE/bin/pgrep"
+  hash -r 2>/dev/null || true
+  if dc_recover_apply sudo_start_docker >"$STATE/apply.out" 2>"$STATE/apply.err"; then
+    echo "expected sudo_start_docker failure" >&2
+    return 1
+  fi
+  grep -q 'systemctl start docker' "$STATE/sudo.log"
+  if grep -q 'dockerd' "$STATE/sudo.log" "$STATE/apply.out" "$STATE/apply.err"; then
+    echo "dockerd should not be started" >&2
+    return 1
+  fi
+}
+
 run_case stopped-colima case_stopped_colima
 run_case stopped-desktop case_stopped_desktop
 run_case stopped-linux case_stopped_linux
@@ -345,6 +407,10 @@ run_case cli-json-yes-single case_cli_json_yes_single
 run_case cli-json-stopped case_cli_json_stopped
 run_case cli-no-yes-no-start case_cli_no_yes_does_not_start
 run_case cli-report case_cli_report
+run_case folder-system-df-not-enospc case_folder_system_df_not_enospc
+run_case folder-host-df-enospc case_folder_host_df_enospc
+run_case grow-disk-requires-colima-full case_grow_disk_requires_colima_full
+run_case apply-sudo-start-no-dockerd case_apply_sudo_start_no_dockerd
 
 echo "recover: $((ran - FAILED))/$ran passed"
 [[ "$FAILED" -eq 0 ]]

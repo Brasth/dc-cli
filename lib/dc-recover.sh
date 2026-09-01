@@ -58,6 +58,18 @@ dc_recover_login_user() {
   fi
 }
 
+# Host-visible used% of Docker's data root via df. Never docker system df.
+dc_recover_docker_root_used_pct() {
+  local root used
+  command -v docker >/dev/null 2>&1 || return 1
+  root="$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || true)"
+  root="${root//$'\r'/}"
+  [[ -n "$root" && -e "$root" ]] || return 1
+  used="$(df -P "$root" 2>/dev/null | awk 'NR==2 {print $5}' | tr -d '%')" || true
+  [[ "$used" =~ ^[0-9]+$ ]] || return 1
+  printf '%s\n' "$used"
+}
+
 # Workspace blockers when the host is ready. Sets DC_RECOVER_FOLDER_HINT.
 dc_recover_folder_diagnose() {
   local ws="${1:-.}" resolved kind p id reason
@@ -92,11 +104,11 @@ dc_recover_folder_diagnose() {
     fi
   fi
 
-  if command -v docker >/dev/null 2>&1; then
-    if docker system df 2>/dev/null | grep -qiE '(^|[^0-9])(9[89]|100)%'; then
-      DC_RECOVER_FOLDER_HINT=enospc
-      return 0
-    fi
+  local root_pct=""
+  root_pct="$(dc_recover_docker_root_used_pct 2>/dev/null || true)"
+  if [[ -n "$root_pct" && "$root_pct" -ge 95 ]]; then
+    DC_RECOVER_FOLDER_HINT=enospc
+    return 0
   fi
 
   if [[ "${DC_HOST_ENGINE_HINT:-}" == "colima" ]] && command -v colima >/dev/null 2>&1; then
@@ -354,14 +366,7 @@ dc_recover_apply_sudo_start_docker() {
   if pgrep -x dockerd >/dev/null 2>&1; then
     return 0
   fi
-  echo "dc-recover: systemctl unavailable — starting dockerd"
-  sudo dockerd >/tmp/dockerd-dc-recover.log 2>&1 &
-  local i
-  for i in $(seq 1 50); do
-    [[ -S /var/run/docker.sock || -S /run/docker.sock ]] && return 0
-    sleep 0.2
-  done
-  echo "dc-recover: dockerd did not become ready" >&2
+  echo "dc-recover: systemctl could not start docker" >&2
   return 1
 }
 

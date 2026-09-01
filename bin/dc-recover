@@ -113,7 +113,10 @@ if [[ -n "$grow" ]]; then
     echo "dc-recover: --grow-disk needs a reachable Colima engine" >&2
     exit 1
   fi
-  DC_RECOVER_FOLDER_HINT=colima_full
+  if [[ "${DC_RECOVER_FOLDER_HINT:-}" != "colima_full" ]]; then
+    echo "dc-recover: --grow-disk needs Colima guest disk >=95% (after prune)" >&2
+    exit 1
+  fi
 fi
 
 dc_recover_plan
