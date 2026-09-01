@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Board from '../components/Board.astro';
+import { installCommand } from '../lib/install';
 ---
 
 <Layout
@@ -18,5 +19,21 @@ import Board from '../components/Board.astro';
       <p class="font-mono text-[11px] text-mute">click a key or type it · u then y starts a sandbox · q never leaves this page</p>
     </div>
     <Board compact />
+    <footer class="mx-auto mt-6 flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 md:px-6">
+      <button
+        id="play-copy-install"
+        type="button"
+        data-install-copy
+        data-track-source="play"
+        data-install-cmd={installCommand}
+        class="inline-flex min-h-10 items-center bg-amber px-4 font-mono text-xs text-page transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96]"
+      >
+        Copy install
+      </button>
+      <p class="font-mono text-[11px] text-mute">
+        Install for the real folder, then <span class="text-ink/80">source</span> + <span class="text-ink/80">dc try</span>.
+      </p>
+      <p id="play-copy-status" class="min-h-5 w-full font-mono text-[11px] text-amber" aria-live="polite"></p>
+    </footer>
   </main>
 </Layout>

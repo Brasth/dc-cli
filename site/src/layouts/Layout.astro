@@ -1,6 +1,6 @@
 ---
 import '../styles/global.css';
-import { plausibleDomain } from '../lib/analytics';
+import { cloudflareBeaconToken } from '../lib/analytics';
 
 interface Props {
   title?: string;
@@ -21,7 +21,7 @@ const path = rawPath.endsWith('/') ? rawPath : `${rawPath}/`;
 const canonical = new URL(path, site).href;
 const ogImage = `${site}/og.png`;
 const isHome = path === '/';
-const plausible = plausibleDomain();
+const cfBeacon = cloudflareBeaconToken();
 
 const softwareApplication = {
   '@type': 'SoftwareApplication',
@@ -98,20 +98,43 @@ const jsonLd =
     <meta name="twitter:image:alt" content="dc-cli — the missing verbs for this folder" />
 
     {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
-    {plausible && (
-      <script defer data-domain={plausible} src="https://plausible.io/js/script.js" />
-    )}
   </head>
   <body class="bg-page text-ink antialiased">
-    {plausible && (
-      <script>
-        import { bindAnalytics } from '../lib/analytics';
-        bindAnalytics();
-      </script>
-    )}
     <div class="cols" aria-hidden="true"></div>
     <div class="scan" aria-hidden="true"></div>
     <div class="grain" aria-hidden="true"></div>
     <slot />
+    <script>
+      document.addEventListener('click', async (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        const btn = target.closest<HTMLElement>('[data-install-copy]');
+        if (!btn) return;
+        const cmd = btn.getAttribute('data-install-cmd') ?? '';
+        if (!cmd) return;
+        try {
+          await navigator.clipboard.writeText(cmd);
+          const label = btn.textContent?.trim() ?? 'Copy install';
+          btn.textContent = 'copied';
+          window.setTimeout(() => {
+            btn.textContent = label === 'copied' ? 'Copy install' : label;
+          }, 1600);
+          const message = 'copied — paste in your terminal';
+          for (const id of ['copy-status', 'hero-copy-status', 'play-copy-status']) {
+            const status = document.getElementById(id);
+            if (status) status.textContent = message;
+          }
+        } catch {
+          window.location.assign('/#install');
+        }
+      });
+    </script>
+    {cfBeacon && (
+      <script
+        type="module"
+        src="https://static.cloudflareinsights.com/beacon.min.js"
+        data-cf-beacon={JSON.stringify({ token: cfBeacon })}
+      />
+    )}
   </body>
 </html>

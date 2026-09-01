@@ -4,6 +4,7 @@ import { breadcrumbs } from '../lib/schema';
 
 const bug = 'https://github.com/Brasth/dc-cli/issues/new?template=bug.yml';
 const question = 'https://github.com/Brasth/dc-cli/issues/new?template=question.yml';
+const feedback = 'https://github.com/Brasth/dc-cli/issues/new?template=feedback.yml';
 const list = 'https://github.com/Brasth/dc-cli/issues';
 
 const schema = [
@@ -14,7 +15,7 @@ const schema = [
   {
     '@type': 'WebPage',
     name: 'Report a dc-cli issue',
-    description: 'File a bug or question on GitHub. Include the command, OS, and Docker backend.',
+    description: 'File a bug, question, or activation feedback on GitHub. Include the command, OS, and Docker backend.',
     url: 'https://dc.brasth.com/issues/',
   },
 ];
@@ -37,7 +38,7 @@ const schema = [
         <a class="text-ink/80 hover:text-ink" href="/guide/">the guides</a>
         first if it is install, kind, doctor, stuck, ports, or disk. Include `dc-recover --report` or `dc-doctor --json` when you can.
       </p>
-      <div class="mt-10 grid gap-px bg-ink/10 sm:grid-cols-2">
+      <div class="mt-10 grid gap-px bg-ink/10 sm:grid-cols-3">
         <a class="bg-page p-6 hover:bg-core" href={bug}>
           <p class="font-mono text-[11px] text-amber">template / bug</p>
           <h2 class="mt-3 font-mono text-2xl tracking-tight">It broke</h2>
@@ -47,6 +48,11 @@ const schema = [
           <p class="font-mono text-[11px] text-amber">template / question</p>
           <h2 class="mt-3 font-mono text-2xl tracking-tight">I am stuck</h2>
           <p class="mt-3 text-sm text-mute">What you ran. What you expected. What you already tried.</p>
+        </a>
+        <a class="bg-page p-6 hover:bg-core" href={feedback}>
+          <p class="font-mono text-[11px] text-amber">template / feedback</p>
+          <h2 class="mt-3 font-mono text-2xl tracking-tight">Got a shell?</h2>
+          <p class="mt-3 text-sm text-mute">Activation feedback — yes, no, or still trying.</p>
         </a>
       </div>
       <ul class="mt-10 space-y-2 font-mono text-xs text-mute">

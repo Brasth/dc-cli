@@ -39,6 +39,7 @@ cd /path/to/your/project
 dc-doctor --json .     # workspace.kind
 dc                     # u start  e shell  s stop
 ```
+Agents: prefer `dc inspect --json` for `workspace.kind` (plus host, next, stack). `dc-doctor --json` remains the check list.
 
 Same board. Same keys. Compose-kind does not invent VS Code attach and does not auto-publish ports.
 

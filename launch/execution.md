@@ -7,8 +7,10 @@ Run after first-run fixes are on `main` and Pages has deployed.
 - [ ] `docs/growth/first-run-audit.md` reviewed — core paths PASS
 - [ ] Site live at https://dc.brasth.com with updated copy
 - [ ] `/play/` shows **no-config** demo (press u → y → e)
-- [ ] Plausible (or analytics) receiving events on dc.brasth.com
+- [ ] Cloudflare Web Analytics receiving visits on dc.brasth.com
 - [ ] GitHub issue template **Activation feedback** available
+
+In-repo measurement wiring (not live proof): Cloudflare beacon optional via `PUBLIC_CF_BEACON_TOKEN`; public GitHub snapshot via `scripts/funnel-snapshot.sh`; Activation feedback card on `/issues/`. Dashboard receipt and this checklist remain unverified.
 
 ## Phase 0 — Re-contact silent users (4)
 

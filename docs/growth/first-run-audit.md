@@ -27,11 +27,11 @@ A stranger with Docker installed reaches **`dc exec`** (shell in the app contain
 |-----|--------|
 | Fleet empty state omits `dc try` | **Shipped** — `cmd/dc-tui/view.go` (empty fleet copy includes `dc try`) |
 | Web `/play/` demo always shows running stack | **Shipped** — `site/src/components/Board.astro` (`data-demo="none"` on compact `/play/`) |
-| No site analytics | **Shipped (wiring only)** — `site/src/lib/analytics.ts` (Plausible + Install Copy / Play Demo). Do **not** claim live event receipt. |
-| No activation feedback template | **Shipped** — `.github/ISSUE_TEMPLATE/feedback.yml` |
-| No funnel tracking process | **Shipped** — `docs/growth/funnel-tracking.md` |
+| No site analytics | **Shipped (wiring only)** — Cloudflare Web Analytics via optional `PUBLIC_CF_BEACON_TOKEN` JS snippet; proxied hostnames can use dashboard auto-inject instead. No custom click events. Do **not** claim live receipt. |
+| No activation feedback template | **Shipped** — `.github/ISSUE_TEMPLATE/feedback.yml` + `/issues/` Activation feedback card |
+| No funnel tracking process | **Shipped** — `docs/growth/funnel-tracking.md` + `scripts/funnel-snapshot.sh` (public GitHub API). |
 | Launch ops pending | **Still pending** — `launch/execution.md` checklist + silent-user retry. Unverified; do not check off. |
-| Live Plausible event receipt | **Still pending** — code is wired; dashboard receipt is unmeasured. |
+| Live analytics receipt | **Still pending** — enable dc.brasth.com in Cloudflare Web Analytics (auto if orange-cloud, else beacon token + Pages secret). Dashboard unmeasured. |
 
 ## Manual smoke (Docker required)
 
@@ -51,4 +51,4 @@ dc up && dc exec   # SUCCESS
 
 ## Conclusion
 
-Core first-run product paths are implemented and tested. `/play/` no-config, Plausible wiring, activation feedback, and funnel-tracking docs are in-repo. Growth work should focus on **measurement** (activation baseline still unmeasured) and **launch execution** — not new CLI verbs.
+Core first-run product paths are implemented and tested. `/play/` no-config, Cloudflare Web Analytics wiring, activation feedback, and funnel-tracking docs are in-repo. Growth work should focus on **measurement** (activation baseline still unmeasured) and **launch execution** — not new CLI verbs.

@@ -31,25 +31,3 @@ import Glow from '../components/Glow.astro';
   <StickyInstall />
 </Layout>
 
-<script>
-  document.addEventListener('click', async (event) => {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const btn = target.closest<HTMLElement>('[data-install-copy]');
-    if (!btn) return;
-    const cmd = btn.getAttribute('data-install-cmd') ?? '';
-    if (!cmd) return;
-    try {
-      await navigator.clipboard.writeText(cmd);
-      const label = btn.textContent?.trim() ?? 'Copy install';
-      btn.textContent = 'copied';
-      window.setTimeout(() => {
-        btn.textContent = label === 'copied' ? 'Copy install' : label;
-      }, 1600);
-      const status = document.getElementById('copy-status');
-      if (status) status.textContent = 'copied — paste in your terminal';
-    } catch {
-      window.location.hash = 'install';
-    }
-  });
-</script>

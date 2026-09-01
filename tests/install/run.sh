@@ -225,7 +225,7 @@ _stage_tiny_release_kit() {
   name="dc-cli-0.0.0-${os}-${arch}"
   kit="$reldir/$name"
   mkdir -p "$kit/bin" "$kit/lib"
-  for f in dc dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-engine dc-recover dc-upgrade dc-db dc-files dc-stats dc-net dc-try; do
+  for f in dc dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-engine dc-recover dc-upgrade dc-db dc-files dc-stats dc-net dc-try dc-inspect; do
     if [[ -f "$ROOT/bin/$f" ]]; then
       cp "$ROOT/bin/$f" "$kit/bin/$f"
       chmod +x "$kit/bin/$f"

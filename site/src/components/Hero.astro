@@ -86,17 +86,4 @@ import { installCommand } from '../lib/install';
       rise.style.transform = 'translateY(0)';
     });
   });
-
-  const btn = document.getElementById('hero-copy-install');
-  const status = document.getElementById('hero-copy-status');
-  btn?.addEventListener('click', async () => {
-    const cmd = btn.getAttribute('data-install-cmd') ?? '';
-    try {
-      await navigator.clipboard.writeText(cmd);
-      if (status) status.textContent = 'copied — paste in your terminal';
-    } catch {
-      window.location.hash = 'install';
-      if (status) status.textContent = 'jump to install';
-    }
-  });
 </script>

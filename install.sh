@@ -234,7 +234,7 @@ elif [[ ! -f "$ROOT/bin/dc-up" ]]; then
   fetch_ref latest
 fi
 
-HELPERS=(dc dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-engine dc-recover dc-upgrade dc-db dc-files dc-stats dc-net dc-try)
+HELPERS=(dc dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-engine dc-recover dc-upgrade dc-db dc-files dc-stats dc-net dc-try dc-inspect)
 
 if [[ -f "$ROOT/lib/dc-install-yazi.sh" ]]; then
   # shellcheck source=/dev/null

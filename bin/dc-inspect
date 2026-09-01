@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+# Read-only agent snapshot: workspace + host + next + stack.
+# Never applies. Recover remains the mutate door.
+set -euo pipefail
+
+_here="$(cd "$(dirname "$0")" && pwd)"
+_load() {
+  local name="$1"
+  if [[ -f "$_here/../lib/$name" ]]; then
+    # shellcheck source=/dev/null
+    source "$_here/../lib/$name"
+  elif [[ -f "${XDG_DATA_HOME:-$HOME/.local/share}/dc-cli/generations/current/lib/$name" ]]; then
+    # shellcheck source=/dev/null
+    source "${XDG_DATA_HOME:-$HOME/.local/share}/dc-cli/generations/current/lib/$name"
+  elif [[ -f "${HOME}/.config/devcontainer/$name" ]]; then
+    # shellcheck source=/dev/null
+    source "${HOME}/.config/devcontainer/$name"
+  else
+    echo "dc-inspect: missing $name" >&2
+    exit 1
+  fi
+}
+
+_load dc-common.sh
+_load dc-engine.sh
+_load dc-host.sh
+_load dc-net.sh
+_load dc-recover.sh
+
+json=0
+workspace="."
+
+usage() {
+  cat <<'EOF'
+dc-inspect — read-only snapshot of this folder (workspace, host, next, stack)
+
+  dc-inspect [workspace]         human
+  dc-inspect --json [workspace]  machine-readable
+  dc-inspect --help
+
+Never applies. Never --yes. Shell: dc-exec. Mutate door remains dc-recover --yes.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --json) json=1 ;;
+    --version|-V) dc_cli_print_version "$(basename "$0")"; exit 0 ;;
+    -h|--help) usage; exit 0 ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      workspace="$1"
+      ;;
+  esac
+  shift
+done
+
+requested="$workspace"
+if [[ "$workspace" != "." && ! -d "$workspace" ]]; then
+  echo "Not a directory: $workspace" >&2
+  exit 2
+fi
+if [[ ! -d "$workspace" ]]; then
+  echo "Not a directory: $workspace" >&2
+  exit 2
+fi
+
+resolved="$(dc_resolve_workspace "$workspace")" || {
+  echo "Not a directory: $workspace" >&2
+  exit 2
+}
+kind="$(dc_workspace_kind "$resolved")"
+has_cfg=false
+if [[ "$kind" == "devcontainer" || "$kind" == "compose" ]]; then
+  has_cfg=true
+fi
+
+if [[ "$workspace" != "." ]]; then
+  cd "$workspace"
+fi
+
+dc_host_diagnose
+if [[ "${DC_HOST_CODE:-}" == "ready" ]]; then
+  dc_recover_folder_diagnose "$resolved"
+fi
+dc_recover_plan
+
+stack="[]"
+if command -v docker >/dev/null 2>&1; then
+  set +e
+  stack="$(dc_ls_json --workspace "$resolved" 2>/dev/null)"
+  ls_rc=$?
+  set -e
+  if [[ "$ls_rc" -ne 0 || -z "$stack" ]]; then
+    stack="[]"
+  fi
+fi
+stack="${stack//$'\n'/}"
+[[ -n "$stack" ]] || stack="[]"
+
+if [[ "$json" -eq 1 ]]; then
+  allowed=false
+  [[ "${DC_RECOVER_APPLY_ALLOWED:-0}" == "1" ]] && allowed=true
+  printf '{"schemaVersion":1,"command":"dc-inspect","workspace":{"requested":%s,"resolved":%s,"kind":%s,"hasConfig":%s},"host":{"status":%s,"code":%s,"summary":%s,"detail":%s,"engineHint":%s,"guideUrl":%s},"next":{"id":%s,"summary":%s,"command":%s,"apply":%s,"applyAllowed":%s,"verify":%s,"escalate":%s},"stack":%s}\n' \
+    "$(dc_recover_json_str "$requested")" \
+    "$(dc_recover_json_str "$resolved")" \
+    "$(dc_recover_json_str "$kind")" \
+    "$has_cfg" \
+    "$( [[ "${DC_HOST_CODE:-}" == "ready" ]] && printf '"ok"' || printf '"blocker"' )" \
+    "$(dc_recover_json_str "${DC_HOST_CODE:-unknown}")" \
+    "$(dc_recover_json_str "${DC_HOST_SUMMARY:-}")" \
+    "$( [[ -n "${DC_HOST_DETAIL:-}" ]] && dc_recover_json_str "$DC_HOST_DETAIL" || printf 'null' )" \
+    "$(dc_recover_json_str "${DC_HOST_ENGINE_HINT:-unknown}")" \
+    "$(dc_recover_json_str "${DC_HOST_GUIDE:-$(dc_recover_desktop_guide)}")" \
+    "$(dc_recover_json_str "${DC_RECOVER_ID:-}")" \
+    "$(dc_recover_json_str "${DC_RECOVER_SUMMARY:-}")" \
+    "$(dc_recover_json_str "${DC_RECOVER_COMMAND:-}")" \
+    "$(dc_recover_json_str "${DC_RECOVER_APPLY:-none}")" \
+    "$allowed" \
+    "$(dc_recover_json_str "${DC_RECOVER_VERIFY:-dc-host}")" \
+    "$(dc_recover_json_str "${DC_RECOVER_ESCALATE:-dc-recover --report}")" \
+    "$stack"
+else
+  stack_n=0
+  if [[ "$stack" != "[]" ]] && command -v python3 >/dev/null 2>&1; then
+    stack_n="$(python3 -c 'import json,sys
+try:
+  v=json.loads(sys.argv[1])
+  print(len(v) if isinstance(v, list) else 0)
+except Exception:
+  print(0)
+' "$stack" 2>/dev/null || printf '0')"
+  fi
+  echo "dc-inspect"
+  echo "  workspace  ${resolved}  kind=${kind}"
+  echo "  host       ${DC_HOST_CODE:-unknown}"
+  echo "  next       ${DC_RECOVER_ID:-unknown}"
+  if [[ -n "${DC_RECOVER_COMMAND:-}" ]]; then
+    echo "  command    ${DC_RECOVER_COMMAND}"
+  fi
+  echo "  stack      ${stack_n}"
+  echo "  shell      dc-exec"
+fi
+
+if [[ "${DC_HOST_CODE:-}" == "ready" && "${DC_RECOVER_ID:-}" == "ready" ]]; then
+  exit 0
+fi
+exit 1

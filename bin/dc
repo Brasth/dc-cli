@@ -24,6 +24,7 @@ dc — this folder. Two spellings, same command.
   dc exec / dc-exec              shell in the app
   dc down / dc-down              stop the stack
   dc doctor / dc-doctor          read-only diagnose
+  dc inspect / dc-inspect        read-only snapshot
   dc recover / dc-recover        one next step (--yes applies)
   dc upgrade / dc-upgrade        check / install latest release
   dc try / dc-try                sandbox when there is no config
@@ -38,7 +39,7 @@ EOF
 
 is_verb() {
   case "$1" in
-    tui|doctor|recover|engine|upgrade|up|try|exec|down|ls|open|db|files|forward|ps|df|stats|net|prune)
+    tui|doctor|inspect|recover|engine|upgrade|up|try|exec|down|ls|open|db|files|forward|ps|df|stats|net|prune)
       return 0
       ;;
     *)

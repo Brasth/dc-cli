@@ -38,6 +38,8 @@ jobs:
           cache: npm
           cache-dependency-path: site/package-lock.json
       - name: Install and build
+        env:
+          PUBLIC_CF_BEACON_TOKEN: ${{ secrets.PUBLIC_CF_BEACON_TOKEN }}
         run: |
           npm ci
           npm run build

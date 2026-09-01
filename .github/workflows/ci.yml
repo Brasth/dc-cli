@@ -22,10 +22,10 @@ jobs:
         run: |
           bash -n install.sh
           bash -n lib/dc-common.sh lib/dc-floor.sh lib/dc-install-yazi.sh lib/dc-exec-color.sh lib/dc-net.sh lib/dc-engine.sh lib/dc-host.sh lib/dc-recover.sh lib/dc-try.sh
-          bash -n scripts/pack-release.sh scripts/print-release-shas.sh scripts/check-floor-qual.sh
+          bash -n scripts/pack-release.sh scripts/print-release-shas.sh scripts/check-floor-qual.sh scripts/funnel-snapshot.sh
           bash -n bin/dc bin/dc-up bin/dc-exec bin/dc-down bin/dc-ps bin/dc-forward
-          bash -n bin/dc-ls bin/dc-open bin/dc-tui bin/dc-df bin/dc-prune bin/dc-doctor bin/dc-engine bin/dc-recover bin/dc-upgrade bin/dc-net bin/dc-try
-          bash -n tests/lib/fake-docker tests/lib/harness.sh tests/safety/run.sh tests/install/run.sh tests/doctor/run.sh tests/forward/run.sh tests/files/run.sh tests/exec/run.sh tests/net/run.sh tests/engine/run.sh tests/host/run.sh tests/recover/run.sh tests/dc/run.sh tests/upgrade/run.sh tests/try/run.sh tests/copy/run.sh
+          bash -n bin/dc-ls bin/dc-open bin/dc-tui bin/dc-df bin/dc-prune bin/dc-doctor bin/dc-engine bin/dc-recover bin/dc-upgrade bin/dc-net bin/dc-try bin/dc-inspect
+          bash -n tests/lib/fake-docker tests/lib/harness.sh tests/safety/run.sh tests/install/run.sh tests/doctor/run.sh tests/forward/run.sh tests/files/run.sh tests/exec/run.sh tests/net/run.sh tests/engine/run.sh tests/host/run.sh tests/recover/run.sh tests/dc/run.sh tests/upgrade/run.sh tests/try/run.sh tests/copy/run.sh tests/inspect/run.sh
       - name: safety gates
         run: bash tests/safety/run.sh
       - name: installer gates
@@ -52,6 +52,8 @@ jobs:
         run: bash tests/files/run.sh
       - name: exec color gates
         run: bash tests/exec/run.sh
+      - name: inspect gates
+        run: bash tests/inspect/run.sh
       - name: dc meta-binary gates
         run: bash tests/dc/run.sh
       - name: floor qualification artifact
@@ -78,6 +80,8 @@ jobs:
           "$RUNNER_TEMP/dc-bin/dc-open" --help
           "$RUNNER_TEMP/dc-bin/dc-tui" --help
           "$RUNNER_TEMP/dc-bin/dc-recover" --help
+          "$RUNNER_TEMP/dc-bin/dc-inspect" --help
+          "$RUNNER_TEMP/dc-bin/dc" inspect --help
           "$RUNNER_TEMP/dc-bin/dc-upgrade" --help
           "$RUNNER_TEMP/dc-bin/dc" upgrade --help
       - name: dc-ls empty json

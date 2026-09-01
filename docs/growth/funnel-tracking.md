@@ -21,9 +21,9 @@ flowchart LR
 
 | Stage | Signal | Source |
 |-------|--------|--------|
-| Awareness | Unique visitors | Plausible on dc.brasth.com |
-| Intent | Install Copy events | Plausible custom event |
-| Try-before-install | Play Demo events | Plausible — `/play/` clicks |
+| Awareness | Unique visitors | Cloudflare Web Analytics on dc.brasth.com |
+| Intent | Install (proxy) | GitHub release download trend — CF has no click events |
+| Try-before-install | `/play/` pageviews | Cloudflare Web Analytics |
 | Install | Release download trend | GitHub Releases API |
 | Activation | Got a shell? | GitHub feedback issues, launch replies, user DMs |
 | Blocker | Where stuck? | [feedback.yml](../.github/ISSUE_TEMPLATE/feedback.yml) dropdown |
@@ -32,7 +32,7 @@ flowchart LR
 
 Daily (5 min):
 
-1. Plausible dashboard — visitors, Install Copy, Play Demo
+1. Cloudflare Web Analytics — visitors, `/play/` pageviews
 2. GitHub — new issues with `first-run` label
 3. Launch thread replies — count yes/no on "got a shell?"
 
@@ -60,12 +60,23 @@ Decision tree:
 | No config confusion | TUI / site demo (already improved) |
 | dc up fails | TUI error display, recover apply |
 
-## GitHub release downloads (optional CLI)
+## Cloudflare Web Analytics
+
+1. Dashboard → **Web Analytics** → **Add a site** → `dc.brasth.com`.
+2. This repo ships the JS snippet token in production (`site/src/lib/analytics.ts`). In Cloudflare **Manage site**, use **Enable with JS Snippet installation** — not automatic inject (double-count).
+3. Override token with `PUBLIC_CF_BEACON_TOKEN` if Cloudflare rotates it.
+
+No Install Copy click event. Use `/play/` pageviews + `bash scripts/funnel-snapshot.sh`.
+
+## Snapshot script (public GitHub only)
 
 ```bash
-# Trend check — no user telemetry required
-curl -s https://api.github.com/repos/Brasth/dc-cli/releases/latest | jq '.assets[].download_count'
+bash scripts/funnel-snapshot.sh
 ```
+
+Prints UTC date, latest release tag, per-asset `download_count`, open issue count, and open `first-run` issue count when the API returns it. No tokens, no PII.
+
+Cloudflare unique visitors / `/play/` pageviews stay on the Cloudflare dashboard. The script does not print them and does **not** prove live receipt. CF Web Analytics has no Install Copy click event.
 
 ## Qualitative synthesis (end of week 2)
 

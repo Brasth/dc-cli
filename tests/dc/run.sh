@@ -27,7 +27,7 @@ stub_kit() {
   cp "$ROOT/bin/dc" "$dest/dc"
   chmod +x "$dest/dc"
   local name
-  for name in tui up exec down doctor recover engine upgrade try ls open db files forward ps df stats net prune; do
+  for name in tui up exec down doctor recover inspect engine upgrade try ls open db files forward ps df stats net prune; do
     cat >"$dest/dc-$name" <<EOF
 #!/usr/bin/env bash
 printf '%s' "STUB-${name}"
@@ -118,7 +118,7 @@ case_real_up_help() {
 case_both_spellings_same_help() {
   local v spaced dashed
   # dc-ps has no --help and talks to Docker; skip it here.
-  for v in tui up exec down doctor recover engine upgrade try ls open db files forward df stats net prune; do
+  for v in tui up exec down doctor recover inspect engine upgrade try ls open db files forward df stats net prune; do
     spaced="$("$ROOT/bin/dc" "$v" --help)"
     dashed="$("$ROOT/bin/dc-$v" --help)"
     [[ -n "$spaced" && "$spaced" == "$dashed" ]]

@@ -1,40 +1,15 @@
 /**
- * Privacy-friendly analytics via Plausible (https://plausible.io).
- * Set PUBLIC_PLAUSIBLE_DOMAIN in site env to enable; defaults to dc.brasth.com in production builds.
+ * Cloudflare Web Analytics (https://developers.cloudflare.com/web-analytics/get-started/).
+ *
+ * Production default is the JS-snippet token for dc.brasth.com (public; it ships in HTML).
+ * Override with PUBLIC_CF_BEACON_TOKEN. Empty in dev unless that env is set.
+ * Disable Cloudflare "automatic setup" if this snippet is on, or visits double-count.
+ * No custom events — Play is `/play/` pageviews; install intent is GitHub downloads.
  */
 
-declare global {
-  interface Window {
-    plausible?: (event: string, options?: { props?: Record<string, string> }) => void;
-  }
-}
+const DEFAULT_PROD_TOKEN = '5e3af3d1b9fb4f46bca44129ff1ec913';
 
-const domain =
-  import.meta.env.PUBLIC_PLAUSIBLE_DOMAIN ??
-  (import.meta.env.PROD ? 'dc.brasth.com' : '');
-
-export function trackEvent(name: string, props?: Record<string, string>) {
-  if (!domain || typeof window === 'undefined') return;
-  window.plausible?.(name, props ? { props } : undefined);
-}
-
-export function bindAnalytics() {
-  if (!domain || typeof document === 'undefined') return;
-  document.addEventListener('click', (event) => {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const installBtn = target.closest<HTMLElement>('[data-install-copy]');
-    if (installBtn) {
-      const source = installBtn.id || installBtn.dataset.trackSource || 'install';
-      trackEvent('Install Copy', { source });
-    }
-    const playLink = target.closest<HTMLElement>('a[href="/play/"]');
-    if (playLink) {
-      trackEvent('Play Demo', { source: playLink.dataset.trackSource ?? 'link' });
-    }
-  });
-}
-
-export function plausibleDomain() {
-  return domain;
+export function cloudflareBeaconToken(): string {
+  const token = import.meta.env.PUBLIC_CF_BEACON_TOKEN ?? (import.meta.env.PROD ? DEFAULT_PROD_TOKEN : '');
+  return /^[A-Za-z0-9_-]{16,128}$/.test(token) ? token : '';
 }

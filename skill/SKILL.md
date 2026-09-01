@@ -6,7 +6,7 @@ created: "2026-08-13"
 updated: "2026-08-27"
 ---
 ## When to Use
-First minute: `dc doctor` (read-only). Host wall on an existing engine → `dc-recover` then `dc-recover --yes`. This folder: `.devcontainer` or compose → `dc-up`; else `dc-try --yes` (never edit the project). Then `dc-exec`. Never raw `docker exec NAME`.
+First minute: `dc inspect --json` (read-only snapshot) then existing `dc-recover` / `dc-up` / `dc-try --yes` / `dc-exec`. Host wall on an existing engine → `dc-recover` then `dc-recover --yes`. This folder: `.devcontainer` or compose → `dc-up`; else `dc-try --yes` (never edit the project). Then `dc-exec`. Never raw `docker exec NAME`.
 
 ## Procedure
 1. Confirm Docker/Colima (read-only `dc-doctor` or `docker ps`). `dc-doctor` never mutates. Host wall on an **existing** engine: `dc-recover` (print) then `dc-recover --yes` (start Desktop/Colima/dockerd, pick-one + stop extra, context, Linux group). TUI blocked board `[f]` is the same apply. Empty machine: do not install; point at Desktop guide / Colima brew copy. On Docker Desktop, run `dc-doctor` **before** `dc-up` — `docker_context` must be one live engine (CLI socket). Linux Desktop is `~/.docker/desktop/docker.sock` (engine=desktop), not unknown. Split-brain is a blocker; `dc-recover --yes` stops the extra after context use. `dc-engine --fix` still prints; `--yes` is context only. `DC_UP_ALLOW_SPLIT=1` is a last-resort hatch only. This folder is `kind=devcontainer` if project config exists (official CLI required), else `kind=compose` if a root compose file exists (official CLI not required), else `kind=none` (use `dc-try` for a sandbox; `dc-up` on a TTY offers that sandbox, non-TTY prints the `dc-try` hint). Still stuck after apply: `dc-recover --report` (no secrets).
@@ -22,6 +22,7 @@ First minute: `dc doctor` (read-only). Host wall on an existing engine → `dc-r
 9. Disk: `dc-df` (report) → `dc-prune` dry-run → `dc-prune --yes` (**engine-wide** cache + dangling images + nets; **owned-only** orphan sidecars). Unused tagged images: `dc-prune --all --yes` (also engine-wide). One named volume: `dc-prune --volume NAME --yes` only when user names it (owned-only; mount inventory must succeed). Colima still full after prune: `dc-prune --colima-hint`.
 9b. Stats: `dc-stats` / `--json` is read-only CPU/RAM/net for this folder. Guest is Colima/Desktop VM (Desktop live guest is cap only). Never treat Mac host RAM as the box. TUI `t` consumes `--json`.
 9c. Nets: `dc-net` / `--json` / `--ensure` is this folder only. Create missing declared `external: true` names as a default bridge. Compose-managed = list only. TUI `n` consumes `--json`; `y` runs `dc-up --create-nets`.
+9d. Inspect: `dc inspect` / `--json` is read-only compose (workspace + host + next + stack). Recover remains the mutate door (`dc-recover --yes`).
 
 ## Pitfalls
 - `--override-config` / `dc-up --ports` replaces project config entirely.
@@ -38,7 +39,7 @@ First minute: `dc doctor` (read-only). Host wall on an existing engine → `dc-r
 - One engine per machine. Desktop UI is not proof the CLI is talking to that VM. Do not export Colima `DOCKER_HOST` onto a Desktop laptop. Linux Desktop socket is `~/.docker/desktop/docker.sock`. Leftover native `dockerd` on `/var/run` is a real extra engine — `dc-engine --fix`.
 
 ## Verification
-1. `dc --help`, `dc up --help`, `dc-df --help`, `dc-prune --help`, `dc-up --help`, `dc-doctor --help`, `dc-recover --help`, `dc-upgrade --help`, `dc-engine --help`, `dc-stats --help`, `dc-net --help` work. `dc-doctor` and `dc-stats` are read-only. `dc-upgrade --check` is read-only. `dc-recover` without `--yes` is read-only. `dc-engine` without `--fix --yes` is read-only. `dc-net` without `--ensure` is read-only.
+1. `dc --help`, `dc up --help`, `dc-df --help`, `dc-prune --help`, `dc-up --help`, `dc-doctor --help`, `dc-inspect --help`, `dc-recover --help`, `dc-upgrade --help`, `dc-engine --help`, `dc-stats --help`, `dc-net --help` work. `dc-doctor`, `dc-stats`, and `dc-inspect` are read-only. `dc-upgrade --check` is read-only. `dc-recover` without `--yes` is read-only. `dc-engine` without `--fix --yes` is read-only. `dc-net` without `--ensure` is read-only.
 2. `dc-prune` without `--yes` is dry-run (exit 0, no delete).
 3. `dc-prune --volume x` without `--yes` does not delete.
 4. `dc-ls --json --all` with no containers prints `[]`.

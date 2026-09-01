@@ -56,6 +56,18 @@ done
 absent site/src/components/Hero.astro 'Host-global helpers around the official Dev Containers CLI.'
 absent README.md 'host-global helpers'
 absent site/src/components/PainPayoff.astro 'Host-global wrappers'
+check site/src/pages/play.astro 'data-install-copy'
+check site/src/pages/play.astro 'data-install-cmd={installCommand}'
+check site/src/lib/analytics.ts 'PUBLIC_CF_BEACON_TOKEN'
+absent site/src/layouts/Layout.astro 'plausible.io'
+check site/src/layouts/Layout.astro 'static.cloudflareinsights.com/beacon.min.js'
+check site/src/pages/issues.astro 'template=feedback.yml'
+if echo "$next_block" | grep -qF 'dc inspect'; then
+  echo "FAIL install.sh Next block has dc inspect" >&2
+  FAILED=$((FAILED + 1))
+else
+  echo "  ok  install.sh Next clean: dc inspect"
+fi
 
 echo
 if [[ "$FAILED" -gt 0 ]]; then
