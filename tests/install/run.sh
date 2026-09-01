@@ -188,6 +188,95 @@ EOF
   rm -rf "$home"
 }
 
+case_bash3_failfast() {
+  local out rc
+  rc=0
+  out="$(DC_BASH_MAJOR=3 bash "$ROOT/install.sh" --help 2>&1)" || rc=$?
+  [[ "$rc" -eq 1 ]]
+  printf '%s\n' "$out" | grep -qi 'Bash 4'
+}
+
+_install_os_arch() {
+  local os arch
+  case "$(uname -s)" in
+    Darwin) os=darwin ;;
+    Linux) os=linux ;;
+    *) return 1 ;;
+  esac
+  case "$(uname -m)" in
+    arm64|aarch64) arch=arm64 ;;
+    x86_64|amd64) arch=amd64 ;;
+    *) return 1 ;;
+  esac
+  printf '%s %s\n' "$os" "$arch"
+}
+
+_sha256_file() {
+  local f="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$f" | awk '{print $1}'
+  else
+    shasum -a 256 "$f" | awk '{print $1}'
+  fi
+}
+
+_stage_tiny_release_kit() {
+  local reldir="$1" os="$2" arch="$3" name kit f
+  name="dc-cli-0.0.0-${os}-${arch}"
+  kit="$reldir/$name"
+  mkdir -p "$kit/bin" "$kit/lib"
+  for f in dc dc-up dc-exec dc-down dc-ps dc-forward dc-ls dc-open dc-df dc-prune dc-doctor dc-engine dc-recover dc-upgrade dc-db dc-files dc-stats dc-net dc-try; do
+    if [[ -f "$ROOT/bin/$f" ]]; then
+      cp "$ROOT/bin/$f" "$kit/bin/$f"
+      chmod +x "$kit/bin/$f"
+    fi
+  done
+  cp "$ROOT/lib/"*.sh "$kit/lib/"
+  tar -C "$reldir" -czf "$reldir/${name}.tar.gz" "$name"
+  printf '%s\n' "$name"
+}
+
+case_checksum_match() {
+  local home prefix reldir os arch name
+  home="$(mktemp -d "${TMPDIR:-/tmp}/dc-inst.XXXX")"
+  prefix="$home/bin"
+  reldir="$home/rel"
+  mkdir -p "$prefix" "$reldir"
+  read -r os arch < <(_install_os_arch)
+  name="$(_stage_tiny_release_kit "$reldir" "$os" "$arch")"
+  printf '%s  %s\n' "$(_sha256_file "$reldir/${name}.tar.gz")" "${name}.tar.gz" >"$reldir/SHA256SUMS"
+  HOME="$home" DC_GENERATION_ROOT="$home/share/generations" PREFIX="$prefix" \
+    DC_SKIP_TUI_BUILD=1 DC_SKIP_YAZI=1 DC_INSTALL_OFFER_CLI=0 \
+    DC_RELEASE_BASE_URL="file://${reldir}" \
+    bash "$ROOT/install.sh" --prefix "$prefix" --ref v0.0.0 >/dev/null
+  [[ -L "$home/share/generations/current" ]]
+  [[ -x "$home/share/generations/current/bin/dc-up" ]]
+  rm -rf "$home"
+}
+
+case_checksum_mismatch() {
+  local home prefix reldir os arch name out rc
+  home="$(mktemp -d "${TMPDIR:-/tmp}/dc-inst.XXXX")"
+  prefix="$home/bin"
+  reldir="$home/rel"
+  mkdir -p "$prefix" "$reldir"
+  read -r os arch < <(_install_os_arch)
+  name="$(_stage_tiny_release_kit "$reldir" "$os" "$arch")"
+  printf '%s  %s\n' "0000000000000000000000000000000000000000000000000000000000000000" "${name}.tar.gz" >"$reldir/SHA256SUMS"
+  rc=0
+  out="$(
+    HOME="$home" DC_GENERATION_ROOT="$home/share/generations" PREFIX="$prefix" \
+      DC_SKIP_TUI_BUILD=1 DC_SKIP_YAZI=1 DC_INSTALL_OFFER_CLI=0 \
+      DC_RELEASE_BASE_URL="file://${reldir}" \
+      bash "$ROOT/install.sh" --prefix "$prefix" --ref v0.0.0 2>&1
+  )" || rc=$?
+  [[ "$rc" -eq 1 ]]
+  printf '%s\n' "$out" | grep -qi 'checksum mismatch'
+  [[ ! -e "$home/share/generations/current" ]]
+  rm -rf "$home"
+}
+
+
 echo "== installer gates =="
 run_case "help lists --with-cli-npm" case_help_npm_flag
 run_case "--with-cli does not npm install" case_with_cli_no_npm
@@ -201,6 +290,9 @@ run_case "fresh-login PATH resolves helpers" case_fresh_login_path
 run_case "no-flags does not run npm" case_noflags_no_cli
 run_case "help lists --no-yazi" case_help_no_yazi
 run_case "installs guest yazi from zip" case_yazi_from_zip
+run_case "bash 3 fail-fast requires Bash 4" case_bash3_failfast
+run_case "release kit checksum match extracts" case_checksum_match
+run_case "release kit checksum mismatch refuses" case_checksum_mismatch
 
 echo
 if [[ "$FAILED" -ne 0 ]]; then

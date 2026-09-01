@@ -122,6 +122,35 @@ case_semver_helpers() {
   [[ "$state" == "current" ]]
 }
 
+case_yes_source_with_skill() {
+  local bindir log out rc
+  bindir="$(mktemp -d "${TMPDIR:-/tmp}/dc-up-skill.XXXX")"
+  log="$bindir/args.log"
+  cat > "$bindir/curl" <<EOF
+#!/usr/bin/env bash
+cat <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "\$*" > '$log'
+STUB
+EOF
+  chmod +x "$bindir/curl"
+  set +e
+  out="$(
+    PATH="$bindir:$PATH" \
+    DC_CLI_VERSION=0.1.0 \
+    DC_CLI_LATEST_TAG=0.2.0 \
+    DC_CLI_CHANNEL=source \
+    "$UP" --yes 2>&1
+  )"
+  rc=$?
+  set -e
+  [[ "$rc" -eq 0 ]]
+  grep -q -- '--with-skill' "$log"
+  grep -q -- '--with-cli' "$log"
+  grep -q -- '--ref latest' "$log"
+  rm -rf "$bindir"
+}
+
 echo "== upgrade gates =="
 run_case "help" case_help
 run_case "check available exit 1" case_check_available
@@ -130,6 +159,7 @@ run_case "check dev exit 0" case_check_dev
 run_case "check unknown exit 2" case_check_unknown
 run_case "refuse --yes on dev" case_refuse_dev_apply
 run_case "semver + update_state helpers" case_semver_helpers
+run_case "yes source includes --with-skill" case_yes_source_with_skill
 
 echo
 if [[ "$FAILED" -ne 0 ]]; then

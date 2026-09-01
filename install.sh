@@ -1,5 +1,42 @@
 #!/usr/bin/env bash
 # Install host-global @devcontainers/cli helpers as one verified generation.
+
+# --- Bash 3 preflight (POSIX [ only so bash 3 can parse this check) ---
+ADVERTISED_CURL='curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli'
+_dc_bash_major="${DC_BASH_MAJOR:-${BASH_VERSINFO[0]:-0}}"
+if [ "$_dc_bash_major" -lt 4 ]; then
+  if [ -z "${DC_BASH_MAJOR:-}" ]; then
+    _dc_find_bash4() {
+      _c="$1"
+      [ -x "$_c" ] || return 1
+      _v="$("$_c" -c 'echo ${BASH_VERSINFO[0]}' 2>/dev/null)" || return 1
+      [ "$_v" -ge 4 ] 2>/dev/null
+    }
+    _dc_re=""
+    for _dc_try in bash /opt/homebrew/bin/bash /usr/local/bin/bash /usr/bin/bash; do
+      if _dc_find_bash4 "$_dc_try"; then
+        _dc_re="$(command -v "$_dc_try" 2>/dev/null || echo "$_dc_try")"
+        break
+      fi
+    done
+    if [ -n "$_dc_re" ]; then
+      _dc_hdr=`head -c 2 "$0" 2>/dev/null || true`
+      if [ -f "$0" ] && [ "$_dc_hdr" = "#!" ]; then
+        exec "$_dc_re" "$0" "$@"
+      fi
+      echo "dc-cli requires Bash 4 or newer." >&2
+      echo "Rerun with:" >&2
+      echo "  curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | ${_dc_re} -s -- --with-cli" >&2
+      exit 1
+    fi
+  fi
+  echo "dc-cli requires Bash 4 or newer." >&2
+  echo "Install it with: brew install bash" >&2
+  echo "Then rerun:" >&2
+  echo "  ${ADVERTISED_CURL}" >&2
+  exit 1
+fi
+
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -10,7 +47,6 @@ WITH_SKILL=0
 SKIP_YAZI=0
 REF=""
 REPO="${DC_REPO:-Brasth/dc-cli}"
-ADVERTISED_CURL='curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli'
 STANDALONE_URL="${DC_STANDALONE_INSTALLER_URL:-https://raw.githubusercontent.com/devcontainers/cli/main/scripts/install.sh}"
 GEN_ROOT="${DC_GENERATION_ROOT:-${XDG_DATA_HOME:-$HOME/.local/share}/dc-cli/generations}"
 
@@ -95,6 +131,18 @@ dc_os_arch() {
   printf '%s %s\n' "$os" "$arch"
 }
 
+sha256_file() {
+  local f="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$f" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$f" | awk '{print $1}'
+  else
+    echo "dc-cli install: need sha256sum or shasum" >&2
+    return 1
+  fi
+}
+
 use_extracted() {
   local tmp="$1" url="$2" extracted
   extracted="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -1)"
@@ -106,7 +154,7 @@ use_extracted() {
 }
 
 fetch_release_kit() {
-  local ref="$1" os arch ver url tmp
+  local ref="$1" os arch ver url tmp base tarball sums_url got want
   if [[ "$ref" == "latest" ]]; then
     ref="$(latest_tag)" || return 1
   fi
@@ -115,10 +163,34 @@ fetch_release_kit() {
   esac
   ver="${ref#v}"
   read -r os arch < <(dc_os_arch) || return 1
-  url="https://github.com/${REPO}/releases/download/v${ver}/dc-cli-${ver}-${os}-${arch}.tar.gz"
+  tarball="dc-cli-${ver}-${os}-${arch}.tar.gz"
+  base="${DC_RELEASE_BASE_URL:-https://github.com/${REPO}/releases/download/v${ver}}"
+  url="${base}/${tarball}"
+  sums_url="${base}/SHA256SUMS"
   tmp="$(mktemp -d)"
   echo "Fetching release kit $url ..."
-  if ! curl -fsSL "$url" | tar -xz -C "$tmp"; then
+  if ! curl -fsSL "$url" -o "$tmp/$tarball"; then
+    rm -rf "$tmp"
+    return 1
+  fi
+  if curl -fsSL "$sums_url" -o "$tmp/SHA256SUMS" 2>/dev/null; then
+    got="$(sha256_file "$tmp/$tarball")"
+    want="$(awk -v n="$tarball" '$2 == n { print $1; exit }' "$tmp/SHA256SUMS")"
+    if [[ -z "$want" ]]; then
+      echo "error: SHA256SUMS has no entry for ${tarball}" >&2
+      rm -rf "$tmp"
+      exit 1
+    fi
+    if [[ "$got" != "$want" ]]; then
+      echo "error: checksum mismatch for ${tarball}" >&2
+      rm -rf "$tmp"
+      exit 1
+    fi
+  else
+    echo "warning: SHA256SUMS not found for v${ver}; continuing unsigned" >&2
+    rm -f "$tmp/SHA256SUMS"
+  fi
+  if ! tar -xz -C "$tmp" -f "$tmp/$tarball"; then
     rm -rf "$tmp"
     return 1
   fi

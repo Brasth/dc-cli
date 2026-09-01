@@ -37,7 +37,7 @@ Exit codes for --check:
   2  could not resolve latest (offline / API error)
 
 Homebrew installs run: brew update && brew upgrade dc-cli
-Curl / generation installs re-run install.sh --ref latest --with-cli
+Curl / generation installs re-run install.sh --with-cli --with-skill --ref latest
 EOF
 }
 
@@ -95,7 +95,7 @@ case "$state" in
   unknown)
     echo "Could not resolve the latest release (offline or GitHub API error)." >&2
     echo "Retry later, or install manually:" >&2
-    echo "  curl -fsSL ${INSTALL_URL} | bash -s -- --with-cli --ref latest" >&2
+    echo "  curl -fsSL ${INSTALL_URL} | bash -s -- --with-cli --with-skill --ref latest" >&2
     exit 2
     ;;
   available)
@@ -112,7 +112,7 @@ plan_line() {
       printf 'Plan: brew update && brew upgrade dc-cli  (%s → %s)\n' "$installed" "$latest"
       ;;
     *)
-      printf 'Plan: re-run install.sh --ref latest --with-cli  (%s → %s)\n' "$installed" "$latest"
+      printf 'Plan: re-run install.sh --with-cli --with-skill --ref latest  (%s → %s)\n' "$installed" "$latest"
       ;;
   esac
 }
@@ -146,7 +146,7 @@ apply_curl() {
     exit 1
   fi
   # Match the advertised installer; --with-cli is idempotent when CLI is present.
-  curl -fsSL "$INSTALL_URL" | bash -s -- --with-cli --ref latest
+  curl -fsSL "$INSTALL_URL" | bash -s -- --with-cli --with-skill --ref latest
 }
 
 case "$channel" in

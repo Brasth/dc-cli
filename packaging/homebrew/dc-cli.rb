@@ -7,6 +7,7 @@ class DcCli < Formula
   homepage "https://dc.brasth.com"
   version "0.20.0"
   license "MIT"
+  depends_on "bash"
 
   on_macos do
     on_arm do
@@ -49,6 +50,7 @@ class DcCli < Formula
 
   def caveats
     <<~EOS
+      Helpers need Bash 4+ (Homebrew bash on macOS).
       Needs Docker (Colima or Desktop — one live engine). Official CLI is required only for
       Dev Container folders. Compose-only folders use docker compose or docker-compose via dc-up.
       Preferred: standalone via advertised curl --with-cli
