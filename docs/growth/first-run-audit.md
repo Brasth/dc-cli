@@ -1,6 +1,7 @@
 # First-run funnel audit
 
-Date: 2026-08-28  
+Date: 2026-08-28
+Reconciled: 2026-08-31
 Branch: feature/growth-strategy-e1fa
 
 ## Success state
@@ -20,16 +21,17 @@ A stranger with Docker installed reaches **`dc exec`** (shell in the app contain
 | TUI start failure | Shows error, not "back from start" | **PASS** | `cmd/dc-tui/main_test.go` TestExecDoneStartFailure |
 | TUI sandbox confirm copy | "No config — start a sandbox? y/n" | **PASS** | `cmd/dc-tui/view.go` |
 
-## Remaining gaps (this branch)
+## Remaining gaps
 
-| Gap | Fix |
-|-----|-----|
-| Fleet empty state omits `dc try` | Update TUI copy in `view.go` / `model.go` |
-| Web `/play/` demo always shows running stack | Add `kind=none` demo mode to board simulator |
-| No site analytics | Add Plausible + install CTA events |
-| No activation feedback template | Extend GitHub issue templates |
-| Launch ops pending | `launch/execution.md` checklist + silent-user retry block |
-| No funnel tracking process | `docs/growth/funnel-tracking.md` |
+| Gap | Status |
+|-----|--------|
+| Fleet empty state omits `dc try` | **Shipped** — `cmd/dc-tui/view.go` (empty fleet copy includes `dc try`) |
+| Web `/play/` demo always shows running stack | **Shipped** — `site/src/components/Board.astro` (`data-demo="none"` on compact `/play/`) |
+| No site analytics | **Shipped (wiring only)** — `site/src/lib/analytics.ts` (Plausible + Install Copy / Play Demo). Do **not** claim live event receipt. |
+| No activation feedback template | **Shipped** — `.github/ISSUE_TEMPLATE/feedback.yml` |
+| No funnel tracking process | **Shipped** — `docs/growth/funnel-tracking.md` |
+| Launch ops pending | **Still pending** — `launch/execution.md` checklist + silent-user retry. Unverified; do not check off. |
+| Live Plausible event receipt | **Still pending** — code is wired; dashboard receipt is unmeasured. |
 
 ## Manual smoke (Docker required)
 
@@ -49,4 +51,4 @@ dc up && dc exec   # SUCCESS
 
 ## Conclusion
 
-Core first-run product paths are implemented and tested. Growth work should focus on **conversion polish** (empty states, honest web demo), **measurement**, and **launch execution** — not new CLI verbs.
+Core first-run product paths are implemented and tested. `/play/` no-config, Plausible wiring, activation feedback, and funnel-tracking docs are in-repo. Growth work should focus on **measurement** (activation baseline still unmeasured) and **launch execution** — not new CLI verbs.

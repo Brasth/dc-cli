@@ -162,10 +162,25 @@ See [phase-01-playbook.md](./phase-01-playbook.md). Host rows now **apply**. Fol
 
 | # | Phase | Status | File |
 |---|---|---|---|
-| 1 | [Playbook contract](./phase-01-playbook.md) | proposed | v1 rows apply; install rows stay print/copy until v2. |
-| 2 | CLI `dc-recover` | gated on v1 cut approval | Diagnose → one next → `--yes` apply → recheck. `--report`. |
-| 3 | TUI recover board | gated on phase 2 | Replace `hostView`. Day-2 disk/split/net open the same board. |
-| 4 | Stuck guide + issues + skill | gated on phase 2 | `/guide/stuck`. Template asks for `--report`. |
+| 1 | [Playbook contract](./phase-01-playbook.md) | **shipped** (v1) | Existing-engine rows apply in `lib/dc-recover.sh`. Install rows stay print/copy — empty-machine install is v2 / parked. |
+| 2 | CLI `dc-recover` | **shipped** (v1) | `bin/dc-recover` + `lib/dc-recover.sh`: diagnose → one next → `--yes` apply → recheck. `--json`. `--report`. |
+| 3 | TUI recover board | **shipped** (v1) | `hostView` + `[f]` apply (`cmd/dc-tui`). Empty machine still `[d]` / `[c]`. |
+| 4 | Stuck guide + issues + skill | **shipped** (guide/report) | `/guide/stuck`. Issues ask for `--report`. Empty-machine install is not in this phase. |
+
+v1 existing-engine apply is in-repo. This is **not** outcome-measured and **not** launch-complete.
+
+## P0 follow-up (2026-08-31) — recovery safety
+
+Not a new verb. Plan: `plans/260831-phase0-recovery-safety/`.
+
+| Bug | Required truth |
+|---|---|
+| ENOSPC | Host-visible filesystem used% of the Docker data root (`df`). **Never** `docker system df` reclaimable %. |
+| Colima full | Guest `df` of `/` ≥95% still sets `colima_full` (ranking unchanged). |
+| `--grow-disk` | Requires diagnosed `colima_full`. Do not force the hint on a healthy engine. |
+| Linux start | `sudo systemctl start docker` only. `pgrep dockerd` already-running is OK. Unmanaged `sudo dockerd &` is **refused**. |
+
+Empty-machine install stays v2 / parked.
 
 ## Success criteria
 
@@ -197,15 +212,15 @@ Ship the **already-have-Docker** host manager first. That is the original pain. 
 - Install-from-zero needs a default-engine product decision and brew/cask/apt footguns. Do not block v1 on it.
 - The refuse list is how we stay dc-cli and not Docker Desktop.
 
-### v2 (after v1 works)
+### v2 / parked
 
-Empty-machine install. Recommended default: **Colima via brew**, Desktop as the other explicit button. Linux: Ubuntu/Debian one-liner only.
+Empty-machine install. Recommended default: **Colima via brew**, Desktop as the other explicit button. Linux: Ubuntu/Debian one-liner only. **Not started.**
 
 ### Phases for v1
 
-1. Playbook mapper + tests (existing-engine rows only; install rows print/copy)
-2. `dc-recover` CLI (`--json`, `--yes` on the v1 allowlist, `--report`)
-3. TUI recover board (replace `hostView` actions with apply + retry)
-4. `/guide/stuck` + issue template + skill
+1. Playbook mapper + tests (existing-engine rows only; install rows print/copy) — **shipped**
+2. `dc-recover` CLI (`--json`, `--yes` on the v1 allowlist, `--report`) — **shipped** (`bin/dc-recover`, `lib/dc-recover.sh`)
+3. TUI recover board (replace `hostView` actions with apply + retry) — **shipped** (`[f]` apply; empty machine still `[d]`/`[c]`)
+4. `/guide/stuck` + issue template + skill — **shipped** (guide + `--report`; install-from-zero still parked)
 
-v1 cut approved 2026-08-22. Implementation in progress.
+v1 cut approved 2026-08-22. Existing-engine apply shipped. P0 safety follow-up 2026-08-31 (filesystem used% vs `system df` reclaimable %; refuse unmanaged `dockerd`). Empty-machine install remains v2 / parked. Not outcome-measured. Launch not complete.
