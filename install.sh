@@ -67,7 +67,7 @@ Usage: bash install.sh [options]
   --prefix DIR      write stable shims here (default: ~/bin)
   --ref latest|TAG|main   fetch that GitHub release kit first
                     (prebuilt dc-tui; falls back to source tree)
-                    (auto latest when this script is not next to bin/)
+                    (auto latest when this script is not next to bin/ + lib/)
   --no-yazi         do not prefetch Linux yazi for dc-files (DC_SKIP_YAZI=1)
 EOF
 }
@@ -108,6 +108,10 @@ fi
 
 latest_tag() {
   local body
+  if [[ -n "${DC_LATEST_TAG:-}" ]]; then
+    printf '%s\n' "$DC_LATEST_TAG"
+    return
+  fi
   body="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest")" || return 1
   if command -v python3 >/dev/null 2>&1; then
     python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])' <<<"$body"
@@ -154,7 +158,7 @@ use_extracted() {
 }
 
 fetch_release_kit() {
-  local ref="$1" os arch ver url tmp base tarball sums_url got want
+  local ref="$1" os arch osarch ver url tmp base tarball sums_url got want
   if [[ "$ref" == "latest" ]]; then
     ref="$(latest_tag)" || return 1
   fi
@@ -162,7 +166,10 @@ fetch_release_kit() {
     main|master) return 1 ;;
   esac
   ver="${ref#v}"
-  read -r os arch < <(dc_os_arch) || return 1
+  # Command substitution, not process substitution: curl | bash -s owns stdin.
+  osarch="$(dc_os_arch)" || return 1
+  os="${osarch%% *}"
+  arch="${osarch##* }"
   tarball="dc-cli-${ver}-${os}-${arch}.tar.gz"
   base="${DC_RELEASE_BASE_URL:-https://github.com/${REPO}/releases/download/v${ver}}"
   url="${base}/${tarball}"
@@ -230,7 +237,9 @@ fetch_ref() {
 
 if [[ -n "$REF" ]]; then
   fetch_ref "$REF"
-elif [[ ! -f "$ROOT/bin/dc-up" ]]; then
+elif [[ ! -f "$ROOT/bin/dc-up" || ! -d "$ROOT/lib" ]]; then
+  # curl | bash sets $0 to "bash", so ROOT is CWD. After a previous install,
+  # $HOME/bin/dc-up (default PREFIX) exists and must not look like a checkout.
   fetch_ref latest
 fi
 

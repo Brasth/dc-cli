@@ -276,6 +276,38 @@ case_checksum_mismatch() {
   rm -rf "$home"
 }
 
+case_pipe_home_leftover_shims() {
+  # Piped one-liner from $HOME after a previous install: leftover ~/bin/dc-up
+  # must not be treated as a source tree (Missing $HOME/lib).
+  local home prefix reldir os arch name out
+  home="$(mktemp -d "${TMPDIR:-/tmp}/dc-inst.XXXX")"
+  prefix="$home/bin"
+  reldir="$home/rel"
+  mkdir -p "$prefix" "$reldir"
+  cat >"$prefix/dc-up" <<'EOF'
+#!/usr/bin/env bash
+echo leftover-shim
+EOF
+  chmod +x "$prefix/dc-up"
+  osarch="$(_install_os_arch)"
+  os="${osarch%% *}"
+  arch="${osarch##* }"
+  name="$(_stage_tiny_release_kit "$reldir" "$os" "$arch")"
+  printf '%s  %s\n' "$(_sha256_file "$reldir/${name}.tar.gz")" "${name}.tar.gz" >"$reldir/SHA256SUMS"
+  out="$(
+    cd "$home" || exit 1
+    HOME="$home" DC_GENERATION_ROOT="$home/share/generations" PREFIX="$prefix" \
+      DC_SKIP_TUI_BUILD=1 DC_SKIP_YAZI=1 DC_INSTALL_OFFER_CLI=0 \
+      DC_LATEST_TAG=v0.0.0 DC_RELEASE_BASE_URL="file://${reldir}" \
+      bash -s -- --prefix "$prefix" <"$ROOT/install.sh" 2>&1
+  )"
+  ! printf '%s\n' "$out" | grep -q "Missing $home/lib"
+  [[ -f "$home/share/generations/current/lib/dc-common.sh" ]]
+  [[ -x "$home/share/generations/current/bin/dc-up" ]]
+  ! grep -q leftover-shim "$home/share/generations/current/bin/dc-up"
+  rm -rf "$home"
+}
+
 
 echo "== installer gates =="
 run_case "help lists --with-cli-npm" case_help_npm_flag
@@ -293,6 +325,7 @@ run_case "installs guest yazi from zip" case_yazi_from_zip
 run_case "bash 3 fail-fast requires Bash 4" case_bash3_failfast
 run_case "release kit checksum match extracts" case_checksum_match
 run_case "release kit checksum mismatch refuses" case_checksum_mismatch
+run_case "piped install from HOME with leftover ~/bin/dc-up fetches kit" case_pipe_home_leftover_shims
 
 echo
 if [[ "$FAILED" -ne 0 ]]; then
