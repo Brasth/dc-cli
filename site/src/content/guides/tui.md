@@ -1,8 +1,8 @@
 ---
 title: "dc-tui board and keys"
-description: "dc-tui is the clickable board for this folder. Primary keys: start, shell, stop. Click a published website URL or press 1-9 to open it. Meta: open, attach, ports, logs, top, nets, db, files, fleet. Upgrade: U when a newer release is available."
+description: "dc-tui is the clickable board for this folder. Primary keys: start, shell, stop. Click a published website URL or press 1-9 to open it. Meta: open, attach, ports, logs, top, nets, db, files, fleet. Activity: v. Upgrade: U when a newer release is available."
 h1: "The board is the product."
-updated: 2026-08-22
+updated: 2026-10-03
 howto: false
 faq:
   - q: What is the difference between open and attach?
@@ -25,6 +25,12 @@ faq:
     a: b or dc-db. Uses the host port you already set on the db service (compose ports or a well-known forwardPorts number). No declared map → refuse. Two DBs need dc-db --service NAME.
   - q: What is the difference between d and t?
     a: d dumps dc-df (disk document). t opens live CPU/RAM for this folder via dc-stats. Fleet refuses t. Desktop guest is cap only — it never invents a live percent. When disk looks critical, P confirms dc-prune --yes on the board.
+  - q: What does c / actions do?
+    a: "c lists this folder's project actions: your personal file plus a shared .dc/actions.json. Shared ones stay off until you review every command and press y; any edit turns them off again. Enter runs one in the foreground through dc-exec --no-start — the container must already be running, nothing is started. Ctrl+C stops the action and the board comes back with its exit status. Actions run inside your containers and can modify data."
+  - q: What does w do?
+    a: w lists folders this board opened before (favorites first, then most recent). Type to filter, Enter opens, Ctrl+F favorites, Ctrl+D forgets (the folder is untouched), Esc goes back. It works while Docker is down and never starts anything.
+  - q: What does v / activity do?
+    a: "v shows this folder's recent container events — created, started, stopped, exited (with exit code), restarted, removed, out of memory, health. Latest 200, in memory only: nothing is written to disk and it clears when you switch folders, enter fleet, or press c in the view. Only containers proven to belong to this folder count (the labeled app and its compose siblings, or the compose-kind project); dc-cli port sidecars and other projects are left out. No env or log text is kept. If the event stream drops, the view marks the gap and the board rescans when it reconnects."
   - q: What does n / nets do?
     a: n lists this folder's declared compose networks. Missing external:true names can be created as a default bridge (y then dc-up --create-nets). Compose-managed nets are shown, not created. Overlay, custom IPAM, and inspect-unknown are refused. Fleet refuses n.
 ---
@@ -66,6 +72,9 @@ Primary row: **start** · **shell** · **stop**. Meta is quieter. **rm** asks `y
 | **db** | `b` | `dc-db` — host TablePlus on a declared db port |
 | **files** | `m` | `dc-files` — yazi/nnn in the box; Enter opens code/cursor on this container (`DC_FILES_EDITOR=vim` keeps vim) |
 | **fleet** | `f` | other workspaces |
+| **workspaces** | `w` | recent folders this board opened. Type to filter, Enter open, Ctrl+F favorite, Ctrl+D forget, Esc back. Works while Docker is down. |
+| **actions** | `c` | project actions (personal + trusted `.dc/actions.json`). Enter runs one via `dc-exec --no-start`; off entries open a review. Fleet refuses. |
+| **activity** | `v` | this folder's container events, latest 200 in memory. `j`/`k`, PgUp/PgDn, `g`/`G` scroll; `c` clears; Esc back. Fleet refuses. |
 | **upgrade** | `U` | when a newer release is available — confirms then `dc-upgrade --yes` |
 | **more** / **quit** | `?` / `q` | legend / exit |
 | **disk** | `d` | `dc-df` report (stays in TUI). `P` = safe prune when the header says CRITICAL |
@@ -81,5 +90,39 @@ Header shows a compact disk line from `dc-df`, an app load pulse from `dc-stats`
 | any other compose **service** | click the stack row, or `dc-exec --service NAME` | start if down, then exec |
 
 `dc` with no args (or `dc tui`) is the board. Hyphenated `dc-tui` stays.
+
+## Project actions
+
+Same files as `dc actions` (`dc-actions`). Personal file: `${XDG_CONFIG_HOME:-~/.config}/dc-cli/actions/<sha256 of the folder path>.json`. Shared file: `<folder>/.dc/actions.json` (dc-cli never writes it).
+
+```json
+{"schemaVersion": 1, "actions": [
+  {"id": "test", "label": "Run tests", "argv": ["go", "test", "./..."]},
+  {"id": "psql", "label": "DB shell", "argv": ["psql", "-U", "app"], "service": "db"}
+]}
+```
+
+- `argv` runs as-is — no shell. `service` targets that compose sibling (`docker exec`); without it the labeled app (`devcontainer exec`, keeps remoteUser / workdir).
+- A personal `id` overrides the shared one.
+- Shared actions are **off** until trusted. The review lists every shared command (overridden ones too) with its exact argv and target. Trust is tied to the folder and the file's exact bytes; any change turns them off.
+- Actions never start containers (`dc-exec --no-start`). Start with `u` first.
+- **Actions run inside your containers and can modify data.**
+
+```bash
+dc actions list --json
+dc actions trust          # preview, then y/N (non-TTY needs --yes)
+dc actions run test
+dc actions run -- -id     # an id that starts with -
+```
+
+## Activity
+
+`v` opens a timeline of this folder's container events: created, started, stopped, exited (exit code), restarted, removed, out of memory, health. Each line is time, service (or container name), and a short description — never env or logs.
+
+- One `docker events` stream, pinned to the engine the board is showing, runs while the board is on a folder. It stops when you switch folders, enter fleet, leave for a shell / start / files / action, Docker goes away, or you quit; it resumes (and the board rescans) when you are back.
+- Only containers that belong to this folder count: the ones the last refresh listed, or a new one that a read-only `docker inspect` proves is the labeled app, one of its compose siblings, or (compose-kind) the project whose working dir is this folder. Port sidecars and other projects are left out.
+- Events refresh the board at most once per 300ms burst.
+- Stream lost → a gap line, retries after 1s, 2s, 4s, then every 10s, and a full rescan on reconnect.
+- Latest 200 lines, memory only. Cleared on folder switch, fleet, or `c` in the view.
 
 See also [ports](/guide/ports/).

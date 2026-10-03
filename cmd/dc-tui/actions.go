@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"os/exec"
 	"strconv"
@@ -12,74 +11,6 @@ import (
 )
 
 const leaveWait = 50 * time.Millisecond
-
-func (m model) reloadCmd() tea.Cmd {
-	ws := m.workspace
-	fleet := m.fleet
-	gen := m.loadGen
-	return func() tea.Msg {
-		host, hostErr := runHostDiagnose()
-		if hostErr == nil && host.blocked() {
-			return reloadMsg{gen: gen, workspace: ws, fleet: fleet, host: host}
-		}
-		args := []string{"--json"}
-		if fleet {
-			args = append(args, "--all")
-		} else {
-			args = append(args, "--workspace", ws)
-		}
-		out, err := exec.Command("dc-ls", args...).Output()
-		if err != nil {
-			return reloadMsg{gen: gen, workspace: ws, fleet: fleet, host: host, hostErr: hostErr, err: err}
-		}
-		var rows []container
-		if err := json.Unmarshal(out, &rows); err != nil {
-			return reloadMsg{gen: gen, workspace: ws, fleet: fleet, err: err}
-		}
-		var stack []stackSvc
-		if !fleet {
-			if sout, err := exec.Command("dc-exec", "--list", "--json", ws).Output(); err == nil {
-				_ = json.Unmarshal(sout, &stack)
-			}
-		}
-		disk := ""
-		diskGuest := ""
-		if dout, err := exec.Command("dc-df", "--json").Output(); err == nil {
-			var df struct {
-				Compact string `json:"compact"`
-				Colima  *struct {
-					GuestRoot string `json:"guest_root"`
-				} `json:"colima"`
-			}
-			if json.Unmarshal(dout, &df) == nil {
-				disk = strings.TrimSpace(df.Compact)
-				if df.Colima != nil {
-					diskGuest = strings.TrimSpace(df.Colima.GuestRoot)
-				}
-			}
-		}
-		fwd := mergePairs(listFwdMaps(ws), listStackPorts(stack))
-		var nets netReport
-		if nout, err := runNet("--json", ws); err == nil {
-			if parsed, err := parseNet(nout); err == nil {
-				nets = parsed
-			}
-		}
-		return reloadMsg{
-			gen:       gen,
-			workspace: ws,
-			fleet:     fleet,
-			rows:      rows,
-			stack:     stack,
-			fwdMaps:   fwd,
-			disk:      disk,
-			diskGuest: diskGuest,
-			nets:      nets,
-			host:      host,
-			hostErr:   hostErr,
-		}
-	}
-}
 
 func benignExecErr(err error) bool {
 	if err == nil {
@@ -168,6 +99,9 @@ func (m model) startLeave(kind, pending string) (model, tea.Cmd) {
 	}
 	m.leaving = kind
 	m.pending = pending
+	// The terminal goes to a foreground command: close + reap the events
+	// stream now; it resumes (with a rescan) when the board is back.
+	m = m.pauseActivity("board was away ("+kind+") — rescanned on return", false)
 	return m, tea.Tick(leaveWait, func(time.Time) tea.Msg {
 		return leaveTickMsg{}
 	})
@@ -178,6 +112,20 @@ func (m model) execStack(i int) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m.startLeave("shell", "stack:"+strconv.Itoa(i))
+}
+
+// stackExecCommand shells into a stack row. dc-exec re-resolves membership
+// from a fresh read (service / name / id prefix within this workspace's
+// stack); the board's snapshot id is only the reference, never the target.
+func stackExecCommand(ws string, s stackSvc) *exec.Cmd {
+	ref := s.ID
+	if ref == "" {
+		ref = s.Service
+	}
+	if ref == "" {
+		ref = s.Name
+	}
+	return exec.Command("dc-exec", "--service", ref, ws)
 }
 
 // restartSelected restarts the stack-cursor sibling. Labeled app row
@@ -210,6 +158,9 @@ func (m model) restartSelected() (tea.Model, tea.Cmd) {
 func (m model) runPending() (tea.Model, tea.Cmd) {
 	pending := m.pending
 	m.pending = ""
+	if pending == "action" {
+		return m.actionExecCmd()
+	}
 	if strings.HasPrefix(pending, "stack:") {
 		i, err := strconv.Atoi(strings.TrimPrefix(pending, "stack:"))
 		if err != nil || i < 0 || i >= len(m.stack) {
@@ -221,7 +172,7 @@ func (m model) runPending() (tea.Model, tea.Cmd) {
 		if label == "" {
 			label = s.Name
 		}
-		cmd := exec.Command("dc-exec", "--id", s.ID)
+		cmd := stackExecCommand(m.workspace, s)
 		cmd.Stdin = os.Stdin
 		return m, tea.ExecProcess(cmd, func(err error) tea.Msg {
 			return execDoneMsg{action: "exec-" + label, err: err}
@@ -263,12 +214,7 @@ func (m model) openRow(i int) (tea.Model, tea.Cmd) {
 	if st, err := os.Stat(folder); err != nil || !st.IsDir() {
 		return m.withErr("folder missing on disk: " + folder), nil
 	}
-	m.fleet = false
-	m.workspace = folder
-	m.hasConfig = hasDevcontainer(folder)
-	m.hasCompose = hasRootCompose(folder)
-	m = m.withStatus("")
-	return m.beginHardReload()
+	return m.switchWorkspace(folder)
 }
 
 // runStay is the stay-in-board exec. Tests replace it so confirm y never hits Docker.
@@ -277,20 +223,49 @@ var runStay = func(name string, args ...string) (string, error) {
 	return string(out), err
 }
 
+// stayDoneMsg is a finished stay command. workspace/fleet say which board
+// context launched it; a result for another context only paints status.
+type stayDoneMsg struct {
+	name      string
+	workspace string
+	fleet     bool
+	out       string
+	err       error
+}
+
+// stayCmd runs a stay-in-board command off the Update loop (no timeout: it is
+// a user action). One at a time; the board keeps painting meanwhile.
 func (m model) stayCmd(name string, args ...string) (tea.Model, tea.Cmd) {
-	out, err := runStay(name, args...)
-	msg := compactLines(strings.TrimSpace(out), 4)
-	if err != nil {
-		if msg == "" {
-			msg = err.Error()
+	if m.busy != "" {
+		return m.withStatus(m.busy + " still running — wait for it to finish"), nil
+	}
+	m.busy = name
+	m = m.withStatus("running " + name + "…")
+	ws, fleet := m.workspace, m.fleet
+	argv := append([]string(nil), args...)
+	return m, func() tea.Msg {
+		out, err := runStay(name, argv...)
+		return stayDoneMsg{name: name, workspace: ws, fleet: fleet, out: out, err: err}
+	}
+}
+
+func (m model) applyStayDone(msg stayDoneMsg) (model, tea.Cmd) {
+	m.busy = ""
+	text := compactLines(strings.TrimSpace(msg.out), 4)
+	if msg.err != nil {
+		if text == "" {
+			text = msg.err.Error()
 		}
-		return m.withErr(msg), nil
+		return m.withErr(text), nil
 	}
-	m = m.withStatus(msg)
-	if m.loaded {
-		return m.beginSoftReload()
+	m = m.withStatus(text)
+	if msg.name == "dc-prune" {
+		diskCache.invalidate(m.engine)
 	}
-	return m.beginHardReload()
+	if msg.workspace != m.workspace || msg.fleet != m.fleet {
+		return m, nil
+	}
+	return m.requestRefresh()
 }
 
 func diskLooksCritical(compact, guest string) bool {

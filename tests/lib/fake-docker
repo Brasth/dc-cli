@@ -21,13 +21,14 @@ has_label() {
   local dir
   dir="$(cdir "$id")"
   [[ -f "$dir/labels" ]] || return 1
-  if [[ "$want" == *"="* ]]; then
-    key="${want%%=*}"
-    val="${want#*=}"
-    grep -Fxq "${key}=${val}" "$dir/labels" 2>/dev/null
-  else
-    grep -q "^${want}=" "$dir/labels" 2>/dev/null
-  fi
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$want" == *"="* ]]; then
+      [[ "$line" == "$want" ]] && return 0
+    else
+      [[ "$line" == "$want="* ]] && return 0
+    fi
+  done <"$dir/labels"
+  return 1
 }
 
 label_val() {
@@ -38,14 +39,68 @@ label_val() {
   sed -n "s/^${key}=//p" "$dir/labels" | head -1
 }
 
+# Render a Go-template-ish --format for one container. Handles the field and
+# label tokens dc-cli batches with ({{"\x1f"}} / {{"\t"}} separators).
+render_tpl() {
+  local id="$1" fmt="$2" mode="$3" dir out key val tok line i
+  dir="$STATE/containers/$id"
+  out="$fmt"
+  out="${out//\{\{\"\\x1f\"\}\}/$'\x1f'}"
+  out="${out//\{\{\"\\t\"\}\}/$'\t'}"
+  # Fork-free reads: batch formats render many containers per call.
+  local name="" status="" image="" ports=""
+  [[ ! -f "$dir/name" ]] || IFS= read -r name <"$dir/name" || true
+  [[ ! -f "$dir/status" ]] || IFS= read -r status <"$dir/status" || true
+  [[ ! -f "$dir/image" ]] || IFS= read -r image <"$dir/image" || true
+  [[ ! -f "$dir/ports" ]] || IFS= read -r ports <"$dir/ports" || true
+  local -a lkeys=() lvals=()
+  if [[ -f "$dir/labels" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      [[ "$line" == *=* ]] || continue
+      lkeys+=("${line%%=*}")
+      lvals+=("${line#*=}")
+    done <"$dir/labels"
+  fi
+  out="${out//\{\{.Id\}\}/$id}"
+  out="${out//\{\{.ID\}\}/$id}"
+  out="${out//\{\{.Name\}\}//${name:-$id}}"
+  out="${out//\{\{.Names\}\}/${name:-$id}}"
+  out="${out//\{\{.State.Status\}\}/${status:-running}}"
+  out="${out//\{\{.Status\}\}/${status:-running}}"
+  out="${out//\{\{.Config.Image\}\}/${image:-alpine}}"
+  out="${out//\{\{.Image\}\}/${image:-alpine}}"
+  out="${out//\{\{.Ports\}\}/$ports}"
+  while [[ "$out" =~ (\{\{index\ \.Config\.Labels\ \"([^\"]*)\"\}\}) ]]; do
+    tok="${BASH_REMATCH[1]}"
+    key="${BASH_REMATCH[2]}"
+    val=""
+    for i in "${!lkeys[@]}"; do
+      [[ "${lkeys[$i]}" == "$key" ]] && { val="${lvals[$i]}"; break; }
+    done
+    [[ -n "$val" ]] || val="<no value>"
+    out="${out//"$tok"/$val}"
+  done
+  while [[ "$out" =~ (\{\{\.Label\ \"([^\"]*)\"\}\}) ]]; do
+    tok="${BASH_REMATCH[1]}"
+    key="${BASH_REMATCH[2]}"
+    val=""
+    for i in "${!lkeys[@]}"; do
+      [[ "${lkeys[$i]}" == "$key" ]] && { val="${lvals[$i]}"; break; }
+    done
+    out="${out//"$tok"/$val}"
+  done
+  printf '%s\n' "$out"
+}
+
 list_ids() {
   local all="$1"
   local dir id status
   [[ -d "$STATE/containers" ]] || return 0
   for dir in "$STATE/containers"/*; do
     [[ -d "$dir" ]] || continue
-    id="$(basename "$dir")"
-    status="$(read_file "$dir/status")"
+    id="${dir##*/}"
+    status=""
+    [[ ! -f "$dir/status" ]] || IFS= read -r status <"$dir/status" || true
     status="${status:-running}"
     if [[ "$all" -eq 1 || "$status" == "running" ]]; then
       printf '%s\n' "$id"
@@ -555,6 +610,10 @@ case "$cmd" in
         printf '%s\n' "$id"
         continue
       fi
+      if [[ "$fmt" == *'{{"\x1f"}}'* ]]; then
+        render_tpl "$id" "$fmt" ps
+        continue
+      fi
       ports="$(read_file "$dir/ports")"
       name="$(read_file "$dir/name")"
       status="$(read_file "$dir/status")"
@@ -590,6 +649,24 @@ case "$cmd" in
           ;;
       esac
     done
+    if [[ "${#ids[@]}" -gt 1 || "$fmt" == *'{{"\x1f"}}'* ]]; then
+      # Batch: print every found object, error (exit 1) for the rest — like Docker.
+      _rc=0
+      for id in "${ids[@]}"; do
+        if [[ -f "$STATE/fail/inspect/${id}" ]]; then
+          echo "Error: Cannot connect to the Docker daemon" >&2
+          _rc=1
+          continue
+        fi
+        if [[ ! -d "$(cdir "$id")" ]]; then
+          echo "Error: No such object: $id" >&2
+          _rc=1
+          continue
+        fi
+        render_tpl "$id" "$fmt" inspect
+      done
+      exit "$_rc"
+    fi
     id="${ids[0]:-}"
     if [[ -f "$STATE/fail/inspect/${id}" ]]; then
       echo "Error: Cannot connect to the Docker daemon" >&2

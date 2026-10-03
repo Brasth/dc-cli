@@ -12,56 +12,40 @@ jobs:
       - uses: actions/checkout@v7
       - name: executable bits
         run: |
-          test -x bin/dc
           test -x install.sh
-          test -x tests/dc/run.sh
+          for f in bin/* tests/*/run.sh; do test -x "$f" || { echo "not executable: $f"; exit 1; }; done
       - uses: actions/setup-go@v7
         with:
           go-version: "1.24"
       - name: bash -n
         run: |
-          bash -n install.sh
-          bash -n lib/dc-common.sh lib/dc-floor.sh lib/dc-install-yazi.sh lib/dc-exec-color.sh lib/dc-net.sh lib/dc-engine.sh lib/dc-host.sh lib/dc-recover.sh lib/dc-try.sh
-          bash -n scripts/pack-release.sh scripts/print-release-shas.sh scripts/check-floor-qual.sh scripts/funnel-snapshot.sh
-          bash -n bin/dc bin/dc-up bin/dc-exec bin/dc-down bin/dc-ps bin/dc-forward
-          bash -n bin/dc-ls bin/dc-open bin/dc-tui bin/dc-df bin/dc-prune bin/dc-doctor bin/dc-engine bin/dc-recover bin/dc-upgrade bin/dc-net bin/dc-try bin/dc-inspect
-          bash -n tests/lib/fake-docker tests/lib/harness.sh tests/safety/run.sh tests/install/run.sh tests/doctor/run.sh tests/forward/run.sh tests/files/run.sh tests/exec/run.sh tests/net/run.sh tests/engine/run.sh tests/host/run.sh tests/recover/run.sh tests/dc/run.sh tests/upgrade/run.sh tests/try/run.sh tests/copy/run.sh tests/inspect/run.sh
-      - name: safety gates
-        run: bash tests/safety/run.sh
-      - name: installer gates
-        run: bash tests/install/run.sh
-      - name: copy contract
-        run: bash tests/copy/run.sh
-      - name: try gates
-        run: bash tests/try/run.sh
-      - name: doctor gates
-        run: bash tests/doctor/run.sh
-      - name: upgrade gates
-        run: bash tests/upgrade/run.sh
-      - name: engine identity gates
-        run: bash tests/engine/run.sh
-      - name: host readiness gates
-        run: bash tests/host/run.sh
-      - name: recover playbook gates
-        run: bash tests/recover/run.sh
-      - name: net gates
-        run: bash tests/net/run.sh
-      - name: forward reconcile gates
-        run: bash tests/forward/run.sh
-      - name: files inject gates
-        run: bash tests/files/run.sh
-      - name: exec color gates
-        run: bash tests/exec/run.sh
-      - name: inspect gates
-        run: bash tests/inspect/run.sh
-      - name: dc meta-binary gates
-        run: bash tests/dc/run.sh
+          # Every shell file, so a new wrapper / suite cannot be skipped.
+          for f in install.sh bin/* lib/*.sh scripts/*.sh tests/lib/fake-docker tests/lib/harness.sh tests/*/run.sh; do
+            bash -n "$f"
+          done
+      - name: shell suites (every tests/*/run.sh)
+        run: |
+          failed=0
+          for t in tests/*/run.sh; do
+            echo "::group::$t"
+            if ! bash "$t"; then
+              echo "::error::$t failed"
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+          test "$failed" -eq 0
       - name: floor qualification artifact
         run: bash scripts/check-floor-qual.sh
-      - name: go test dc-tui
-        run: go test ./cmd/dc-tui
-      - name: go build dc-tui
-        run: go build -o /tmp/dc-tui ./cmd/dc-tui
+      - name: go vet
+        run: go vet ./...
+      - name: go test -race (all packages)
+        run: go test -race -count=1 ./...
+      - name: go build dc-tui + dc-actions
+        run: |
+          go build -o /tmp/dc-tui ./cmd/dc-tui
+          go build -o /tmp/dc-actions ./cmd/dc-actions
+          /tmp/dc-actions --help | grep -q "dc-actions run"
       - name: install to prefix
         run: |
           PREFIX="$RUNNER_TEMP/dc-bin" bash install.sh --prefix "$RUNNER_TEMP/dc-bin"
@@ -71,6 +55,7 @@ jobs:
           test -x "$RUNNER_TEMP/dc-bin/dc-ls"
           test -x "$RUNNER_TEMP/dc-bin/dc-open"
           test -x "$RUNNER_TEMP/dc-bin/dc-tui"
+          test -x "$RUNNER_TEMP/dc-bin/dc-actions"
           test -f "${XDG_DATA_HOME:-$HOME/.local/share}/dc-cli/generations/current/lib/dc-common.sh"
           "$RUNNER_TEMP/dc-bin/dc" --help
           "$RUNNER_TEMP/dc-bin/dc" up --help
@@ -84,6 +69,12 @@ jobs:
           "$RUNNER_TEMP/dc-bin/dc" inspect --help
           "$RUNNER_TEMP/dc-bin/dc-upgrade" --help
           "$RUNNER_TEMP/dc-bin/dc" upgrade --help
+          # Go is on PATH here: the source install builds the real dc-actions.
+          "$RUNNER_TEMP/dc-bin/dc-actions" --help
+          "$RUNNER_TEMP/dc-bin/dc" actions --help
+          gen_actions="${XDG_DATA_HOME:-$HOME/.local/share}/dc-cli/generations/current/bin/dc-actions"
+          test "$(head -c 2 "$gen_actions")" != "#!"
+          "$RUNNER_TEMP/dc-bin/dc-actions" list "$RUNNER_TEMP" --json | grep -Eq '"schemaVersion": *1'
       - name: dc-ls empty json
         run: |
           PREFIX="$RUNNER_TEMP/dc-bin" bash install.sh --prefix "$RUNNER_TEMP/dc-bin" >/dev/null
@@ -134,10 +125,12 @@ jobs:
           scripts/pack-release.sh 0.0.0-ci linux amd64 "$RUNNER_TEMP/dc-dist"
           tar -tzf "$RUNNER_TEMP/dc-dist/dc-cli-0.0.0-ci-linux-amd64.tar.gz" | grep -q '/bin/dc-tui$'
           tar -tzf "$RUNNER_TEMP/dc-dist/dc-cli-0.0.0-ci-linux-amd64.tar.gz" | grep -q '/bin/dc$'
+          tar -tzf "$RUNNER_TEMP/dc-dist/dc-cli-0.0.0-ci-linux-amd64.tar.gz" | grep -q '/bin/dc-actions$'
           mkdir -p "$RUNNER_TEMP/dc-kit"
           tar -xzf "$RUNNER_TEMP/dc-dist/dc-cli-0.0.0-ci-linux-amd64.tar.gz" -C "$RUNNER_TEMP/dc-kit"
           kit="$RUNNER_TEMP/dc-kit/dc-cli-0.0.0-ci-linux-amd64"
           test "$(head -c 2 "$kit/bin/dc-tui")" != "#!"
+          test "$(head -c 2 "$kit/bin/dc-actions")" != "#!"
           PATH="/usr/bin:/bin" HOME="$RUNNER_TEMP/prebuilt-home" PREFIX="$RUNNER_TEMP/dc-prebuilt" \
             bash "$kit/install.sh" --prefix "$RUNNER_TEMP/dc-prebuilt" --with-skill
           test -x "$RUNNER_TEMP/dc-prebuilt/dc-tui"
@@ -146,10 +139,15 @@ jobs:
           gen_tui="$RUNNER_TEMP/prebuilt-home/.local/share/dc-cli/generations/current/bin/dc-tui"
           test -x "$gen_tui"
           test "$(head -c 2 "$gen_tui")" != "#!"
+          gen_actions="$RUNNER_TEMP/prebuilt-home/.local/share/dc-cli/generations/current/bin/dc-actions"
+          test -x "$gen_actions"
+          test "$(head -c 2 "$gen_actions")" != "#!"
           "$RUNNER_TEMP/dc-prebuilt/dc" --help
           "$RUNNER_TEMP/dc-prebuilt/dc" up --help
           "$RUNNER_TEMP/dc-prebuilt/dc-tui" --help
           "$RUNNER_TEMP/dc-prebuilt/dc-up" --help
+          HOME="$RUNNER_TEMP/prebuilt-home" "$RUNNER_TEMP/dc-prebuilt/dc-actions" --help
+          HOME="$RUNNER_TEMP/prebuilt-home" "$RUNNER_TEMP/dc-prebuilt/dc-actions" list "$RUNNER_TEMP" --json | grep -Eq '"schemaVersion": *1'
           test -f "$kit/skill/SKILL.md"
           test -f "$RUNNER_TEMP/prebuilt-home/.agents/skills/devcontainer-cli-global/SKILL.md"
           brew="$RUNNER_TEMP/dc-brew"
@@ -160,6 +158,7 @@ jobs:
           HOME="$RUNNER_TEMP/empty-home" "$brew/bin/dc" up --help
           HOME="$RUNNER_TEMP/empty-home" "$brew/bin/dc-up" --help
           HOME="$RUNNER_TEMP/empty-home" "$brew/bin/dc-ls" --json --all | grep -qx '\[\]'
+          HOME="$RUNNER_TEMP/empty-home" "$brew/bin/dc-actions" --help
           grep -Fqx 'curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli' README.md
       - name: dc-up missing CLI prints advertised curl
         run: |
@@ -173,3 +172,73 @@ jobs:
           set -e
           test "$rc" -eq 1
           printf '%s\n' "$out" | grep -Fqx "  $line"
+
+  # macOS: local state (registry, trust, actions files), wrappers and the
+  # installer. /bin/bash is 3.2 and the suites need Bash 4+, so they run under
+  # Homebrew Bash by explicit path; the installer's Bash 3 guard is checked
+  # with the system shell.
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.24"
+      - name: Homebrew Bash (explicit path)
+        run: |
+          brew list bash >/dev/null 2>&1 || brew install bash
+          BASH5="$(brew --prefix)/bin/bash"
+          "$BASH5" -c 'test "${BASH_VERSINFO[0]}" -ge 5'
+          /bin/bash -c 'test "${BASH_VERSINFO[0]}" -eq 3'
+          echo "BASH5=$BASH5" >>"$GITHUB_ENV"
+          # Nested `bash` and `#!/usr/bin/env bash` calls must also get Bash 5.
+          echo "$(brew --prefix)/bin" >>"$GITHUB_PATH"
+      - name: system Bash 3 installer guard
+        run: |
+          # Bash 3.2 re-execs into Bash 4+ when one exists …
+          /bin/bash install.sh --help | grep -q -- --with-cli
+          # … and refuses with a clear message when none does.
+          set +e
+          out="$(DC_BASH_MAJOR=3 /bin/bash install.sh --help 2>&1)"
+          rc=$?
+          set -e
+          test "$rc" -eq 1
+          printf '%s\n' "$out" | grep -q 'requires Bash 4 or newer'
+      - name: go vet + race (state, actions, board)
+        run: |
+          go vet ./...
+          go test -race -count=1 ./...
+      - name: state / wrapper / installer suites (Homebrew Bash)
+        run: |
+          failed=0
+          for t in install dc actions exec upgrade safety; do
+            echo "::group::tests/$t"
+            if ! "$BASH5" "tests/$t/run.sh"; then
+              echo "::error::tests/$t failed"
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+          test "$failed" -eq 0
+      - name: install to prefix (source; Go builds dc-tui + dc-actions)
+        run: |
+          "$BASH5" install.sh --prefix "$RUNNER_TEMP/dc-bin"
+          "$RUNNER_TEMP/dc-bin/dc" --help
+          "$RUNNER_TEMP/dc-bin/dc-tui" --help
+          "$RUNNER_TEMP/dc-bin/dc-actions" --help
+          gen="$HOME/.local/share/dc-cli/generations/current/bin"
+          test "$(head -c 2 "$gen/dc-actions")" != "#!"
+          test "$(head -c 2 "$gen/dc-tui")" != "#!"
+          "$RUNNER_TEMP/dc-bin/dc-actions" list "$RUNNER_TEMP" --json | grep -Eq '"schemaVersion": *1'
+      - name: pack darwin-arm64 and install the prebuilt kit
+        run: |
+          "$BASH5" scripts/pack-release.sh 0.0.0-ci darwin arm64 "$RUNNER_TEMP/dc-dist"
+          kitgz="$RUNNER_TEMP/dc-dist/dc-cli-0.0.0-ci-darwin-arm64.tar.gz"
+          tar -tzf "$kitgz" | grep -q '/bin/dc-actions$'
+          mkdir -p "$RUNNER_TEMP/dc-kit"
+          tar -xzf "$kitgz" -C "$RUNNER_TEMP/dc-kit"
+          kit="$RUNNER_TEMP/dc-kit/dc-cli-0.0.0-ci-darwin-arm64"
+          test "$(head -c 2 "$kit/bin/dc-actions")" != "#!"
+          HOME="$RUNNER_TEMP/prebuilt-home" "$BASH5" "$kit/install.sh" --prefix "$RUNNER_TEMP/dc-prebuilt"
+          HOME="$RUNNER_TEMP/prebuilt-home" "$RUNNER_TEMP/dc-prebuilt/dc-actions" --help
+          HOME="$RUNNER_TEMP/prebuilt-home" "$RUNNER_TEMP/dc-prebuilt/dc-actions" list "$RUNNER_TEMP" --json | grep -Eq '"schemaVersion": *1'

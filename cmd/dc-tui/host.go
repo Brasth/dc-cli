@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,26 +12,26 @@ import (
 )
 
 type hostReport struct {
-	SchemaVersion int    `json:"schemaVersion"`
-	Command       string `json:"command"`
-	Status        string `json:"status"`
-	Code          string `json:"code"`
-	Summary       string `json:"summary"`
+	SchemaVersion int     `json:"schemaVersion"`
+	Command       string  `json:"command"`
+	Status        string  `json:"status"`
+	Code          string  `json:"code"`
+	Summary       string  `json:"summary"`
 	Detail        *string `json:"detail"`
-	EngineHint    string `json:"engineHint"`
-	Remediation   string `json:"remediation"`
-	Actions       string `json:"actions"`
-	GuideURL      string `json:"guideUrl"`
-	NextID        string `json:"nextId"`
-	NextCommand   string `json:"nextCommand"`
-	NextApply     string `json:"nextApply"`
-	ApplyAllowed  bool   `json:"applyAllowed"`
+	EngineHint    string  `json:"engineHint"`
+	Remediation   string  `json:"remediation"`
+	Actions       string  `json:"actions"`
+	GuideURL      string  `json:"guideUrl"`
+	NextID        string  `json:"nextId"`
+	NextCommand   string  `json:"nextCommand"`
+	NextApply     string  `json:"nextApply"`
+	ApplyAllowed  bool    `json:"applyAllowed"`
 }
 
 // runHostDiagnose is swapped in tests.
 var runHostDiagnose = defaultRunHostDiagnose
 
-func defaultRunHostDiagnose() (hostReport, error) {
+func defaultRunHostDiagnose(ctx context.Context) (hostReport, error) {
 	script := `
 set -euo pipefail
 lib=""
@@ -68,7 +69,7 @@ if type dc_recover_plan >/dev/null 2>&1; then
 fi
 dc_host_json
 `
-	out, err := exec.Command("bash", "-c", script).Output()
+	out, err := probe(ctx, "bash", "-c", script)
 	if err != nil {
 		return hostReport{}, err
 	}

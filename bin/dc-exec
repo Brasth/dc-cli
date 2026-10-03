@@ -28,12 +28,20 @@ elif [[ -f "${HOME}/.config/devcontainer/dc-net.sh" ]]; then
   # shellcheck source=/dev/null
   source "${HOME}/.config/devcontainer/dc-net.sh"
 fi
+if [[ -f "$_here/../lib/dc-try.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$_here/../lib/dc-try.sh"
+elif [[ -f "${HOME}/.config/devcontainer/dc-try.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${HOME}/.config/devcontainer/dc-try.sh"
+fi
 
 workspace="."
 service=""
 explicit_id=""
 do_list=0
 do_restart=0
+no_start=0
 json=0
 cmd=()
 
@@ -49,12 +57,17 @@ dc-exec — shell into the app container, or another service in the same compose
   dc-exec --id NAME_OR_ID [-- cmd]
   dc-exec --list [workspace]          show the compose stack
   dc-exec --list --json [workspace]
+  dc-exec --no-start [--service NAME] [workspace] [-- cmd...]
+                                      only if already running; never starts
   dc-exec --help
 
 Other services share com.docker.compose.project with the labeled app.
 Sidecars from dc-forward are omitted. Default shell is bash, then sh.
 A stopped service is docker-started first, then exec.
 --restart is stack-membership only. --id --restart is refused.
+--no-start re-checks ownership right before exec and refuses a stopped or
+missing target (no docker start, compose start, or dc-up). Not with --id
+or --restart. Used by dc-actions.
 EOF
 }
 
@@ -72,6 +85,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --list) do_list=1 ;;
     --restart) do_restart=1 ;;
+    --no-start) no_start=1 ;;
     --json) json=1 ;;
     --version|-V) dc_cli_print_version "$(basename "$0")"; exit 0 ;;
     -h|--help) usage; exit 0 ;;
@@ -98,6 +112,27 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+
+if [[ "$no_start" -eq 1 ]]; then
+  if [[ -n "$explicit_id" ]]; then
+    echo "dc-exec: --id --no-start is not allowed (target must come from this workspace: --service NAME or the app)." >&2
+    exit 2
+  fi
+  if [[ "$do_restart" -eq 1 ]]; then
+    echo "dc-exec: --restart --no-start is not allowed." >&2
+    exit 2
+  fi
+fi
+
+# --no-start: fresh status read right before exec; anything not running is refused.
+dc_exec_require_running() {
+  local id="$1" what="$2" st
+  st="$(docker inspect -f '{{.State.Status}}' "$id" 2>/dev/null || echo missing)"
+  if [[ "$st" != "running" ]]; then
+    echo "dc-exec: $what is ${st:-missing} — --no-start will not start it (dc up first)." >&2
+    exit 1
+  fi
+}
 
 if [[ "$do_restart" -eq 1 ]]; then
   if [[ -n "$explicit_id" ]]; then
@@ -194,8 +229,13 @@ if [[ -n "$service" ]]; then
     echo "No compose service \"$service\" in this workspace stack. Try: dc-exec --list" >&2
     exit 1
   fi
-  echo "exec  ${svc:-$name}  $name  ${id:0:12}"
-  dc_ensure_running "$id" || exit 1
+  if [[ "$no_start" -eq 1 ]]; then
+    dc_exec_require_running "$id" "service \"$service\""
+    echo "exec  ${svc:-$name}  $name  ${id:0:12}" >&2
+  else
+    echo "exec  ${svc:-$name}  $name  ${id:0:12}"
+    dc_ensure_running "$id" || exit 1
+  fi
   docker_shell "$id" "${cmd[@]+"${cmd[@]}"}"
 fi
 
@@ -214,8 +254,17 @@ if [[ "$(dc_workspace_kind "$workspace")" == "compose" ]]; then
     [[ -n "$_f" ]] || continue
     _exec_args+=(-f "$_f")
   done < <(dc_compose_file_args "$workspace")
-  echo "exec  ${_exec_svc}  (compose-kind)"
-  (cd "$workspace" && dc_docker_compose -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" start "$_exec_svc") >/dev/null 2>&1 || true
+  if [[ "$no_start" -eq 1 ]]; then
+    _exec_row="$(dc_stack_resolve "$workspace" "$_exec_svc")" || {
+      echo "dc-exec: compose service \"$_exec_svc\" has no container — --no-start will not create it (dc up first)." >&2
+      exit 1
+    }
+    dc_exec_require_running "${_exec_row%%$'\t'*}" "compose service \"$_exec_svc\""
+    echo "exec  ${_exec_svc}  (compose-kind)" >&2
+  else
+    echo "exec  ${_exec_svc}  (compose-kind)"
+    (cd "$workspace" && dc_docker_compose -p "$_exec_name" "${_exec_args[@]+"${_exec_args[@]}"}" start "$_exec_svc") >/dev/null 2>&1 || true
+  fi
   _exec_flags=()
   if [[ -t 0 && -t 1 ]]; then
     _exec_flags+=(-it)
@@ -235,7 +284,24 @@ fi
 # Must pass the exact label string — `.` / symlink realpath miss the box.
 ws="$(dc_cli_workspace_folder "$workspace")"
 app_id="$(dc_ids_for_workspace "$workspace" | head -n1)"
-if [[ -n "$app_id" ]]; then
+if [[ "$no_start" -eq 1 ]]; then
+  if [[ -z "$app_id" ]]; then
+    echo "dc-exec: no labeled app for $workspace — --no-start will not create it (dc up first)." >&2
+    exit 1
+  fi
+  dc_exec_require_running "$app_id" "the app"
+fi
+# A dc-try sandbox has no project config; the official CLI needs the same
+# override config dc-try started it with (read-only, dc-cli state dir).
+exec_cfg=()
+if type dc_try_dir >/dev/null 2>&1 && [[ "$(dc_workspace_kind "$workspace")" == "none" ]]; then
+  _try_abs="$(cd "$(dc_resolve_workspace "$workspace")" && pwd)"
+  _try_override="$(dc_try_dir "$_try_abs")/override.json"
+  if [[ -f "$_try_override" ]]; then
+    exec_cfg=(--override-config "$_try_override")
+  fi
+fi
+if [[ -n "$app_id" && "$no_start" -eq 0 ]]; then
   dc_ensure_running "$app_id" || exit 1
   if [[ ${#cmd[@]} -eq 0 ]]; then
     dc_inject_color_rc "$app_id" || true
@@ -243,17 +309,17 @@ if [[ -n "$app_id" ]]; then
 fi
 if [[ ${#cmd[@]} -eq 0 ]]; then
   if [[ -n "$app_id" ]] && docker exec "$app_id" test -f /tmp/dc-cli.bashrc >/dev/null 2>&1; then
-    exec devcontainer exec --workspace-folder "$ws" \
+    exec devcontainer exec --workspace-folder "$ws" "${exec_cfg[@]+"${exec_cfg[@]}"}" \
       --remote-env "TERM=${TERM:-xterm-256color}" \
       --remote-env "COLORTERM=${COLORTERM:-truecolor}" \
       bash --rcfile /tmp/dc-cli.bashrc
   fi
-  exec devcontainer exec --workspace-folder "$ws" \
+  exec devcontainer exec --workspace-folder "$ws" "${exec_cfg[@]+"${exec_cfg[@]}"}" \
     --remote-env "TERM=${TERM:-xterm-256color}" \
     --remote-env "COLORTERM=${COLORTERM:-truecolor}" \
     bash
 fi
-exec devcontainer exec --workspace-folder "$ws" \
+exec devcontainer exec --workspace-folder "$ws" "${exec_cfg[@]+"${exec_cfg[@]}"}" \
   --remote-env "TERM=${TERM:-xterm-256color}" \
   --remote-env "COLORTERM=${COLORTERM:-truecolor}" \
   "${cmd[@]}"

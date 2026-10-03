@@ -42,6 +42,12 @@ func (m model) View() string {
 	if m.splashOn {
 		return m.splashView()
 	}
+	if m.wsOpen {
+		return m.workspaceView()
+	}
+	if m.actOpen {
+		return m.actionPickerView()
+	}
 	if m.hostBlock {
 		return m.hostView()
 	}
@@ -53,6 +59,9 @@ func (m model) View() string {
 	}
 	if m.netOpen {
 		return m.netView()
+	}
+	if m.activity.open {
+		return m.activityView()
 	}
 	s, _, _ := m.layout()
 	return s
@@ -100,7 +109,7 @@ func (m model) hostView() string {
 		b.WriteString(mutedStyle.Render("Lightweight: brew install docker colima && colima start") + "\n")
 	}
 	b.WriteString("\n")
-	hints := "[r] check again  [d] Desktop guide  [c] copy Colima setup  [q] quit"
+	hints := "[r] check again  [d] Desktop guide  [c] copy Colima setup  [w] workspaces  [q] quit"
 	if m.host.canApply() {
 		hints = "[f] apply  " + hints
 	}
@@ -151,21 +160,11 @@ func (m model) layout() (string, []button, int) {
 		if m.pulse != "" {
 			info.WriteString(kv("load", trunc(m.pulse+"  t=top", max(8, infoW-12))) + "\n")
 		}
-		if m.disk != "" {
-			diskHint := m.disk + "  d=df"
-			if m.diskCritical {
-				diskHint = m.disk + "  CRITICAL  P=prune"
-				info.WriteString(kv("disk", trunc(diskHint, max(8, infoW-12))))
-			} else {
-				info.WriteString(kv("disk", trunc(diskHint, max(8, infoW-12))))
-			}
+		var opt []string
+		for _, row := range m.optionalRows() {
+			opt = append(opt, kv(row[0], trunc(row[1], max(8, infoW-12))))
 		}
-		if line := netHeaderLine(m.net); line != "" {
-			if m.disk != "" {
-				info.WriteString("\n")
-			}
-			info.WriteString(kv("nets", trunc(line+"  n=nets", max(8, infoW-12))))
-		}
+		info.WriteString(strings.Join(opt, "\n"))
 		if banner := m.updateBanner(); banner != "" {
 			info.WriteString("\n" + warnStyle.Render(trunc(banner, infoW)))
 		}
@@ -243,11 +242,43 @@ func (m model) layout() (string, []button, int) {
 	if m.confirm == "rm" || m.confirm == "try" || m.confirm == "upgrade" || m.confirm == "prune" {
 		b.WriteString("\n" + hintStyle.Render("y confirm  n/esc cancel  q quit") + "\n")
 	} else if !m.fleet && len(m.webLinks()) > 0 {
-		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  b db  m files  n nets  1-9 url  j/k  enter  ? more  q quit") + "\n")
+		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  b db  m files  n nets  c actions  v activity  w recent  1-9 url  j/k  enter  ? more  q quit") + "\n")
 	} else {
-		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  b db  m files  n nets  j/k  enter  ? more  q quit") + "\n")
+		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  b db  m files  n nets  c actions  v activity  w recent  j/k  enter  ? more  q quit") + "\n")
 	}
 	return clipBlock(b.String(), w), buttons, rowY0
+}
+
+// optionalRows are the header rows for disk / nets / ports: the value when
+// there is one, plus loading / unavailable / stale when it is not fresh.
+func (m model) optionalRows() [][2]string {
+	var rows [][2]string
+	note := sectionNote
+	if m.disk != "" {
+		v := m.disk + "  d=df"
+		if m.diskCritical {
+			v = m.disk + "  CRITICAL  P=prune"
+		}
+		if n := note(m.diskSec, true); n != "" {
+			v += "  (" + n + ")"
+		}
+		rows = append(rows, [2]string{"disk", v})
+	} else if n := note(m.diskSec, false); n != "" {
+		rows = append(rows, [2]string{"disk", n + "  d=df"})
+	}
+	if line := netHeaderLine(m.net); line != "" {
+		v := line + "  n=nets"
+		if n := note(m.netsSec, true); n != "" {
+			v += "  (" + n + ")"
+		}
+		rows = append(rows, [2]string{"nets", v})
+	} else if n := note(m.netsSec, false); n != "" {
+		rows = append(rows, [2]string{"nets", n + "  n=nets"})
+	}
+	if n := note(m.portsSec, len(m.fwdMaps) > 0); n != "" {
+		rows = append(rows, [2]string{"ports", n + "  p=ports"})
+	}
+	return rows
 }
 
 func leaveLine(kind string) string {
@@ -260,6 +291,8 @@ func leaveLine(kind string) string {
 		return "leaving to files — quit the manager to return"
 	case "upgrade":
 		return "leaving to upgrade — board exits when it finishes"
+	case "action":
+		return "leaving to run the action — board returns when it finishes (Ctrl+C stops it)"
 	default:
 		return "leaving to shell — exit to return"
 	}
@@ -312,6 +345,9 @@ func morePanel(editor string, width int) string {
 		"  db       open TablePlus (etc.) on a declared db port (b)",
 		"  files    yazi/nnn in the box; Enter opens code/cursor on this container (m)",
 		"  fleet    list every labeled workspace",
+		"  w        recent workspaces — type to filter, enter open, ctrl+f favorite, ctrl+d forget",
+		"  c        project actions (.dc/actions.json + personal) — shared ones need review first",
+		"  v        activity — this workspace's container events (latest 200, memory only). c clears",
 		"  disk     dc-df report (d key). P = dc-prune --yes when disk looks critical",
 		"  upgrade  U when a newer release is available → dc-upgrade --yes",
 		"",

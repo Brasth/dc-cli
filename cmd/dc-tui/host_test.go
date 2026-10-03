@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"strings"
 	"testing"
 )
@@ -63,16 +64,16 @@ func TestHostViewShowsTryFixWhenApplyAllowed(t *testing.T) {
 func TestHostKeyRetryClearsViaReloadMsg(t *testing.T) {
 	old := runHostDiagnose
 	t.Cleanup(func() { runHostDiagnose = old })
-	runHostDiagnose = func() (hostReport, error) {
+	runHostDiagnose = func(context.Context) (hostReport, error) {
 		return hostReport{Code: "ready", Status: "ok", Summary: "Docker engine reachable"}, nil
 	}
 
 	m := model{
-		workspace: "/tmp/app",
-		hostBlock: true,
-		host:      hostReport{Code: "docker_cli_missing", Summary: "docker is not on PATH"},
-		load:      loadFailed,
-		loadGen:   1,
+		workspace:  "/tmp/app",
+		hostBlock:  true,
+		host:       hostReport{Code: "docker_cli_missing", Summary: "docker is not on PATH"},
+		load:       loadFailed,
+		loadGen:    1,
 		hoverStack: -1,
 	}
 	got, cmd := m.handleKey("r")
@@ -95,7 +96,7 @@ func TestHostKeyFixRunsRecover(t *testing.T) {
 	}
 	oldDiag := runHostDiagnose
 	t.Cleanup(func() { runHostDiagnose = oldDiag })
-	runHostDiagnose = func() (hostReport, error) {
+	runHostDiagnose = func(context.Context) (hostReport, error) {
 		return hostReport{Code: "ready", Status: "ok"}, nil
 	}
 

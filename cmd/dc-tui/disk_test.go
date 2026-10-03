@@ -31,8 +31,8 @@ func TestPruneConfirmKey(t *testing.T) {
 		return "pruned", nil
 	}
 	m := model{workspace: "/tmp/app", confirm: "prune", hoverStack: -1, loaded: true, load: loadReady}
-	got, _ := m.handleConfirmKey("y")
-	mm := got.(model)
+	got, cmd := m.handleConfirmKey("y")
+	mm := finishStay(t, got.(model), cmd)
 	if gotName != "dc-prune" || len(gotArgs) != 1 || gotArgs[0] != "--yes" {
 		t.Fatalf("prune y ran %s %v", gotName, gotArgs)
 	}

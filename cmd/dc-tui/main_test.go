@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -219,8 +220,8 @@ func TestStayDbStubsRunStay(t *testing.T) {
 		gotArgs = append([]string{}, args...)
 		return "opened postgres on 127.0.0.1:5433 (tableplus)", nil
 	}
-	got, _ := model{workspace: "/tmp/app", hasConfig: true, hoverStack: -1}.handleKey("b")
-	mm := got.(model)
+	got, cmd := model{workspace: "/tmp/app", hasConfig: true, hoverStack: -1}.handleKey("b")
+	mm := finishStay(t, got.(model), cmd)
 	if mm.leaving != "" {
 		t.Fatalf("db stay must not leave the board, leaving=%q", mm.leaving)
 	}
@@ -294,8 +295,8 @@ func TestConfirmRmYesUsesStayHook(t *testing.T) {
 		return "removed", nil
 	}
 	m := model{workspace: "/tmp/app", hasConfig: true, hoverStack: -1, confirm: "rm"}
-	got, _ := m.handleKey("y")
-	mm := got.(model)
+	got, cmd := m.handleKey("y")
+	mm := finishStay(t, got.(model), cmd)
 	if mm.confirm != "" {
 		t.Fatalf("confirm still %q", mm.confirm)
 	}
@@ -387,8 +388,8 @@ func TestStayCmdSplitsStatusAndErr(t *testing.T) {
 	runStay = func(name string, args ...string) (string, error) {
 		return "port taken", errStr("exit status 1")
 	}
-	got, _ := model{workspace: "/tmp/app", hoverStack: -1, status: "old ok"}.stayCmd("dc-forward", "/tmp/app")
-	mm := got.(model)
+	got, cmd := model{workspace: "/tmp/app", hoverStack: -1, status: "old ok"}.stayCmd("dc-forward", "/tmp/app")
+	mm := finishStay(t, got.(model), cmd)
 	if mm.err == "" {
 		t.Fatal("stayCmd failure must set err")
 	}
@@ -817,7 +818,7 @@ func TestTopOpensAndQuits(t *testing.T) {
 	startStatsFollow = func([]string) (io.ReadCloser, func(), error) {
 		return nil, func() {}, errStr("skip")
 	}
-	runStats = func(args ...string) ([]byte, error) {
+	runStats = func(_ context.Context, args ...string) ([]byte, error) {
 		return []byte(`{"schemaVersion":1,"engine":"desktop","guest":{"label":"desktop","cpus":4,"memoryBytes":8589934592,"live":false},"containers":[{"id":"abc","name":"app-1","service":"app","cpuPct":12.4,"memUsedBytes":430000000,"memLimitBytes":0,"netRxBytes":1,"netTxBytes":2}]}`), nil
 	}
 	m := model{workspace: "/tmp/app", hoverStack: -1, rows: []container{{ID: "abc", Status: "running"}}}
@@ -862,7 +863,8 @@ func TestDiskKeyUnchanged(t *testing.T) {
 		name = n
 		return "ok", nil
 	}
-	_, _ = model{hoverStack: -1}.handleKey("d")
+	got, cmd := model{hoverStack: -1}.handleKey("d")
+	finishStay(t, got.(model), cmd)
 	if name != "dc-df" {
 		t.Fatalf("d must stay dc-df, got %q", name)
 	}
@@ -884,7 +886,7 @@ func TestPulseTickSkipsWhenBusy(t *testing.T) {
 	old := runStats
 	t.Cleanup(func() { runStats = old })
 	called := 0
-	runStats = func(_ ...string) ([]byte, error) {
+	runStats = func(_ context.Context, _ ...string) ([]byte, error) {
 		called++
 		return nil, errStr("no")
 	}
@@ -986,8 +988,8 @@ func TestRestartSiblingStay(t *testing.T) {
 			{ID: "db1", Name: "db-1", Service: "db"},
 		},
 	}
-	got, _ := m.handleKey("R")
-	mm := got.(model)
+	got, cmd := m.handleKey("R")
+	mm := finishStay(t, got.(model), cmd)
 	if mm.leaving != "" {
 		t.Fatalf("restart stay must not leave, leaving=%q", mm.leaving)
 	}
