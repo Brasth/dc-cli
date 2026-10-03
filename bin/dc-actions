@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Shell fallback for dc-actions. The real command is the compiled Go binary
+# (release kit, Homebrew, or install.sh with Go). Help works; every other
+# verb explains how to get the compiled binary. Never runs actions itself.
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+dc-actions — per-project commands, run inside this folder's dev container
+
+  dc-actions list [workspace] [--json]
+  dc-actions run [--] ID [workspace]   (-- before an ID that starts with -)
+  dc-actions trust [workspace] [--yes]
+  dc-actions untrust [workspace]
+
+Personal:  ${XDG_CONFIG_HOME:-~/.config}/dc-cli/actions/<sha256 of folder>.json
+Shared:    <workspace>/.dc/actions.json — disabled until trusted (exact bytes).
+
+argv runs as-is (no shell), via dc-exec --no-start (never starts containers).
+Actions run inside your containers and can change data.
+USAGE
+}
+
+case "${1:-}" in
+  -h|--help|help)
+    usage
+    exit 0
+    ;;
+  --version|-V)
+    _here="$(cd "$(dirname "$0")" && pwd)"
+    v="dev"
+    [[ -f "$_here/../VERSION" ]] && v="$(tr -d '[:space:]' <"$_here/../VERSION")"
+    echo "dc-actions ${v#v} (shell fallback)"
+    exit 0
+    ;;
+esac
+
+echo "dc-actions: this install has the shell fallback only — the compiled dc-actions is required." >&2
+echo "  Install a release kit / Homebrew (prebuilt), or install Go and re-run install.sh." >&2
+echo "  All other dc commands work as usual." >&2
+exit 1

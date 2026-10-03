@@ -1,9 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -43,16 +43,21 @@ type topMsg struct {
 	err  error
 }
 
+// pulseMsg is tagged with the workspace + engine it sampled; a pulse from
+// a previous context is dropped.
 type pulseMsg struct {
-	line string
-	err  error
+	workspace string
+	engine    string
+	line      string
+	err       error
 }
 
 type pulseTickMsg struct{}
 
-// runStats is replaced in tests. Returns dc-stats --json stdout.
-var runStats = func(args ...string) ([]byte, error) {
-	return exec.Command("dc-stats", args...).Output()
+// runStats is replaced in tests. Returns dc-stats --json stdout. Read-only:
+// runs as a probe so switching / quitting kills it.
+var runStats = func(ctx context.Context, args ...string) ([]byte, error) {
+	return probe(ctx, "dc-stats", args...)
 }
 
 func (m model) idleForPulse() bool {
@@ -75,8 +80,9 @@ func parseStats(out []byte) (statsSnapshot, error) {
 
 func (m model) fetchStats() tea.Cmd {
 	ws := m.workspace
+	ctx := m.probes.context()
 	return func() tea.Msg {
-		out, err := runStats("--json", ws)
+		out, err := runStats(ctx, "--json", ws)
 		if err != nil {
 			return topMsg{err: err}
 		}
@@ -89,21 +95,22 @@ func (m model) fetchStats() tea.Cmd {
 }
 
 func (m model) fetchPulse() tea.Cmd {
-	ws := m.workspace
+	ws, engine := m.workspace, m.engine
+	ctx := m.probes.context()
 	return func() tea.Msg {
-		out, err := runStats("--json", ws)
+		msg := pulseMsg{workspace: ws, engine: engine}
+		out, err := runStats(ctx, "--json", ws)
 		if err != nil {
-			return pulseMsg{err: err}
+			msg.err = err
+			return msg
 		}
 		snap, err := parseStats(out)
 		if err != nil {
-			return pulseMsg{err: err}
+			msg.err = err
+			return msg
 		}
-		line := pulseLine(snap)
-		if line == "" {
-			return pulseMsg{}
-		}
-		return pulseMsg{line: line}
+		msg.line = pulseLine(snap)
+		return msg
 	}
 }
 
@@ -189,6 +196,9 @@ func (m model) applyTopMsg(msg topMsg) (model, tea.Cmd) {
 }
 
 func (m model) applyPulse(msg pulseMsg) (model, tea.Cmd) {
+	if msg.workspace != m.workspace || msg.engine != m.engine {
+		return m, m.pulseCmd()
+	}
 	if msg.err == nil && msg.line != "" {
 		m.pulse = msg.line
 	}

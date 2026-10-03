@@ -359,6 +359,30 @@ elif [[ -f "$ROOT/bin/dc-tui" ]]; then
   echo "Staged bash dc-tui (install Go for clickable buttons)"
 fi
 
+# dc-actions: prebuilt binary (release kit) → Go build → shell fallback that
+# keeps --help and explains the compiled binary is required.
+if [[ -f "$ROOT/bin/dc-actions" && "$(head -c 2 "$ROOT/bin/dc-actions")" != "#!" ]]; then
+  cp "$ROOT/bin/dc-actions" "$stage/bin/dc-actions"
+  chmod +x "$stage/bin/dc-actions"
+  echo "Staged prebuilt dc-actions"
+elif [[ "${DC_SKIP_TUI_BUILD:-}" != "1" && -f "$ROOT/cmd/dc-actions/main.go" ]] && command -v go >/dev/null 2>&1; then
+  echo "Building dc-actions (Go)..."
+  ver=""
+  if [[ -f "$ROOT/VERSION" ]]; then
+    ver="$(tr -d '[:space:]' <"$ROOT/VERSION" || true)"
+    ver="${ver#v}"
+  fi
+  ldflags="-s -w"
+  [[ -n "$ver" ]] && ldflags="$ldflags -X main.version=${ver}"
+  (cd "$ROOT" && go build -ldflags "$ldflags" -o "$stage/bin/dc-actions" ./cmd/dc-actions)
+  chmod +x "$stage/bin/dc-actions"
+  echo "Staged Go dc-actions"
+elif [[ -f "$ROOT/bin/dc-actions" ]]; then
+  cp "$ROOT/bin/dc-actions" "$stage/bin/dc-actions"
+  chmod +x "$stage/bin/dc-actions"
+  echo "Staged shell dc-actions fallback (install Go or a release kit for actions)"
+fi
+
 if [[ -d "$ROOT/lib" ]]; then
   cp "$ROOT/lib/"*.sh "$stage/lib/"
 else
@@ -421,7 +445,7 @@ exec "${GEN_ROOT}/current/bin/${name}" "\$@"
 EOF
   chmod +x "$PREFIX/$name"
 }
-for f in "${HELPERS[@]}" dc-tui; do
+for f in "${HELPERS[@]}" dc-tui dc-actions; do
   if [[ -x "$GEN_ROOT/current/bin/$f" ]]; then
     write_shim "$f"
   fi

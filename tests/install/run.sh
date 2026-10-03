@@ -308,6 +308,46 @@ EOF
   rm -rf "$home"
 }
 
+case_actions_shell_fallback() {
+  local home prefix out rc
+  home="$(mktemp -d "${TMPDIR:-/tmp}/dc-inst.XXXX")"
+  prefix="$home/bin"
+  mkdir -p "$prefix"
+  HOME="$home" DC_GENERATION_ROOT="$home/share/generations" PREFIX="$prefix" \
+    DC_SKIP_TUI_BUILD=1 DC_SKIP_YAZI=1 \
+    bash "$ROOT/install.sh" --prefix "$prefix" >/dev/null
+  [[ -x "$prefix/dc-actions" ]]
+  [[ "$(head -c 2 "$home/share/generations/current/bin/dc-actions")" == "#!" ]]
+  "$prefix/dc-actions" --help | grep -q 'dc-actions list'
+  "$prefix/dc" actions --help | grep -q 'dc-actions run'
+  set +e
+  out="$("$prefix/dc-actions" list 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" -eq 1 ]]
+  printf '%s\n' "$out" | grep -q 'compiled dc-actions is required'
+  # Other commands keep working.
+  "$prefix/dc" --help | grep -q 'dc actions'
+  "$prefix/dc-up" --help >/dev/null
+  rm -rf "$home"
+}
+
+case_actions_source_build() {
+  command -v go >/dev/null 2>&1 || { echo "  skip (no go)"; return 0; }
+  local home prefix
+  home="$(mktemp -d "${TMPDIR:-/tmp}/dc-inst.XXXX")"
+  prefix="$home/bin"
+  mkdir -p "$prefix"
+  HOME="$home" DC_GENERATION_ROOT="$home/share/generations" PREFIX="$prefix" \
+    DC_SKIP_YAZI=1 GOPATH="$(go env GOPATH)" GOMODCACHE="$(go env GOMODCACHE)" GOCACHE="$(go env GOCACHE)" \
+    bash "$ROOT/install.sh" --prefix "$prefix" >/dev/null
+  [[ "$(head -c 2 "$home/share/generations/current/bin/dc-actions")" != "#!" ]]
+  "$prefix/dc-actions" --version | grep -q '^dc-actions '
+  "$prefix/dc-actions" --help | grep -q 'trust'
+  chmod -R u+w "$home"
+  rm -rf "$home"
+}
+
 
 echo "== installer gates =="
 run_case "help lists --with-cli-npm" case_help_npm_flag
@@ -326,6 +366,8 @@ run_case "bash 3 fail-fast requires Bash 4" case_bash3_failfast
 run_case "release kit checksum match extracts" case_checksum_match
 run_case "release kit checksum mismatch refuses" case_checksum_mismatch
 run_case "piped install from HOME with leftover ~/bin/dc-up fetches kit" case_pipe_home_leftover_shims
+run_case "dc-actions shell fallback: help works, run needs compiled" case_actions_shell_fallback
+run_case "dc-actions compiled from source with Go" case_actions_source_build
 
 echo
 if [[ "$FAILED" -ne 0 ]]; then

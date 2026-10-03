@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pack bash kit + prebuilt dc-tui for one GOOS/GOARCH.
+# Pack bash kit + prebuilt dc-tui and dc-actions for one GOOS/GOARCH.
 # Usage: scripts/pack-release.sh VERSION GOOS GOARCH [OUT_DIR]
 set -euo pipefail
 
@@ -32,10 +32,17 @@ CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build -trimpath \
   -o "$dest/bin/dc-tui" "$ROOT/cmd/dc-tui"
 chmod +x "$dest/bin/dc-tui"
 
-if [[ "$(head -c 2 "$dest/bin/dc-tui")" == "#!" ]]; then
-  echo "dc-tui looks like a script, not a binary" >&2
-  exit 1
-fi
+CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build -trimpath \
+  -ldflags "-s -w -X main.version=${VERSION}" \
+  -o "$dest/bin/dc-actions" "$ROOT/cmd/dc-actions"
+chmod +x "$dest/bin/dc-actions"
+
+for b in dc-tui dc-actions; do
+  if [[ "$(head -c 2 "$dest/bin/$b")" == "#!" ]]; then
+    echo "$b looks like a script, not a binary" >&2
+    exit 1
+  fi
+done
 
 cp "$ROOT/lib/"*.sh "$dest/lib/"
 cp "$ROOT/config/override.json" "$dest/config/override.json"

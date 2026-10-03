@@ -28,6 +28,7 @@ dc — this folder. Two spellings, same command.
   dc recover / dc-recover        one next step (--yes applies)
   dc upgrade / dc-upgrade        check / install latest release
   dc try / dc-try                sandbox when there is no config
+  dc actions / dc-actions        per-project commands (list / run / trust)
 
   dc exec --service NAME
   dc --all                       fleet board
@@ -39,7 +40,7 @@ EOF
 
 is_verb() {
   case "$1" in
-    tui|doctor|inspect|recover|engine|upgrade|up|try|exec|down|ls|open|db|files|forward|ps|df|stats|net|prune)
+    tui|doctor|inspect|recover|engine|upgrade|up|try|exec|down|ls|open|db|files|forward|ps|df|stats|net|prune|actions)
       return 0
       ;;
     *)

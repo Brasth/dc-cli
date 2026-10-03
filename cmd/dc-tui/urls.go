@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -55,13 +56,13 @@ var browseURL = func(raw string) error {
 
 // listFwdMaps returns sidecar host|container pairs owned by this workspace.
 // Tests replace it so layout never needs Docker.
-var listFwdMaps = func(ws string) []portPair {
-	out, err := exec.Command("docker", "ps",
+var listFwdMaps = func(ctx context.Context, ws string) ([]portPair, error) {
+	out, err := probe(ctx, "docker", "ps",
 		"--filter", "label=dc.forward.owner=dc-cli",
 		"--format", `{{.Label "dc.forward.workspace"}}{{"\t"}}{{.Label "dc.forward.host"}}{{"\t"}}{{.Label "dc.forward.container"}}`,
-	).Output()
+	)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	var pairs []portPair
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
@@ -79,18 +80,18 @@ var listFwdMaps = func(ws string) []portPair {
 		}
 		pairs = append(pairs, portPair{Host: h, Container: c})
 	}
-	return pairs
+	return pairs, nil
 }
 
 // listStackPorts reads published host bindings from compose siblings
 // (nginx / mitm / app). Tests replace it so layout never needs Docker.
-var listStackPorts = func(stack []stackSvc) []portPair {
+var listStackPorts = func(ctx context.Context, stack []stackSvc) ([]portPair, error) {
 	if len(stack) == 0 {
-		return nil
+		return nil, nil
 	}
-	out, err := exec.Command("docker", "ps", "--format", "{{.ID}}\t{{.Ports}}").Output()
+	out, err := probe(ctx, "docker", "ps", "--format", "{{.ID}}\t{{.Ports}}")
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	var pairs []portPair
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
@@ -103,7 +104,7 @@ var listStackPorts = func(stack []stackSvc) []portPair {
 		}
 		pairs = append(pairs, parsePublishedPairs(ports)...)
 	}
-	return pairs
+	return pairs, nil
 }
 
 func stackHasID(stack []stackSvc, id string) bool {

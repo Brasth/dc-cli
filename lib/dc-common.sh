@@ -174,6 +174,15 @@ dc_cli_update_state() {
 
 dc_json_escape() {
   local s="$1"
+  # Printable ASCII: escape \ and " in Bash (same bytes json.dumps emits),
+  # no python3 spawn per field. Anything else goes through json.dumps.
+  local LC_ALL=C
+  if [[ ! "$s" =~ [^\ -~] ]]; then
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    printf '%s' "$s"
+    return
+  fi
   if command -v python3 >/dev/null 2>&1; then
     python3 -c 'import json,sys; sys.stdout.write(json.dumps(sys.argv[1])[1:-1])' "$s"
     return
@@ -274,13 +283,24 @@ dc_workspace_kind() {
 # Missing both → unknown (not owned). Name-alone never owns.
 dc_compose_proves_workspace() {
   local id="$1" dir="$2"
-  local wd files f parent
+  local wd files
   [[ -n "$id" && -n "$dir" && -d "$dir" ]] || return 1
   wd="$(dc_label "$id" "$DC_LABEL_COMPOSE_WORKDIR")"
   if [[ -n "$wd" ]] && dc_same_workspace "$wd" "$dir" 2>/dev/null; then
     return 0
   fi
   files="$(dc_label "$id" "$DC_LABEL_COMPOSE_CONFIGS")"
+  dc_compose_proves_fields "" "$files" "$dir"
+}
+
+# Same proof from label values already in hand (batch snapshot).
+# Args: working_dir config_files dir
+dc_compose_proves_fields() {
+  local wd="$1" files="$2" dir="$3" f parent
+  [[ -n "$dir" && -d "$dir" ]] || return 1
+  if [[ -n "$wd" ]] && dc_same_workspace "$wd" "$dir" 2>/dev/null; then
+    return 0
+  fi
   [[ -n "$files" ]] || return 1
   IFS=',' read -ra _cf <<<"$files"
   for f in "${_cf[@]+"${_cf[@]}"}"; do
@@ -293,28 +313,45 @@ dc_compose_proves_workspace() {
   return 1
 }
 
-# Compose-kind this-folder ids. Filter by declared project name, then prove
-# working_dir/config_files. Not a daemon-wide working_dir walk.
-dc_ids_for_compose_workspace() {
-  local dir="${1:-.}"
-  local name id abs
-  [[ -d "$dir" ]] || return 0
-  command -v docker >/dev/null 2>&1 || return 0
-  abs="$(cd "$dir" && pwd)"
-  name=""
+# Compose project name for a compose-kind folder (declared name, else basename).
+dc_compose_kind_project() {
+  local abs="$1" name=""
   if type dc_compose_declared_name >/dev/null 2>&1; then
     name="$(dc_compose_declared_name "$abs" || true)"
   fi
   if [[ -z "$name" ]]; then
     name="$(basename "$abs")"
   fi
+  printf '%s\n' "$name"
+}
+
+# Compose-kind snapshot rows (see dc_inspect_snapshot) proven to belong to $dir.
+# Sidecars are kept here; callers that list a stack drop them.
+dc_compose_kind_snapshot() {
+  local dir="${1:-.}" name abs line
+  local -a ids=() f=()
+  [[ -d "$dir" ]] || return 0
+  command -v docker >/dev/null 2>&1 || return 0
+  abs="$(cd "$dir" && pwd)"
+  name="$(dc_compose_kind_project "$abs")"
   [[ -n "$name" ]] || return 0
-  while IFS= read -r id; do
-    [[ -n "$id" ]] || continue
-    if dc_compose_proves_workspace "$id" "$abs"; then
-      printf '%s\n' "$id"
-    fi
-  done < <(docker ps -aq --filter "label=${DC_LABEL_COMPOSE}=${name}" 2>/dev/null)
+  mapfile -t ids < <(docker ps -aq --filter "label=${DC_LABEL_COMPOSE}=${name}" 2>/dev/null)
+  [[ ${#ids[@]} -gt 0 ]] || return 0
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    IFS=$'\x1f' read -r -a f <<<"$line"
+    dc_compose_proves_fields "${f[7]:-}" "${f[8]:-}" "$abs" || continue
+    printf '%s\n' "$line"
+  done < <(dc_inspect_snapshot "${ids[@]}")
+}
+
+# Compose-kind this-folder ids. Filter by declared project name, then prove
+# working_dir/config_files. Not a daemon-wide working_dir walk.
+dc_ids_for_compose_workspace() {
+  local line
+  while IFS= read -r line; do
+    printf '%s\n' "${line%%$'\x1f'*}"
+  done < <(dc_compose_kind_snapshot "${1:-.}")
 }
 
 # Print abs path of $1 (default .). If no .devcontainer and git root differs, use git root.
@@ -419,6 +456,67 @@ dc_labeled_ids() {
     return 0
   fi
   docker ps -aq --filter "label=${DC_LABEL_FOLDER}" 2>/dev/null || true
+}
+
+# Labeled apps with their folder + compose project, straight from `docker ps`
+# (labels ride along; no inspect). Lines: id US folder US project
+dc_labeled_folders() {
+  command -v docker >/dev/null 2>&1 || return 0
+  docker ps -a --filter "label=${DC_LABEL_FOLDER}" \
+    --format "{{.ID}}{{\"\\x1f\"}}{{.Label \"${DC_LABEL_FOLDER}\"}}{{\"\\x1f\"}}{{.Label \"${DC_LABEL_COMPOSE}\"}}" \
+    2>/dev/null || true
+}
+
+# One `docker inspect` for many containers. Read-only listing snapshot:
+# callers that mutate (start / restart / exec target) re-resolve membership
+# themselves. Unit-separated (US, \x1f) so empty fields keep their column:
+#   0 id  1 name  2 status  3 image  4 local_folder  5 compose project
+#   6 service  7 compose working_dir  8 compose config_files  9 dc.forward.for
+# id is echoed as the caller spelled it. Ids that vanished are skipped.
+DC_SNAPSHOT_FMT='{{.Id}}{{"\x1f"}}{{.Name}}{{"\x1f"}}{{.State.Status}}{{"\x1f"}}{{.Config.Image}}{{"\x1f"}}{{index .Config.Labels "devcontainer.local_folder"}}{{"\x1f"}}{{index .Config.Labels "com.docker.compose.project"}}{{"\x1f"}}{{index .Config.Labels "com.docker.compose.service"}}{{"\x1f"}}{{index .Config.Labels "com.docker.compose.project.working_dir"}}{{"\x1f"}}{{index .Config.Labels "com.docker.compose.project.config_files"}}{{"\x1f"}}{{index .Config.Labels "dc.forward.for"}}'
+
+dc_inspect_snapshot() {
+  [[ $# -gt 0 ]] || return 0
+  local out line full want i
+  local -a f=()
+  out="$(docker inspect -f "$DC_SNAPSHOT_FMT" "$@" 2>/dev/null)" || true
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    IFS=$'\x1f' read -r -a f <<<"$line"
+    full="${f[0]:-}"
+    [[ -n "$full" ]] || continue
+    for want in "$@"; do
+      if [[ -n "$want" && "$full" == "$want"* ]]; then
+        f[0]="$want"
+        break
+      fi
+    done
+    f[1]="${f[1]#/}"
+    for i in 1 2 3 4 5 6 7 8 9; do
+      [[ "${f[$i]:-}" == "<no value>" ]] && f[$i]=""
+    done
+    printf '%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n' \
+      "${f[0]}" "${f[1]:-}" "${f[2]:-}" "${f[3]:-}" "${f[4]:-}" \
+      "${f[5]:-}" "${f[6]:-}" "${f[7]:-}" "${f[8]:-}" "${f[9]:-}"
+  done <<<"$out"
+}
+
+# Published ports for every container in one `docker ps`. Lines: id US ports
+dc_ports_snapshot() {
+  command -v docker >/dev/null 2>&1 || return 0
+  docker ps -a --format '{{.ID}}{{"\x1f"}}{{.Ports}}' 2>/dev/null || true
+}
+
+# Ports for $1 from a dc_ports_snapshot blob in $2 (prefix match either way).
+dc_ports_from_snapshot() {
+  local id="$1" blob="$2" pid ports
+  while IFS=$'\x1f' read -r pid ports; do
+    [[ -n "$pid" ]] || continue
+    if [[ "$id" == "$pid"* || "$pid" == "$id"* ]]; then
+      printf '%s\n' "$ports"
+      return 0
+    fi
+  done <<<"$blob"
 }
 
 # TSV: id<TAB>name<TAB>status<TAB>local_folder<TAB>compose<TAB>ports
@@ -566,8 +664,11 @@ dc_compose_holder_folder() {
 }
 
 # TSV: id<TAB>name<TAB>status<TAB>service<TAB>image  (compose siblings; skip our sidecars)
+# One `docker inspect` for the whole stack (dc_inspect_snapshot). Each call is
+# a fresh read: mutations (restart / exec target) call this again, never reuse.
 dc_stack_rows() {
-  local dir="${1:-.}" id proj cid name status service image fwd abs
+  local dir="${1:-.}" id proj abs line
+  local -a f=() ids=()
   if [[ "$(dc_workspace_kind "$dir")" == "compose" ]]; then
     [[ -d "$dir" ]] || return 0
     command -v docker >/dev/null 2>&1 || return 0
@@ -577,39 +678,30 @@ dc_stack_rows() {
       proj="$(dc_compose_project_name "$abs" || true)"
     fi
     [[ -n "$proj" ]] || return 0
-    while IFS= read -r cid; do
-      [[ -n "$cid" ]] || continue
-      fwd="$(docker inspect -f '{{index .Config.Labels "dc.forward.for"}}' "$cid" 2>/dev/null || true)"
-      [[ -z "$fwd" || "$fwd" == "<no value>" ]] || continue
-      dc_compose_proves_workspace "$cid" "$abs" || continue
-      name="$(docker inspect -f '{{.Name}}' "$cid" | sed 's#^/##')"
-      status="$(docker inspect -f '{{.State.Status}}' "$cid")"
-      service="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_SERVICE}\"}}" "$cid" 2>/dev/null || true)"
-      image="$(docker inspect -f '{{.Config.Image}}' "$cid" 2>/dev/null || true)"
-      printf '%s\t%s\t%s\t%s\t%s\n' "$cid" "$name" "$status" "$service" "$image"
-    done < <(docker ps -aq --filter "label=${DC_LABEL_COMPOSE}=${proj}" 2>/dev/null)
+    mapfile -t ids < <(docker ps -aq --filter "label=${DC_LABEL_COMPOSE}=${proj}" 2>/dev/null)
+    [[ ${#ids[@]} -gt 0 ]] || return 0
+    while IFS= read -r line; do
+      [[ -n "$line" ]] || continue
+      IFS=$'\x1f' read -r -a f <<<"$line"
+      [[ -z "${f[9]:-}" ]] || continue
+      dc_compose_proves_fields "${f[7]:-}" "${f[8]:-}" "$abs" || continue
+      printf '%s\t%s\t%s\t%s\t%s\n' "${f[0]}" "${f[1]:-}" "${f[2]:-}" "${f[6]:-}" "${f[3]:-}"
+    done < <(dc_inspect_snapshot "${ids[@]}")
     return 0
   fi
-  mapfile -t ids < <(dc_ids_for_workspace "$dir")
-  id=""
-  for cid in "${ids[@]+"${ids[@]}"}"; do
-    [[ -n "$cid" ]] || continue
-    id="$cid"
-    break
-  done
+  line="$(dc_workspace_app_rows "$dir" | head -n1)"
+  id="${line%%$'\x1f'*}"
   [[ -n "$id" ]] || return 0
-  proj="$(dc_compose_project_for "$id")"
+  proj="${line#*$'\x1f'}"
   [[ -n "$proj" ]] || return 0
-  while IFS= read -r cid; do
-    [[ -n "$cid" ]] || continue
-    fwd="$(docker inspect -f '{{index .Config.Labels "dc.forward.for"}}' "$cid" 2>/dev/null || true)"
-    [[ -z "$fwd" || "$fwd" == "<no value>" ]] || continue
-    name="$(docker inspect -f '{{.Name}}' "$cid" | sed 's#^/##')"
-    status="$(docker inspect -f '{{.State.Status}}' "$cid")"
-    service="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_SERVICE}\"}}" "$cid" 2>/dev/null || true)"
-    image="$(docker inspect -f '{{.Config.Image}}' "$cid" 2>/dev/null || true)"
-    printf '%s\t%s\t%s\t%s\t%s\n' "$cid" "$name" "$status" "$service" "$image"
-  done < <(docker ps -aq --filter "label=${DC_LABEL_COMPOSE}=${proj}" 2>/dev/null)
+  mapfile -t ids < <(docker ps -aq --filter "label=${DC_LABEL_COMPOSE}=${proj}" 2>/dev/null)
+  [[ ${#ids[@]} -gt 0 ]] || return 0
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    IFS=$'\x1f' read -r -a f <<<"$line"
+    [[ -z "${f[9]:-}" ]] || continue
+    printf '%s\t%s\t%s\t%s\t%s\n' "${f[0]}" "${f[1]:-}" "${f[2]:-}" "${f[6]:-}" "${f[3]:-}"
+  done < <(dc_inspect_snapshot "${ids[@]}")
 }
 
 dc_stack_json() {
@@ -629,21 +721,74 @@ dc_stack_json() {
   printf ']\n'
 }
 
-dc_ids_for_workspace() {
+# Labeled apps for this folder. Lines: id US compose-project
+dc_workspace_app_rows() {
   local dir="${1:-.}"
-  local abs id folder
+  local abs id folder proj
   local -a cands=()
   mapfile -t cands < <(dc_workspace_candidates "$dir")
-  while IFS= read -r id; do
+  while IFS=$'\x1f' read -r id folder proj; do
     [[ -n "$id" ]] || continue
-    folder="$(docker inspect -f "{{index .Config.Labels \"${DC_LABEL_FOLDER}\"}}" "$id" 2>/dev/null || true)"
+    [[ "$folder" == "<no value>" ]] && folder=""
+    [[ "$proj" == "<no value>" ]] && proj=""
     for abs in "${cands[@]}"; do
       if dc_same_workspace "$folder" "$abs"; then
-        printf '%s\n' "$id"
+        printf '%s\x1f%s\n' "$id" "$proj"
         break
       fi
     done
-  done < <(dc_labeled_ids)
+  done < <(dc_labeled_folders)
+}
+
+dc_ids_for_workspace() {
+  local line
+  while IFS= read -r line; do
+    printf '%s\n' "${line%%$'\x1f'*}"
+  done < <(dc_workspace_app_rows "${1:-.}")
+}
+
+# Rows for dc-ls: id name status local_folder compose ports, unit-separated
+# (US, \x1f) so empty columns survive `read`. One inspect + one `docker ps`.
+dc_ls_rows() {
+  local mode="all" dir="."
+  case "${1:-}" in
+    --workspace) mode="workspace"; dir="${2:-.}" ;;
+  esac
+  command -v docker >/dev/null 2>&1 || return 0
+  local -a ids=()
+  if [[ "$mode" == "workspace" ]]; then
+    if [[ "$(dc_workspace_kind "$dir")" == "compose" ]]; then
+      dc_compose_kind_snapshot "$dir" | dc_ls_rows_from_snapshot
+      return 0
+    fi
+    mapfile -t ids < <(dc_ids_for_workspace "$dir")
+  else
+    mapfile -t ids < <(dc_labeled_ids)
+  fi
+  dc_ls_rows_for_ids "${ids[@]+"${ids[@]}"}"
+}
+
+# dc-ls rows (same columns as dc_ls_rows) for an explicit id list.
+dc_ls_rows_for_ids() {
+  [[ $# -gt 0 ]] || return 0
+  dc_inspect_snapshot "$@" | dc_ls_rows_from_snapshot
+}
+
+# stdin: dc_inspect_snapshot lines → dc-ls rows (+ one `docker ps` for ports).
+dc_ls_rows_from_snapshot() {
+  local line ports_blob=""
+  local -a f=()
+  local fetched=0
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    if [[ "$fetched" -eq 0 ]]; then
+      ports_blob="$(dc_ports_snapshot)"
+      fetched=1
+    fi
+    IFS=$'\x1f' read -r -a f <<<"$line"
+    printf '%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n' "${f[0]}" "${f[1]:-}" "${f[2]:-missing}" "${f[4]:-}" "${f[5]:-}" \
+      "$(dc_ports_from_snapshot "${f[0]}" "$ports_blob")"
+  done
 }
 
 # Print JSON array to stdout. Args: --workspace DIR | --all
@@ -665,30 +810,24 @@ dc_ls_json() {
     shift || true
   done
 
-  local -a ids=()
   if ! command -v docker >/dev/null 2>&1; then
     echo "[]"
     return 0
   fi
 
   local row_kind="devcontainer"
+  local -a args=(--all)
   if [[ "$mode" == "workspace" ]]; then
+    args=(--workspace "$dir")
     if [[ "$(dc_workspace_kind "$dir")" == "compose" ]]; then
-      mapfile -t ids < <(dc_ids_for_compose_workspace "$dir")
       row_kind="compose"
-    else
-      mapfile -t ids < <(dc_ids_for_workspace "$dir")
     fi
-  else
-    mapfile -t ids < <(dc_labeled_ids)
   fi
 
-  local id first=1
+  local id name status folder compose ports first=1
   printf '['
-  for id in "${ids[@]+"${ids[@]}"}"; do
+  while IFS=$'\x1f' read -r id name status folder compose ports; do
     [[ -n "${id:-}" ]] || continue
-    local name status folder compose ports
-    IFS=$'\t' read -r id name status folder compose ports < <(dc_inspect_row "$id") || continue
     [[ "$first" -eq 1 ]] || printf ','
     first=0
     printf '{"id":"%s","name":"%s","status":"%s","local_folder":"%s","compose":"%s","ports":"%s","kind":"%s"}' \
@@ -699,7 +838,7 @@ dc_ls_json() {
       "$(dc_json_escape "$compose")" \
       "$(dc_json_escape "$ports")" \
       "$(dc_json_escape "$row_kind")"
-  done
+  done < <(dc_ls_rows "${args[@]}")
   printf ']\n'
 }
 
@@ -726,11 +865,7 @@ dc_ls_table() {
   else
     mapfile -t ids < <(dc_labeled_ids)
   fi
-  local id
-  for id in "${ids[@]+"${ids[@]}"}"; do
-    [[ -n "${id:-}" ]] || continue
-    dc_inspect_row "$id"
-  done
+  dc_ls_rows_for_ids "${ids[@]+"${ids[@]}"}" | tr '\037' '\t'
 }
 
 # Print executable path for zed|code|subl. Checks PATH then macOS .app bundles.

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/Canvilled/dc-cli/internal/actions"
 )
 
 type container struct {
@@ -46,77 +48,100 @@ const (
 )
 
 type model struct {
-	workspace  string
-	fleet      bool
-	status     string
-	hasConfig  bool
-	hasCompose bool
-	editor     string
-	rows       []container
-	stack      []stackSvc
-	fwdMaps    []portPair
-	buttons    []button
-	rowY0      int
-	width      int
-	height     int
-	err        string
-	quitting   bool
-	more       bool
-	hover      string
-	hoverStack int // -1 = none
-	disk       string
-	diskGuest  string
-	diskCritical bool
-	confirm    string // "", "rm", "try", or "upgrade"
-	cursor     int
-	leaving    string // "", "start", "shell", "logs"
-	pending    string // action key after leave tick: u/e/l or stack:N
-	splashOn   bool
-	splash     int
-	logOpen    bool
-	logID      string
-	logName    string
-	logLines   []string
-	logOff     int
-	logFollow  bool
-	logStop    func()
-	logR       *bufio.Reader
-	topOpen    bool
-	topSnap    statsSnapshot
-	topErr     string
-	topCursor  int
-	topStop    func()
-	topR       *bufio.Reader
-	topHist    map[string]sparkHist
-	topLast    time.Time
-	topStale   bool
-	pulse      string
-	netOpen    bool
-	net        netReport
-	netErr     string
-	load       loadState
-	loadGen    int
-	loaded     bool // true when current context has a successful snapshot
-	hostBlock  bool
-	host       hostReport
-	updateAvail      bool
-	updateInstalled  string
-	updateLatest     string
-}
+	workspace       string
+	fleet           bool
+	status          string
+	hasConfig       bool
+	hasCompose      bool
+	editor          string
+	rows            []container
+	stack           []stackSvc
+	fwdMaps         []portPair
+	buttons         []button
+	rowY0           int
+	width           int
+	height          int
+	err             string
+	quitting        bool
+	more            bool
+	hover           string
+	hoverStack      int // -1 = none
+	disk            string
+	diskGuest       string
+	diskCritical    bool
+	confirm         string // "", "rm", "try", or "upgrade"
+	cursor          int
+	leaving         string // "", "start", "shell", "logs"
+	pending         string // action key after leave tick: u/e/l or stack:N
+	splashOn        bool
+	splash          int
+	logOpen         bool
+	logID           string
+	logName         string
+	logLines        []string
+	logOff          int
+	logFollow       bool
+	logStop         func()
+	logR            *bufio.Reader
+	topOpen         bool
+	topSnap         statsSnapshot
+	topErr          string
+	topCursor       int
+	topStop         func()
+	topR            *bufio.Reader
+	topHist         map[string]sparkHist
+	topLast         time.Time
+	topStale        bool
+	pulse           string
+	netOpen         bool
+	net             netReport
+	netErr          string
+	load            loadState
+	loadGen         int
+	loaded          bool // true when current context has a successful snapshot
+	hostBlock       bool
+	host            hostReport
+	updateAvail     bool
+	updateInstalled string
+	updateLatest    string
 
-type reloadMsg struct {
-	gen       int
-	workspace string
-	fleet     bool
-	rows      []container
-	stack     []stackSvc
-	fwdMaps   []portPair
-	disk      string
-	diskGuest string
-	nets      netReport
-	host      hostReport
-	hostErr   error
-	err       error
+	// probes scopes read-only subprocesses to this workspace/fleet context.
+	probes   *probeSession
+	engine   string // docker CLI target of the current snapshot
+	diskSec  sectionState
+	portsSec sectionState
+	netsSec  sectionState
+	busy     string // stay command still running (async)
+	// discoveryPending: a refresh was asked while one was in flight.
+	discoveryPending bool
+
+	// Recent-workspace picker (w).
+	wsOpen    bool
+	wsLoading bool
+	wsFilter  string
+	wsCursor  int
+	wsItems   []wsItem
+	wsWarn    string
+
+	// Project actions picker (c).
+	actOpen    bool
+	actReview  bool
+	actFilter  string
+	actCursor  int
+	actSet     *actions.Set
+	actWarn    string
+	actPending *actionRun
+	// actGen tags picker loads / approvals / run checks; bumped on open,
+	// close and switch so a late result never lands on another picker.
+	actGen       int
+	actPreparing bool
+	// Review viewport: every shared command, wrapped, scrolled; y needs the
+	// end to have been on screen.
+	actReviewOff     int
+	actReviewSeenEnd bool
+
+	// Activity timeline (v) and its docker events stream.
+	activity activityState
 }
 
 type execDoneMsg struct {
@@ -132,12 +157,17 @@ const splashStep = 70 * time.Millisecond
 
 func (m model) Init() tea.Cmd {
 	// load/loadGen are set by main before Run; do not mutate model here.
+	cmds := []tea.Cmd{m.reloadCmd(), m.pulseCmd(), m.updateCheckCmd()}
+	if !m.fleet {
+		// The board opened this folder: remember it for the w picker.
+		cmds = append(cmds, recordWorkspaceCmd(m.workspace))
+	}
 	if m.splashOn {
-		return tea.Batch(m.reloadCmd(), m.pulseCmd(), m.updateCheckCmd(), tea.Tick(splashStep, func(time.Time) tea.Msg {
+		cmds = append(cmds, tea.Tick(splashStep, func(time.Time) tea.Msg {
 			return splashTickMsg{}
 		}))
 	}
-	return tea.Batch(m.reloadCmd(), m.pulseCmd(), m.updateCheckCmd())
+	return tea.Batch(cmds...)
 }
 
 // hardLoading is initial load or a context switch with no trusted snapshot.
@@ -156,13 +186,11 @@ func (m model) clearContextData() model {
 	m.net = netReport{}
 	m.netErr = ""
 	m.pulse = ""
-	m.disk = ""
-	m.diskGuest = ""
-	m.diskCritical = false
 	m.cursor = 0
 	m.hoverStack = -1
 	m.confirm = ""
-	return m
+	m.discoveryPending = false
+	return m.clearOptional()
 }
 
 // beginHardReload clears context-specific data and starts discovery.
@@ -178,13 +206,17 @@ func (m model) beginHardReload() (model, tea.Cmd) {
 func (m model) beginSoftReload() (model, tea.Cmd) {
 	m.loadGen++
 	m.load = loadPending
+	m.discoveryPending = false
 	return m, m.reloadCmd()
 }
 
+// applyReload applies essentials. Optional sections are untouched here; they
+// arrive as their own optionalMsg after handleReload starts them.
 func (m model) applyReload(msg reloadMsg) model {
-	if msg.gen != m.loadGen || msg.workspace != m.workspace || msg.fleet != m.fleet {
+	if !m.reloadMatches(msg) {
 		return m
 	}
+	m.engine = msg.engine
 	m.hasConfig = hasDevcontainer(m.workspace)
 	m.hasCompose = hasRootCompose(m.workspace)
 	if msg.host.blocked() {
@@ -196,12 +228,8 @@ func (m model) applyReload(msg reloadMsg) model {
 		if !m.loaded {
 			m.rows = nil
 			m.stack = nil
-			m.fwdMaps = nil
-			m.disk = ""
-			m.diskGuest = ""
-			m.diskCritical = false
-			m.net = netReport{}
 			m.pulse = ""
+			m = m.clearOptional()
 		}
 		return m
 	}
@@ -213,19 +241,13 @@ func (m model) applyReload(msg reloadMsg) model {
 		if !m.loaded {
 			m.rows = nil
 			m.stack = nil
-			m.fwdMaps = nil
-			m.net = netReport{}
+			m = m.clearOptional()
 		}
 		m.clampCursor()
 		return m
 	}
 	m.rows = msg.rows
 	m.stack = msg.stack
-	m.fwdMaps = msg.fwdMaps
-	m.disk = msg.disk
-	m.diskGuest = msg.diskGuest
-	m.diskCritical = diskLooksCritical(msg.disk, msg.diskGuest)
-	m.net = msg.nets
 	m.load = loadReady
 	m.loaded = true
 	m.clampCursor()
@@ -266,7 +288,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case reloadMsg:
-		m = m.applyReload(msg)
+		return m.handleReload(msg)
+	case optionalMsg:
+		return m.applyOptional(msg), nil
+	case stayDoneMsg:
+		return m.applyStayDone(msg)
+	case wsListMsg:
+		return m.applyWsList(msg), nil
+	case actionsLoadedMsg:
+		return m.applyActionsLoaded(msg), nil
+	case actionDoneMsg:
+		return m.applyActionDone(msg)
+	case actionReadyMsg:
+		return m.applyActionReady(msg)
+	case activityEventMsg:
+		return m.applyActivityEvent(msg)
+	case activityEndMsg:
+		return m.applyActivityEnd(msg)
+	case activityRetryMsg:
+		return m.applyActivityRetry(msg)
+	case activityRefreshMsg:
+		return m.applyActivityRefresh(msg)
+	case activityVerifiedMsg:
+		return m.applyActivityVerified(msg)
+	case activityNormalizedMsg:
+		return m.applyActivityNormalized(msg)
 	case updateCheckMsg:
 		if msg.available && msg.latest != "" {
 			m.updateAvail = true
@@ -278,11 +324,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.leaving = ""
 		m.pending = ""
 		if msg.action == "upgrade" {
-			m.quitting = true
 			if msg.err != nil {
 				m = m.withErr(msg.err.Error())
 			}
-			return m, tea.Quit
+			return m.quit()
 		}
 		if msg.err != nil && !benignLeaveErr(msg.action, msg.err) {
 			m = m.withErr(msg.err.Error())
@@ -292,9 +337,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m = m.withStatus(backStatus(msg.action))
 		}
+		// Stream first, then the reload: the reload is the rescan of the gap.
+		m, resume := m.resumeActivity()
 		// ExecProcess disables mouse on ReleaseTerminal and never restores it.
 		m, reload := m.beginSoftReload()
-		return m, tea.Batch(tea.EnableMouseAllMotion, reload)
+		return m, tea.Batch(tea.EnableMouseAllMotion, resume, reload)
 	case leaveTickMsg:
 		return m.runPending()
 	case splashTickMsg:
@@ -312,12 +359,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		return m.handleKey(msg.String())
 	case tea.MouseMsg:
+		if m.wsOpen || m.actOpen {
+			return m, nil
+		}
 		if m.logOpen {
 			switch msg.Button {
 			case tea.MouseButtonWheelUp:
 				return m.scrollLogs(-3), nil
 			case tea.MouseButtonWheelDown:
 				return m.scrollLogs(3), nil
+			}
+			return m, nil
+		}
+		if m.activity.open {
+			switch msg.Button {
+			case tea.MouseButtonWheelUp:
+				return m.scrollActivity(-3), nil
+			case tea.MouseButtonWheelDown:
+				return m.scrollActivity(3), nil
 			}
 			return m, nil
 		}
@@ -365,13 +424,18 @@ func (m model) skipSplash() model {
 }
 
 func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
+	if m.wsOpen {
+		return m.handleWorkspaceKey(k)
+	}
+	if m.actOpen {
+		return m.handleActionKey(k)
+	}
 	if m.hostBlock {
 		return m.handleHostKey(k)
 	}
 	if m.splashOn {
 		if k == "q" || k == "ctrl+c" {
-			m.quitting = true
-			return m, tea.Quit
+			return m.quit()
 		}
 		return m.skipSplash(), nil
 	}
@@ -384,10 +448,12 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 	if m.netOpen {
 		return m.handleNetKey(k)
 	}
+	if m.activity.open {
+		return m.handleActivityKey(k)
+	}
 	if m.leaving != "" {
 		if k == "q" || k == "ctrl+c" {
-			m.quitting = true
-			return m, tea.Quit
+			return m.quit()
 		}
 		return m, nil
 	}
@@ -396,25 +462,23 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 	}
 	switch k {
 	case "q", "ctrl+c":
-		m.quitting = true
-		return m, tea.Quit
+		return m.quit()
 	case "esc":
-		m.quitting = true
-		return m, tea.Quit
+		return m.quit()
 	case "?", "h":
 		m.more = !m.more
 		return m, nil
 	case "f":
-		m.fleet = !m.fleet
-		m.more = false
-		m = m.withStatus("")
-		return m.beginHardReload()
+		return m.switchContext(m.workspace, !m.fleet)
+	case "w":
+		return m.openWorkspacePicker()
+	case "c":
+		return m.openActionPicker()
+	case "v":
+		return m.openActivity()
 	case "r":
 		m = m.withStatus("")
-		if m.loaded {
-			return m.beginSoftReload()
-		}
-		return m.beginHardReload()
+		return m.explicitRefresh()
 	case "R":
 		if m.fleet {
 			return m.withStatus("open a folder (enter / click) to start / shell / stop"), nil
@@ -484,9 +548,11 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 
 func (m model) handleHostKey(k string) (tea.Model, tea.Cmd) {
 	switch k {
+	case "w":
+		// The picker needs no Docker.
+		return m.openWorkspacePicker()
 	case "q", "ctrl+c":
-		m.quitting = true
-		return m, tea.Quit
+		return m.quit()
 	case "r":
 		m = m.withStatus("checking Docker…")
 		return m.beginHardReload()
@@ -544,8 +610,7 @@ func (m model) handleConfirmKey(k string) (tea.Model, tea.Cmd) {
 		}
 		return m.withStatus("rm cancelled"), nil
 	case "q", "ctrl+c":
-		m.quitting = true
-		return m, tea.Quit
+		return m.quit()
 	default:
 		return m, nil
 	}
@@ -640,7 +705,7 @@ func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
 	if m.splashOn {
 		return m.skipSplash(), nil
 	}
-	if m.logOpen || m.topOpen || m.netOpen {
+	if m.logOpen || m.topOpen || m.netOpen || m.activity.open {
 		return m, nil
 	}
 	if m.leaving != "" {
@@ -688,22 +753,17 @@ func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
 func (m model) clickKey(key string) (tea.Model, tea.Cmd) {
 	switch key {
 	case "q":
-		m.quitting = true
-		return m, tea.Quit
+		return m.quit()
 	case "?":
 		m.more = !m.more
 		return m, nil
 	case "f":
-		m.fleet = !m.fleet
-		m.more = false
-		m = m.withStatus("")
-		return m.beginHardReload()
+		return m.switchContext(m.workspace, !m.fleet)
+	case "w":
+		return m.openWorkspacePicker()
 	case "r":
 		m = m.withStatus("")
-		if m.loaded {
-			return m.beginSoftReload()
-		}
-		return m.beginHardReload()
+		return m.explicitRefresh()
 	default:
 		if strings.HasPrefix(key, "url:") {
 			if reason := m.actionBlockReason("url"); reason != "" {

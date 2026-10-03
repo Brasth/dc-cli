@@ -50,9 +50,17 @@ func main() {
 		splashOn:   shouldShowSplash(),
 		load:       loadPending,
 		loadGen:    1,
+		probes:     newProbeSession(),
 	}
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseAllMotion())
-	if _, err := p.Run(); err != nil {
+	final, err := p.Run()
+	// Whatever path ended the program, reap background readers and probes.
+	if fm, ok := final.(model); ok {
+		fm.shutdown()
+	} else {
+		m.probes.close()
+	}
+	if err != nil {
 		_ = exec.Command("stty", "sane").Run()
 		if !benignExecErr(err) {
 			fmt.Fprintln(os.Stderr, err)
@@ -76,6 +84,13 @@ Danger:  rm (x)    asks y/n before dc-down --rm
 Update:  U         when a newer release is available (dc-upgrade --yes)
 Urls:    click or 1-9  open a published website (http/https) in the browser
 Rows:    j/k or arrows, enter (fleet = open folder, stack = exec)
+Actions: c  project actions (personal + trusted .dc/actions.json). Enter runs one in the
+         foreground via dc-exec --no-start (never starts containers); the board returns
+         with its exit status. Shared actions need review + y first. Actions can modify data.
+Activity: v  this folder's container events (latest 200, memory only). j/k scroll, c clears,
+         esc back. Read-only; fleet has none.
+Recent:  w  workspaces this board opened (type to filter, enter open, ctrl+f favorite,
+         ctrl+d forget, esc back). Works while Docker is down. Never starts anything.
 Restart: R  selected stack sibling only (not the labeled app). r still reloads. Fleet refuses.
 Disk:    d  (stays in the board). P = safe prune when disk looks critical.
 Top:     t  live CPU/RAM for this folder (stays in the board). Fleet refuses.
