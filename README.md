@@ -2,27 +2,9 @@
 
 **Dev containers from your terminal.**
 
-`dc up` starts this folder. No config? `dc try`. No VS Code. Never edits project `.devcontainer`. Wraps official [`@devcontainers/cli`](https://github.com/devcontainers/cli).
-
-Site: [dc.brasth.com](https://dc.brasth.com) · Guides: [dc.brasth.com/guide](https://dc.brasth.com/guide/) · Issues: [dc.brasth.com/issues](https://dc.brasth.com/issues/) · Videos: [dc.brasth.com/#demo](https://dc.brasth.com/#demo)
+`dc up` starts this folder. No config? `dc try`. Never edits project `.devcontainer`. Wraps official [`@devcontainers/cli`](https://github.com/devcontainers/cli).
 
 ![dc-cli intro](docs/assets/walkthrough-intro.gif)
-
-[Full intro video](https://dc.brasth.com/videos/walkthrough-intro.mp4) · [board](https://dc.brasth.com/videos/walkthrough-board.mp4) · [recover](https://dc.brasth.com/videos/walkthrough-recover.mp4)
-
-`.devcontainer` → official CLI. Else a root compose file → Compose. Else `dc try` (sandbox). `dc up` on a TTY offers that sandbox; non-TTY prints the `dc-try` hint.
-
-**Two spellings, same command:** `dc up` = `dc-up`. `dc` with no args is the board.
-
-## See it run
-
-| | |
-|---|---|
-| **dc up** | ![dc up](docs/assets/clip-up.gif) |
-| **dc exec** | ![dc exec](docs/assets/clip-exec.gif) |
-| **dc doctor** | ![dc doctor](docs/assets/clip-doctor.gif) |
-
-Full walkthroughs: [full demo](https://dc.brasth.com/videos/launch-full-demo.mp4) · [intro](https://dc.brasth.com/videos/walkthrough-intro.mp4) · [board](https://dc.brasth.com/videos/walkthrough-board.mp4) · [recover](https://dc.brasth.com/videos/walkthrough-recover.mp4) · [all videos](launch/asset-checklist.md)
 
 ## Install
 
@@ -30,56 +12,39 @@ Full walkthroughs: [full demo](https://dc.brasth.com/videos/launch-full-demo.mp4
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
 ```
 
-Then `source ~/.zshrc` or `~/.bashrc`. Homebrew: `brew tap Brasth/dc-cli && brew install dc-cli`.
+Then `source ~/.zshrc` or `source ~/.bashrc`. Or Homebrew: `brew tap Brasth/dc-cli && brew install dc-cli`.
 
-`--with-cli` is the official standalone installer (not npm). Clone with no flags stays wrappers only. Other flags: `--with-cli-npm`, `--with-skill`, `--full`, `--ref`, `--no-yazi`. See the [install guide](https://dc.brasth.com/guide/install/).
+`--with-cli` installs the official standalone CLI. Flags: `--with-cli-npm`, `--with-skill`, `--full`, `--ref TAG`, `--no-yazi`. See [install guide](https://dc.brasth.com/guide/install/).
 
 ## Daily
 
 ```bash
 cd /path/to/your/project
 dc              # board (same as dc-tui)
-dc up           # start (TTY offers a sandbox if no config)
+dc up           # start this folder
 dc try          # sandbox when there is no config
 dc exec         # shell in the app
 dc down         # stop the stack
 ```
 
-Stuck engine: `dc doctor` then `dc recover --yes`. Disk: `dc df` then `dc prune --yes`. **Never** `docker system prune -af --volumes`.
+On the board: `w` recent folders (favorites first; reopening a stopped workspace does not start it), `c` project actions, `v` activity timeline (current session, in memory only), `f` fleet (other workspaces). Troubleshoot: `dc doctor` → `dc recover --yes`. Disk: `dc df` → `dc prune --yes`. **Never** `docker system prune -af --volumes`.
 
 ## Commands
 
-`dc <verb>` and `dc-<verb>` are both installed. `dc --help` lists them. Flags: `dc <verb> --help`.
+`dc <verb>` and hyphenated `dc-<verb>` both work. Run `dc --help` for the full list. Guides: [install](https://dc.brasth.com/guide/install/) · [board](https://dc.brasth.com/guide/tui/) · [try](https://dc.brasth.com/guide/try/) · [doctor](https://dc.brasth.com/guide/doctor/) · [ports](https://dc.brasth.com/guide/ports/) · [disk](https://dc.brasth.com/guide/disk/).
 
-| Command | Does | Demo |
-|---|---|---|
-| `dc` / `dc-tui` | board (`--all` = fleet) | [board](https://dc.brasth.com/videos/walkthrough-board.mp4) |
-| `dc up` / `dc-up` | start this folder | [daily](https://dc.brasth.com/videos/walkthrough-daily.mp4) |
-| `dc exec` / `dc-exec` | app shell (`--service NAME` for siblings) | [clip](https://dc.brasth.com/videos/clip-exec.mp4) |
-| `dc down` / `dc-down` | stop the stack (`--app`, `--rm`) | [daily](https://dc.brasth.com/videos/walkthrough-daily.mp4) |
-| `dc try` / `dc-try` | sandbox when there is no config (default localhost ports) | [try](https://dc.brasth.com/videos/walkthrough-try.mp4) |
-| `dc doctor` / `dc-doctor` | read-only diagnose | [clip](https://dc.brasth.com/videos/clip-doctor.mp4) |
-| `dc inspect` / `dc-inspect` | agent/read-only snapshot | — |
-| `dc recover` / `dc-recover` | one next step (`--yes` applies) | [recover](https://dc.brasth.com/videos/walkthrough-recover.mp4) |
-| `dc upgrade` / `dc-upgrade` | check / install latest release | — |
-| `dc engine` / `dc-engine` | which engine (`--fix`) | — |
-| `dc forward` / `dc-forward` | Colima-safe ports | [ports](https://dc.brasth.com/videos/walkthrough-ports.mp4) |
-| `dc db` / `dc-db` | host DB client on a declared port | [power](https://dc.brasth.com/videos/walkthrough-power.mp4) |
-| `dc files` / `dc-files` | yazi/nnn in the box | [power](https://dc.brasth.com/videos/walkthrough-power.mp4) |
-| `dc open` / `dc-open` | host editor (`--attach` = VS Code) | — |
-| `dc df` / `dc-df` | disk report | [disk](https://dc.brasth.com/videos/walkthrough-disk.mp4) |
-| `dc stats` / `dc-stats` | CPU / RAM / net | [power](https://dc.brasth.com/videos/walkthrough-power.mp4) |
-| `dc net` / `dc-net` | declared compose nets | [ports](https://dc.brasth.com/videos/walkthrough-ports.mp4) |
-| `dc prune` / `dc-prune` | safe reclaim (`--yes`) | [disk](https://dc.brasth.com/videos/walkthrough-disk.mp4) |
-| `dc ls` / `dc-ls` | labeled apps | [power](https://dc.brasth.com/videos/walkthrough-power.mp4) |
-| `dc ps` / `dc-ps` | docker + labels | — |
+## Project actions
 
-Task guides: [install](https://dc.brasth.com/guide/install/) · [try](https://dc.brasth.com/guide/try/) · [board](https://dc.brasth.com/guide/tui/) · [kind](https://dc.brasth.com/guide/kind/) · [doctor](https://dc.brasth.com/guide/doctor/) · [ports](https://dc.brasth.com/guide/ports/) · [disk](https://dc.brasth.com/guide/disk/) · [stuck](https://dc.brasth.com/guide/stuck/).
+Per-folder commands for the board (`c`) and `dc actions`. Shared `.dc/actions.json` stays **off** until you review and trust its exact bytes. Your personal file lives in `~/.config/dc-cli/actions/`. Runs via `dc exec --no-start` — **never starts containers**. **Actions run inside your containers and can modify data.**
+
+```json
+{"schemaVersion": 1, "actions": [{"id": "test", "label": "Run tests", "argv": ["go", "test", "./..."]}]}
+```
+
+Trust is tied to the folder and the file's exact bytes; any edit turns them off again. Use `dc actions list`, `dc actions trust` (review then `y/N`), `dc actions run test`. `dc actions` needs the compiled binary: releases, Homebrew, or a source install with Go. A shell-only install reports that the compiled binary is required and shows `--help` only.
 
 ## Platform
 
-macOS and Linux: one live engine (Colima **or** Desktop). WSL2 best-effort. Native Windows not supported.
+macOS and Linux: one live engine (Colima or Docker Desktop). WSL2 best-effort. Native Windows not supported.
 
-`--with-skill` copies into existing agent homes (`~/.cursor`, `~/.claude`, `~/.codex`, `~/.pi`, `~/.gemini`, `~/.opencode`, `~/.agents/skills`). Restart the agent after.
-
-[Canvilled](https://github.com/Canvilled) (Huy Nguyen). MIT.
+[Canvilled](https://github.com/Canvilled) (Huy Nguyen). MIT. · Guides: [dc.brasth.com/guide](https://dc.brasth.com/guide/)

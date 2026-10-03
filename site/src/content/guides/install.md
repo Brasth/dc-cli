@@ -13,7 +13,7 @@ steps:
     text: dc --help, dc up --help, dc doctor --help, or dc-tui --help should print usage. Hyphenated names stay.
 ---
 
-Needs bash 4+. Docker can be missing at install time — helpers still install and print a Host Docker readiness block (never auto-installs an engine). Official `@devcontainers/cli` is required only for `kind=devcontainer` folders. Compose-only folders start via `dc-up` → Compose (`docker compose` or `docker-compose`). Release kits and Homebrew include the clickable TUI (logo splash, start/shell/stop first). A source install builds it when Go is on PATH; otherwise you get the bash menu.
+Needs bash 4+. Docker can be missing at install time — helpers still install and print a Host Docker readiness block (never auto-installs an engine). Official `@devcontainers/cli` is required only for `kind=devcontainer` folders. Compose-only folders start via `dc-up` → Compose (`docker compose` or `docker-compose`). Release kits and Homebrew include the clickable TUI (logo splash, start/shell/stop first). A source install builds it when Go is on PATH; otherwise you get the bash menu. `dc-actions` (project actions) works the same way: compiled in release kits and Homebrew, built from source when Go is present; without Go only its `--help` works and other verbs say the compiled binary is required — every other command is unaffected.
 
 Safer than piping curl: clone the repo, then `bash install.sh`. Each person needs their own Docker/Colima. Do not copy `export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` onto a laptop that uses Docker Desktop. `dc-doctor` reports the CLI engine and socket; two live engines block `dc-up`. `dc-engine --fix` prints how to pick one. No engine yet? See [No Docker engine](/guide/no-docker/).
 
