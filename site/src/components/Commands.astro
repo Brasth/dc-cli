@@ -1,11 +1,13 @@
 ---
 const rows = [
-  { cmd: 'dc', does: 'Board. Same as dc-tui. --all for the fleet.' },
+  { cmd: 'dc', does: 'Board. Same as dc-tui. f is fleet. --all lists labeled workspaces.' },
   { cmd: 'dc up', does: 'Start this folder. Same as dc-up.' },
   { cmd: 'dc exec', does: 'Shell in the app. Same as dc-exec. --service NAME for siblings.' },
+  { cmd: 'dc exec --no-start', does: 'Run a command only when that target is already up. Refuses a stopped or missing container. Not with --id or --restart.' },
+  { cmd: 'dc actions', does: 'List, trust, or run pinned actions for this folder. Same as dc-actions. Needs the compiled binary.' },
   { cmd: 'dc down', does: 'Stop the stack. Same as dc-down.' },
   { cmd: 'dc doctor', does: 'Read-only diagnose. Same as dc-doctor.' },
-  { cmd: 'dc recover', does: 'One next step. --yes or TUI [f] applies. Same as dc-recover.' },
+  { cmd: 'dc recover', does: 'One next step. --yes applies it when an engine is already installed. Same as dc-recover.' },
   { cmd: 'dc try', does: 'Sandbox when there is no config. Default localhost ports. Same as dc-try.' },
   { cmd: 'dc forward', does: 'Colima-safe ports. Same as dc-forward.' },
   { cmd: 'dc db', does: 'Host DB client on a declared port. Same as dc-db.' },

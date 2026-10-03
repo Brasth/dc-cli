@@ -1,6 +1,6 @@
 ---
 title: "dc-tui board and keys"
-description: "dc-tui is the clickable board for this folder. Primary keys: start, shell, stop. Click a published website URL or press 1-9 to open it. Meta: open, attach, ports, logs, top, nets, db, files, fleet. Activity: v. Upgrade: U when a newer release is available."
+description: "Board for this folder. w lists favorites, then recent folders, including stopped projects, and does not start them. c is opt-in container actions through dc exec --no-start. v keeps the latest 200 session events in memory and refreshes the board."
 h1: "The board is the product."
 updated: 2026-10-03
 howto: false

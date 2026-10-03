@@ -1,14 +1,14 @@
 ---
 title: "Install dc-cli"
-description: "Install dc-cli with one curl (--with-cli standalone) or Homebrew. Release kits include the clickable TUI. Clone with no flags is wrappers only."
+description: "curl --with-cli installs the latest release: compiled dc-tui and dc-actions. A source install builds both when Go is on PATH; without Go, shell fallback. Then source ~/.bashrc or source ~/.zshrc."
 h1: "One curl. Then dc."
-updated: 2026-08-22
+updated: 2026-10-03
 howto: true
 steps:
   - name: Run the installer
     text: curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
   - name: Reload the shell
-    text: Open a new terminal, or source ~/.zshrc / ~/.bashrc so generation current/bin is on PATH.
+    text: Open a new terminal, or run source ~/.bashrc or source ~/.zshrc so generation current/bin is on PATH.
   - name: Confirm
     text: dc --help, dc up --help, dc doctor --help, or dc-tui --help should print usage. Hyphenated names stay.
 ---
@@ -19,7 +19,8 @@ Safer than piping curl: clone the repo, then `bash install.sh`. Each person need
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Brasth/dc-cli/main/install.sh | bash -s -- --with-cli
-source ~/.zshrc   # or ~/.bashrc
+source ~/.bashrc   # bash
+source ~/.zshrc    # zsh
 ```
 
 Or Homebrew (same kit, no Go):

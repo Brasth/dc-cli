@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import { cloudflareBeaconToken } from '../lib/analytics';
+import { latestRelease } from '../lib/schema';
 
 interface Props {
   title?: string;
@@ -13,7 +14,7 @@ interface Props {
 const title = Astro.props.title ?? 'dc-cli — Dev containers from your terminal';
 const description =
   Astro.props.description ??
-  'dc up starts this folder. dc exec is the shell. No config? dc try. No VS Code required. Never edits project .devcontainer.';
+  'Daily workspace hub: recent folders, pinned actions, session activity. dc up starts this folder. No config? dc try. No VS Code required. Never edits project .devcontainer.';
 const noindex = Astro.props.noindex ?? false;
 const site = 'https://dc.brasth.com';
 const rawPath = Astro.props.path ?? Astro.url.pathname;
@@ -43,6 +44,7 @@ const softwareApplication = {
     name: 'Brasth',
     url: 'https://github.com/Brasth',
   },
+  softwareVersion: latestRelease,
   offers: {
     '@type': 'Offer',
     price: '0',

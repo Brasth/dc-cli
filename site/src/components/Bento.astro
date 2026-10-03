@@ -1,29 +1,29 @@
 ---
 const tiles = [
   {
-    k: 'dc up',
-    title: 'Start this folder.',
-    body: '.devcontainer → official CLI, then ports. Compose-only → docker compose. No config → dc try sandbox + localhost ports.',
-    lines: ['$ dc up | dc try', '→ kind=devcontainer | compose | none', '→ up  (try forwards too)'],
+    k: 'w',
+    title: 'Workspaces.',
+    body: 'Favorites first, then the latest 30 folders this board opened, including stopped projects. Opening one does not start it. The list works while Docker is down.',
+    lines: ['$ dc', 'w', 'ctrl+f favorite', 'ctrl+d forget'],
   },
   {
-    k: 'dc exec',
-    title: 'Shell in the app.',
-    body: 'Always dc exec. DC app = official CLI. Compose app = compose exec.',
-    lines: ['$ dc exec --service db', '→ start db (was exited)', '→ never docker exec NAME'],
+    k: 'c',
+    title: 'Pinned actions.',
+    body: 'Opt-in and container-only. Shared .dc/actions.json stays off until you trust its exact bytes. A run uses dc exec --no-start, so nothing is started. Actions can change data inside the container.',
+    lines: ['$ dc actions list', '$ dc actions run test', '$ dc exec --no-start -- go test ./...'],
   },
   {
-    k: 'dc doctor',
-    title: 'Read-only diagnose.',
-    body: 'Human or --json. Reports the CLI engine and socket. Never mutates.',
-    lines: ['$ dc doctor --json', 'engine  colima', 'exit  0'],
+    k: 'v',
+    title: 'Session activity.',
+    body: 'Latest 200 container events for this folder, kept in memory for this session. Accepted events refresh the board. Nothing is written to disk.',
+    lines: ['$ dc', 'v'],
   },
 ];
 ---
 
 <section class="px-4 py-12 md:px-6 md:py-16">
   <div class="mx-auto w-full max-w-6xl">
-    <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">the missing verbs</p>
+    <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">daily board</p>
     <div class="mt-4 grid grid-cols-1 overflow-hidden rounded-sm border border-ink/15 md:grid-cols-3">
       {
         tiles.map((tile) => (
