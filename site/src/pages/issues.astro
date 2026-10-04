@@ -27,43 +27,55 @@ const schema = [
   path="/issues/"
   schema={schema}
 >
-  <section class="px-4 pb-16 pt-20 md:px-6 md:pb-20 md:pt-24">
-    <div class="mx-auto w-full max-w-3xl">
-      <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">issues / github</p>
-      <h1 class="mt-3 font-mono text-4xl leading-[0.95] tracking-tight md:text-5xl">
+  <section class="page-container pb-20 pt-12 md:pb-28 md:pt-20">
+    <div class="w-full max-w-4xl">
+      <p class="prompt"><span>~</span><span class="sigil">$</span><span class="cmd-text">dc recover --report</span></p>
+      <h1 class="t-h2 mt-4 max-w-[18ch]">
         Report a break. Not a ticket form.
       </h1>
-      <p class="mt-5 max-w-xl text-sm text-mute">
+      <p class="t-body mt-5 max-w-xl">
         GitHub is the tracker. This page only aims you. Read
-        <a class="text-ink/80 hover:text-ink" href="/guide/">the guides</a>
-        first if it is install, kind, doctor, stuck, ports, or disk. Include `dc-recover --report` or `dc-doctor --json` when you can.
+        <a class="link" href="/guide/">the guides</a>
+        first if it is install, kind, doctor, stuck, ports, or disk. Include <span class="cmd">dc-recover --report</span> or <span class="cmd">dc-doctor --json</span> when you can.
       </p>
-      <div class="mt-10 grid gap-px bg-ink/10 sm:grid-cols-3">
-        <a class="bg-page p-6 hover:bg-core" href={bug}>
-          <p class="font-mono text-[11px] text-amber">template / bug</p>
-          <h2 class="mt-3 font-mono text-2xl tracking-tight">It broke</h2>
-          <p class="mt-3 text-sm text-mute">Command, OS, Colima vs Desktop, paste the error. No `.env`.</p>
+      <div class="mt-10 grid border-y border-line sm:grid-cols-3">
+        <a class="issue-card group border-line p-6 transition-colors duration-[var(--dur-base)] hover:bg-surface" href={bug}>
+          <p class="font-mono text-[12px] text-accent">template / bug</p>
+          <h2 class="t-h3 mt-3 group-hover:text-accent">It broke</h2>
+          <p class="mt-2 text-sm leading-6 text-muted">Command, OS, Colima vs Desktop, paste the error. No <span class="cmd">.env</span>.</p>
         </a>
-        <a class="bg-page p-6 hover:bg-core" href={question}>
-          <p class="font-mono text-[11px] text-amber">template / question</p>
-          <h2 class="mt-3 font-mono text-2xl tracking-tight">I am stuck</h2>
-          <p class="mt-3 text-sm text-mute">What you ran. What you expected. What you already tried.</p>
+        <a class="issue-card group border-line p-6 transition-colors duration-[var(--dur-base)] hover:bg-surface" href={question}>
+          <p class="font-mono text-[12px] text-accent">template / question</p>
+          <h2 class="t-h3 mt-3 group-hover:text-accent">I am stuck</h2>
+          <p class="mt-2 text-sm leading-6 text-muted">What you ran. What you expected. What you already tried.</p>
         </a>
-        <a class="bg-page p-6 hover:bg-core" href={feedback}>
-          <p class="font-mono text-[11px] text-amber">template / feedback</p>
-          <h2 class="mt-3 font-mono text-2xl tracking-tight">Got a shell?</h2>
-          <p class="mt-3 text-sm text-mute">Activation feedback — yes, no, or still trying.</p>
+        <a class="issue-card group border-line p-6 transition-colors duration-[var(--dur-base)] hover:bg-surface" href={feedback}>
+          <p class="font-mono text-[12px] text-accent">template / feedback</p>
+          <h2 class="t-h3 mt-3 group-hover:text-accent">Got a shell?</h2>
+          <p class="mt-2 text-sm leading-6 text-muted">Activation feedback — yes, no, or still trying.</p>
         </a>
       </div>
-      <ul class="mt-10 space-y-2 font-mono text-xs text-mute">
-        <li><span class="text-amber">▸</span> paste a `dc recover --report` folder, `dc df`, or the `dc up` holder list</li>
-        <li><span class="text-amber">▸</span> never paste tokens, `.env`, or `docker inspect` dumps</li>
+      <ul class="mt-10 space-y-2 font-mono text-xs leading-5 text-muted">
+        <li><span class="text-accent" aria-hidden="true">▸</span> paste a <span class="cmd">dc recover --report</span> folder, <span class="cmd">dc df</span>, or the <span class="cmd">dc up</span> holder list</li>
+        <li><span class="text-accent" aria-hidden="true">▸</span> never paste tokens, <span class="cmd">.env</span>, or <span class="cmd">docker inspect</span> dumps</li>
         <li>
-          <span class="text-amber">▸</span>
+          <span class="text-accent" aria-hidden="true">▸</span>
           open list:
-          <a class="text-ink/80 hover:text-ink" href={list}>github.com/Brasth/dc-cli/issues</a>
+          <a class="link" href={list}>github.com/Brasth/dc-cli/issues</a>
         </li>
       </ul>
     </div>
   </section>
 </Page>
+
+<style>
+  .issue-card + .issue-card {
+    border-top-width: 1px;
+  }
+  @media (min-width: 640px) {
+    .issue-card + .issue-card {
+      border-top-width: 0;
+      border-left-width: 1px;
+    }
+  }
+</style>

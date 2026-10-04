@@ -1,30 +1,46 @@
 ---
+/**
+ * Browser simulation of the dc-tui board (lib/board-simulator.ts).
+ * demo="configured": a running stack. demo="none": first run, no config → dc try.
+ * keys="focus": keys only while the board is focused (embedded on the homepage).
+ * keys="window": keys anywhere on the page (/play).
+ */
 interface Props {
-  compact?: boolean;
+  demo?: 'configured' | 'none';
+  keys?: 'focus' | 'window';
+  class?: string;
 }
 
-const compact = Astro.props.compact ?? false;
+const { demo = 'configured', keys = 'focus', class: className = '' } = Astro.props;
+const label =
+  keys === 'focus'
+    ? 'Interactive dc-tui demo. Focus here, then press keys or click the buttons.'
+    : 'Interactive dc-tui demo. Press keys anywhere on this page, or click the buttons.';
 ---
 
-<section id="board" class:list={['px-4 md:px-6', compact ? 'pb-6 pt-2' : 'pb-10 pt-4 md:pb-12']} aria-label="dc-tui board">
-  {
-    !compact && (
-      <div class="mx-auto mb-6 w-full max-w-6xl">
-        <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">try without installing</p>
-        <h2 class="mt-3 max-w-2xl text-2xl leading-tight tracking-tight text-ink md:text-3xl">
-          Play the core workflow.
-        </h2>
-        <p class="mt-2 max-w-xl text-sm text-mute">
-          Homepage board is a running stack. <a href="/play/" class="text-ink underline decoration-ink/30 underline-offset-2 hover:decoration-ink">/play</a> is first-run: no config, then <span class="font-mono text-ink/80">u</span> → sandbox → shell.
-          This demo does not include workspaces, actions, or activity. Install for your real folder.
-        </p>
-      </div>
-    )
-  }
-  <div class="board-shell mx-auto w-full max-w-6xl">
-    <div class="board-frame" id="board-root" data-demo={compact ? 'none' : 'configured'}></div>
+<div class:list={['frame', className]}>
+  <span class="frame-pip" aria-hidden="true"></span>
+  <div class="frame-bar">
+    <span>dc-tui · browser simulation</span>
+    <span class="board-focus-hint hidden sm:inline">{keys === 'focus' ? 'click or tab in, then type' : 'type anywhere'}</span>
   </div>
-</section>
+  <div
+    class="board-frame screen min-h-[24rem]"
+    id="board-root"
+    data-demo={demo}
+    data-keys={keys}
+    tabindex="0"
+    role="group"
+    aria-label={label}
+  >
+  </div>
+</div>
+
+<style>
+  .frame:focus-within .board-focus-hint {
+    color: var(--accent);
+  }
+</style>
 
 <script>
   import { mountBoard } from '../lib/board-mount';

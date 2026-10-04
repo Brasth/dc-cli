@@ -1,44 +1,91 @@
 ---
-const rows = [
-  { cmd: 'dc', does: 'Board. Same as dc-tui. f is fleet. --all lists labeled workspaces.' },
-  { cmd: 'dc up', does: 'Start this folder. Same as dc-up.' },
-  { cmd: 'dc exec', does: 'Shell in the app. Same as dc-exec. --service NAME for siblings.' },
-  { cmd: 'dc exec --no-start', does: 'Run a command only when that target is already up. Refuses a stopped or missing container. Not with --id or --restart.' },
-  { cmd: 'dc actions', does: 'List, trust, or run pinned actions for this folder. Same as dc-actions. Needs the compiled binary.' },
-  { cmd: 'dc down', does: 'Stop the stack. Same as dc-down.' },
-  { cmd: 'dc doctor', does: 'Read-only diagnose. Same as dc-doctor.' },
-  { cmd: 'dc recover', does: 'One next step. --yes applies it when an engine is already installed. Same as dc-recover.' },
-  { cmd: 'dc try', does: 'Sandbox when there is no config. Default localhost ports. Same as dc-try.' },
-  { cmd: 'dc forward', does: 'Colima-safe ports. Same as dc-forward.' },
-  { cmd: 'dc db', does: 'Host DB client on a declared port. Same as dc-db.' },
-  { cmd: 'dc files', does: 'yazi/nnn in the box. Same as dc-files.' },
-  { cmd: 'dc df', does: 'Disk report. Same as dc-df.' },
-  { cmd: 'dc prune', does: 'Safe reclaim. Dry-run without --yes. Same as dc-prune.' },
+const groups = [
+  {
+    name: 'daily',
+    rows: [
+      { cmd: 'dc', does: 'Board. Same as dc-tui. f is fleet. --all lists labeled workspaces.' },
+      { cmd: 'dc up', does: 'Start this folder. Same as dc-up.' },
+      { cmd: 'dc exec', does: 'Shell in the app. Same as dc-exec. --service NAME for siblings.' },
+      {
+        cmd: 'dc exec --no-start',
+        does: 'Run a command only when that target is already up. Refuses a stopped or missing container. Not with --id or --restart.',
+      },
+      { cmd: 'dc down', does: 'Stop the stack. Same as dc-down.' },
+      {
+        cmd: 'dc actions',
+        does: 'List, trust, or run pinned actions for this folder. Same as dc-actions. Needs the compiled binary.',
+      },
+    ],
+  },
+  {
+    name: 'no config',
+    rows: [{ cmd: 'dc try', does: 'Sandbox when there is no config. Default localhost ports. Same as dc-try.' }],
+  },
+  {
+    name: 'when stuck',
+    rows: [
+      { cmd: 'dc doctor', does: 'Read-only diagnose. Same as dc-doctor.' },
+      {
+        cmd: 'dc recover',
+        does: 'One next step. --yes applies it when an engine is already installed. Same as dc-recover.',
+      },
+    ],
+  },
+  {
+    name: 'utilities',
+    rows: [
+      { cmd: 'dc forward', does: 'Colima-safe ports. Same as dc-forward.' },
+      { cmd: 'dc db', does: 'Host DB client on a declared port. Same as dc-db.' },
+      { cmd: 'dc files', does: 'yazi/nnn in the box. Same as dc-files.' },
+      { cmd: 'dc df', does: 'Disk report. Same as dc-df.' },
+      { cmd: 'dc prune', does: 'Safe reclaim. Dry-run without --yes. Same as dc-prune.' },
+    ],
+  },
 ];
 ---
 
-<section class="px-4 py-12 md:px-6 md:py-16">
-  <div class="mx-auto grid w-full max-w-6xl gap-8 md:grid-cols-12 md:items-start">
-    <div class="md:col-span-4">
-      <h2 class="font-mono text-2xl leading-tight tracking-tight md:text-3xl">
-        Type dc. Then a verb. dc-up still works.
-      </h2>
-      <p class="mt-3 max-w-sm text-sm text-mute">
-        Two spellings, same command. Flags: <span class="font-mono text-ink/80">dc --help</span>.
-      </p>
-      <a href="/guide/" class="mt-4 inline-flex min-h-10 items-center font-mono text-xs text-amber hover:text-ink">
-        task guides →
-      </a>
+<section id="commands" class="section border-t border-line" aria-labelledby="commands-title">
+  <div class="page-container grid gap-10 lg:grid-cols-12 lg:gap-8">
+    <div class="lg:col-span-4" data-reveal>
+      <div class="lg:sticky lg:top-[calc(var(--nav-h)+2rem)]">
+        <p class="prompt"><span>~</span><span class="sigil">$</span><span class="cmd-text">dc --help</span></p>
+        <h2 id="commands-title" class="t-h2 mt-4">Every verb.</h2>
+        <p class="t-body mt-5 max-w-[24rem]">
+          Two spellings, same command: <span class="cmd">dc up</span> and <span class="cmd">dc-up</span>. Flags live in
+          <span class="cmd">dc --help</span>.
+        </p>
+        <a href="/guide/" class="btn btn-ghost -ml-3 mt-4">Task guides <span aria-hidden="true">→</span></a>
+      </div>
     </div>
-    <ol class="border-t border-ink/10 md:col-span-8">
+
+    <div class="grid gap-10 lg:col-span-8" data-reveal>
       {
-        rows.map((row) => (
-          <li class="grid grid-cols-1 items-baseline gap-1 border-b border-ink/10 py-3 md:grid-cols-12 md:gap-6">
-            <code class="font-mono text-xs text-amber md:col-span-3">{row.cmd}</code>
-            <p class="text-sm text-ink/80 md:col-span-9">{row.does}</p>
-          </li>
+        groups.map((group) => (
+          <div>
+            <h3 class="font-mono text-[11px] uppercase tracking-[0.14em] text-muted">{group.name}</h3>
+            <table class="mt-3 w-full border-collapse text-left">
+              <caption class="sr-only">{`${group.name} commands`}</caption>
+              <thead class="sr-only">
+                <tr>
+                  <th scope="col">Command</th>
+                  <th scope="col">What it does</th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.rows.map((row) => (
+                  <tr class="border-t border-line align-baseline">
+                    <th scope="row" class="w-full py-3 pr-6 font-normal sm:w-[13rem] sm:min-w-[13rem]">
+                      <code class="font-mono text-[13px] text-accent">{row.cmd}</code>
+                      <span class="mt-1 block text-sm leading-6 text-soft sm:hidden">{row.does}</span>
+                    </th>
+                    <td class="hidden py-3 text-sm leading-6 text-soft sm:table-cell">{row.does}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ))
       }
-    </ol>
+    </div>
   </div>
 </section>

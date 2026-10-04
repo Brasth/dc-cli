@@ -1,0 +1,154 @@
+---
+/**
+ * Daily hub: workspaces (w), pinned actions (c), session activity (v).
+ * Copy follows site/src/content/guides/tui.md — keep the qualifications.
+ * The "sketch" panels are simplified illustrations, labelled as such.
+ */
+type Line = { t: string; tone?: 'fg' | 'muted' | 'accent' | 'warn' | 'cmd' };
+
+const rows: {
+  key: string;
+  name: string;
+  title: string;
+  body: string;
+  facts: string[];
+  note?: string;
+  panel: { label: string; kind: 'sketch' | 'commands'; lines: Line[] };
+}[] = [
+  {
+    key: 'w',
+    name: 'workspaces',
+    title: 'Every folder you work in, one key away.',
+    body: 'Favorites first, then the latest 30 folders this board opened, stopped projects included. Type to filter, Enter to open.',
+    facts: ['Opening a folder never starts it', 'Works while Docker is down', 'ctrl+d forgets the entry; the folder is untouched'],
+    panel: {
+      label: 'sketch · simplified',
+      kind: 'sketch',
+      lines: [
+        { t: 'workspaces                    filter ▏', tone: 'fg' },
+        { t: '' },
+        { t: '  favorite  ~/src/acme-storefront', tone: 'fg' },
+        { t: '  favorite  ~/src/api', tone: 'fg' },
+        { t: '  recent    ~/src/docs-site', tone: 'muted' },
+        { t: '  recent    ~/scratch/try-go', tone: 'muted' },
+        { t: '' },
+        { t: 'enter open · ctrl+f favorite · ctrl+d forget · esc back', tone: 'accent' },
+      ],
+    },
+  },
+  {
+    key: 'c',
+    name: 'pinned actions',
+    title: 'The commands you repeat, pinned to the project.',
+    body: 'Opt-in and container-only. Your personal actions plus a shared .dc/actions.json, which stays off until you review every command and trust its exact bytes. Any edit turns it off again.',
+    facts: ['Runs through dc exec --no-start: nothing is started', 'argv runs as-is, no shell', 'dc-cli never writes .dc/actions.json'],
+    note: 'Actions run inside your containers and can modify data.',
+    panel: {
+      label: 'commands',
+      kind: 'commands',
+      lines: [
+        { t: '$ dc actions list', tone: 'cmd' },
+        { t: '$ dc actions trust', tone: 'cmd' },
+        { t: '  preview every shared command, then y/N', tone: 'muted' },
+        { t: '$ dc actions run test', tone: 'cmd' },
+        { t: '  → dc exec --no-start -- go test ./...', tone: 'accent' },
+        { t: '' },
+        { t: '# .dc/actions.json', tone: 'muted' },
+        { t: '{"schemaVersion": 1, "actions": [', tone: 'fg' },
+        { t: '  {"id": "test", "argv": ["go", "test", "./..."]}', tone: 'fg' },
+        { t: ']}', tone: 'fg' },
+      ],
+    },
+  },
+  {
+    key: 'v',
+    name: 'session activity',
+    title: 'What your containers just did.',
+    body: 'The latest 200 container events for this folder: created, started, stopped, exited with its code, restarted, removed, out of memory, health. New events refresh the board.',
+    facts: ['Memory only; nothing is written to disk', 'Only containers proven to belong to this folder', 'No env or log text is kept'],
+    panel: {
+      label: 'sketch · simplified',
+      kind: 'sketch',
+      lines: [
+        { t: 'activity  ~/src/app  latest 200 · memory only', tone: 'fg' },
+        { t: '' },
+        { t: '10:42:07  app      started', tone: 'fg' },
+        { t: '10:42:09  db       health: healthy', tone: 'fg' },
+        { t: '10:58:31  worker   exited (code 1)', tone: 'warn' },
+        { t: '11:02:15  worker   restarted', tone: 'fg' },
+        { t: '' },
+        { t: 'j/k scroll · c clear · esc back', tone: 'accent' },
+      ],
+    },
+  },
+];
+
+const toneClass: Record<string, string> = {
+  fg: 'text-fg',
+  muted: 'text-muted',
+  accent: 'text-accent',
+  warn: 'text-warn',
+  cmd: 'text-fg',
+};
+---
+
+<section id="hub" class="section border-t border-line" aria-labelledby="hub-title">
+  <div class="page-container">
+    <div class="grid gap-6 lg:grid-cols-12 lg:items-end" data-reveal>
+      <div class="lg:col-span-7">
+        <p class="prompt"><span>~/src/app</span><span class="sigil">$</span><span class="cmd-text">dc</span><span>then</span><kbd class="kbd">w</kbd><kbd class="kbd">c</kbd><kbd class="kbd">v</kbd></p>
+        <h2 id="hub-title" class="t-h2 mt-4">A daily hub, not just a launcher.</h2>
+      </div>
+      <p class="t-body max-w-[30rem] lg:col-span-5 lg:justify-self-end">
+        Three keys on the installed board turn it into the place your day starts. Each one is explicit about what it touches,
+        and none of them starts a container for you.
+      </p>
+    </div>
+
+    <ol class="mt-10 border-b border-line lg:mt-14">
+      {
+        rows.map((row) => (
+          <li class="grid gap-6 border-t border-line py-10 lg:grid-cols-12 lg:gap-8 lg:py-12" data-reveal>
+            <div class="flex min-w-0 items-start gap-4 lg:col-span-5">
+              <kbd class="kbd !h-11 !min-w-11 !text-base" aria-label={`key ${row.key}`}>{row.key}</kbd>
+              <div class="min-w-0">
+                <p class="font-mono text-[12px] text-accent">{row.name}</p>
+                <h3 class="t-h3 mt-1">{row.title}</h3>
+                <p class="t-body mt-3">{row.body}</p>
+                <ul class="mt-4 grid gap-1.5">
+                  {row.facts.map((fact) => (
+                    <li class="flex gap-3 text-sm text-soft">
+                      <span class="mt-[0.6em] h-px w-3 flex-none bg-muted" aria-hidden="true" />
+                      <span>{fact}</span>
+                    </li>
+                  ))}
+                </ul>
+                {row.note && (
+                  <p class="mt-4 font-mono text-[12px] leading-5 text-warn">
+                    <span class="font-semibold">Note</span> <span class="text-soft">{row.note}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+            <div class="min-w-0 lg:col-span-7">
+              <div class="panel overflow-hidden">
+                <div class="flex items-center justify-between border-b border-line px-4 py-2 font-mono text-[11px] text-muted">
+                  <span>
+                    dc · <span class="text-fg">{row.key}</span> {row.name}
+                  </span>
+                  <span>{row.panel.label}</span>
+                </div>
+                <pre
+                  class="overflow-x-auto px-4 py-4 font-mono text-[12px] leading-6 sm:text-[13px]"
+                  aria-label={row.panel.kind === 'sketch' ? `Simplified sketch of the ${row.name} view` : `${row.name} commands`}
+                ><code>{row.panel.lines.map((line) => (
+                  <span class:list={['block min-h-6', toneClass[line.tone ?? 'fg']]}>{line.tone === 'cmd' ? <><span class="text-accent">$</span>{line.t.slice(1)}</> : line.t}</span>
+                ))}</code></pre>
+              </div>
+            </div>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>

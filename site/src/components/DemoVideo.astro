@@ -1,47 +1,37 @@
 ---
+/**
+ * Muted, looping terminal recording. Loads its source only when it scrolls
+ * near the viewport, pauses off-screen, and shows the poster (no motion)
+ * under prefers-reduced-motion.
+ */
 interface Props {
   src: string;
   poster: string;
   class?: string;
   id?: string;
-  /** Full-bleed background plane (avoid for hero — use framed instead) */
-  fill?: boolean;
-  /** Inset terminal panel — crisp, no upscale blur */
+  /** 16:9 box sized to its container */
   framed?: boolean;
   label?: string;
+  /** Start loading immediately (above the fold). */
+  eager?: boolean;
 }
 
-const {
-  src,
-  poster,
-  class: className = '',
-  id,
-  fill = false,
-  framed = false,
-  label = 'Product demo',
-} = Astro.props;
+const { src, poster, class: className = '', id, framed = false, label = 'Product demo', eager = false } = Astro.props;
 ---
 
 <div
-  class:list={[
-    'demo-video relative overflow-hidden bg-core',
-    fill && 'absolute inset-0 bg-page',
-    framed && 'aspect-video w-full',
-    className,
-  ]}
+  class:list={['demo-video relative overflow-hidden bg-sunken', framed && 'aspect-video w-full', className]}
   data-demo-video
+  data-eager={eager ? 'true' : undefined}
 >
   <video
     id={id}
-    class:list={[
-      'h-full w-full',
-      framed ? 'object-cover object-top' : 'object-cover',
-    ]}
+    class="h-full w-full object-cover object-top"
     poster={poster}
     muted
     playsinline
     loop
-    preload="metadata"
+    preload="none"
     aria-label={label}
     data-demo-src={src}
   >
@@ -49,34 +39,57 @@ const {
   <img
     class="demo-video-poster absolute inset-0 h-full w-full object-cover object-top"
     src={poster}
-    alt=""
-    width="960"
-    height="540"
+    alt={label}
+    width="1280"
+    height="720"
     decoding="async"
+    loading="lazy"
     hidden
   />
 </div>
 
 <script>
-  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  document.querySelectorAll<HTMLElement>('[data-demo-video]').forEach((wrap) => {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  function setup(wrap: HTMLElement) {
     const video = wrap.querySelector('video');
     const poster = wrap.querySelector<HTMLImageElement>('.demo-video-poster');
     if (!video) return;
-    const src = video.dataset.demoSrc;
-    if (reduce) {
-      video.removeAttribute('autoplay');
+
+    const showPoster = () => {
       video.pause();
-      video.classList.add('hidden');
+      video.hidden = true;
       if (poster) poster.hidden = false;
+    };
+
+    if (reduce.matches) {
+      showPoster();
       return;
     }
-    if (src) {
-      video.src = src;
-      video.setAttribute('autoplay', '');
+
+    const play = () => {
+      const src = video.dataset.demoSrc;
+      if (src && video.getAttribute('src') !== src) video.src = src;
       void video.play().catch(() => {
         if (poster) poster.hidden = false;
       });
+    };
+
+    if (!('IntersectionObserver' in window)) {
+      play();
+      return;
     }
-  });
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) play();
+          else video.pause();
+        }
+      },
+      { rootMargin: wrap.dataset.eager ? '400px 0px' : '120px 0px', threshold: 0.2 },
+    );
+    io.observe(wrap);
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-demo-video]').forEach(setup);
 </script>

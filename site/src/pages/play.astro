@@ -1,7 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import Logo from '../components/Logo.astro';
 import Board from '../components/Board.astro';
-import { installCommand } from '../lib/install';
+import CopyButton from '../components/CopyButton.astro';
 ---
 
 <Layout
@@ -9,31 +10,37 @@ import { installCommand } from '../lib/install';
   description="Try every dc-tui key in the browser. Same board as dc. Start, shell, logs, top, nets, rm confirm."
   path="/play/"
 >
-  <main class="relative z-10 min-h-screen bg-page px-0 pb-10 pt-6">
-    <div class="mx-auto mb-3 flex w-full max-w-6xl flex-wrap items-baseline justify-between gap-2 px-4 md:px-6">
-      <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">
-        <a href="/" class="hover:text-ink">dc-cli</a>
-        <span class="text-mute"> / </span>
-        play
-      </p>
-      <p class="font-mono text-[11px] text-mute">click a key or type it · u then y starts a sandbox · q never leaves this page</p>
+  <main id="main" class="relative z-10 min-h-[100dvh] pb-12 pt-5 md:pt-8">
+    <div class="page-container">
+      <header class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <nav aria-label="Breadcrumb" class="flex items-center gap-2 font-mono text-xs">
+          <a href="/" class="inline-flex min-h-11 items-center gap-2 text-fg hover:text-accent">
+            <Logo class="h-5 w-5" />
+            <span>dc-cli</span>
+          </a>
+          <span class="text-muted" aria-hidden="true">/</span>
+          <span class="text-soft" aria-current="page">play</span>
+        </nav>
+        <p class="font-mono text-[12px] text-muted">
+          click a key or type it · <kbd class="kbd">u</kbd> then <kbd class="kbd">y</kbd> starts a sandbox ·
+          <kbd class="kbd">q</kbd> never leaves this page
+        </p>
+      </header>
+
+      <h1 class="sr-only">Play the dc-tui board</h1>
+
+      <div class="mt-5">
+        <Board demo="none" keys="window" />
+      </div>
+
+      <footer class="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3">
+        <CopyButton id="play-copy-install" statusId="play-copy-status" trackSource="play" />
+        <p class="font-mono text-[12px] text-muted">
+          Install for the real folder, then <span class="text-fg">source</span> + <span class="text-fg">dc try</span>.
+        </p>
+        <a href="/guide/tui/" class="btn btn-ghost">Board guide <span aria-hidden="true">→</span></a>
+        <p id="play-copy-status" class="min-h-5 w-full font-mono text-[12px] text-accent" aria-live="polite"></p>
+      </footer>
     </div>
-    <Board compact />
-    <footer class="mx-auto mt-6 flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 md:px-6">
-      <button
-        id="play-copy-install"
-        type="button"
-        data-install-copy
-        data-track-source="play"
-        data-install-cmd={installCommand}
-        class="inline-flex min-h-10 items-center bg-amber px-4 font-mono text-xs text-page transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96]"
-      >
-        Copy install
-      </button>
-      <p class="font-mono text-[11px] text-mute">
-        Install for the real folder, then <span class="text-ink/80">source</span> + <span class="text-ink/80">dc try</span>.
-      </p>
-      <p id="play-copy-status" class="min-h-5 w-full font-mono text-[11px] text-amber" aria-live="polite"></p>
-    </footer>
   </main>
 </Layout>

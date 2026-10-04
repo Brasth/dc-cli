@@ -1,92 +1,115 @@
 ---
-import Logo from './Logo.astro';
 import DemoVideo from './DemoVideo.astro';
-import ProductHuntCard from './ProductHuntCard.astro';
+import CopyButton from './CopyButton.astro';
+import CommandText from './CommandText.astro';
 import { installCommand } from '../lib/install';
+
+const facts = [
+  { k: 'wraps', v: 'the official Dev Containers CLI' },
+  { k: 'never edits', v: 'the project’s .devcontainer' },
+  { k: 'no VS Code', v: 'required — any editor, or none' },
+  { k: 'runs on', v: 'macOS and Linux · MIT' },
+];
+
+const replay = [
+  { cmd: 'dc', out: 'lists the verbs for this folder' },
+  { cmd: 'dc up', out: 'kind=devcontainer → started, ports forwarded' },
+  { cmd: 'dc', out: 'opens the board' },
+];
 ---
 
-<section
-  id="hero"
-  class="relative px-4 pb-10 pt-24 md:px-6 md:pb-14 md:pt-28"
-  aria-label="Introduction"
->
-  <div class="mx-auto grid w-full max-w-6xl items-center gap-8 md:grid-cols-12 md:gap-10 lg:gap-12">
-    <div class="hero-rise md:col-span-6">
-      <p class="flex items-center gap-3 font-mono text-sm text-ink md:text-base">
-        <Logo class="h-8 w-8 md:h-10 md:w-10" />
-        <span class="tracking-tight">dc-cli</span>
-      </p>
-      <h1
-        class="mt-5 font-mono text-[clamp(2rem,4.8vw,3.5rem)] leading-[0.95] font-medium tracking-[-0.06em] text-ink"
-      >
-        Dev containers from your terminal.
-      </h1>
-      <p class="mt-4 max-w-xl text-[15px] leading-relaxed text-mute md:text-base">
-        <span class="font-mono text-ink/80">dc up</span> starts this folder. No config?
-        <span class="font-mono text-ink/80">dc try</span>. No VS Code. Never edits
-        <span class="font-mono text-ink/80">.devcontainer</span>.
-      </p>
-      <p class="mt-2 max-w-xl font-mono text-[12px] text-mute">
-        Daily hub: favorites and recent folders, opt-in actions, session activity.
-      </p>
-      <p class="mt-2 max-w-xl font-mono text-[12px] text-mute">
-        Wraps the official Dev Containers CLI.
-      </p>
-      <div class="mt-7 flex flex-wrap gap-2">
-        <button
-          id="hero-copy-install"
-          type="button"
-          data-install-copy
-          data-install-cmd={installCommand}
-          class="inline-flex min-h-10 items-center bg-ink px-4 font-mono text-xs text-page transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96]"
-        >
-          Copy install
-        </button>
-        <a
-          href="#demo"
-          class="inline-flex min-h-10 items-center border border-ink/15 px-4 font-mono text-xs text-ink transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-ink/40"
-        >
-          Watch
-        </a>
-        <a
-          href="https://github.com/Brasth/dc-cli"
-          class="inline-flex min-h-10 items-center px-4 font-mono text-xs text-mute transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-ink"
-        >
-          GitHub
-        </a>
+<section id="hero" class="relative pt-[calc(var(--nav-h)+clamp(2.5rem,1.5rem+4vw,5rem))]" aria-labelledby="hero-title">
+  <div class="page-container">
+    <p class="prompt rise">
+      <span>~/src/app</span><span class="sigil">$</span><span class="cmd-text">dc</span>
+    </p>
+    <h1 id="hero-title" class="t-display rise rise-2 mt-5 max-w-[14ch] lg:max-w-none">
+      Dev containers <span class="text-muted lg:block">from your terminal.</span>
+    </h1>
+
+    <div class="mt-10 grid gap-10 md:mt-14 lg:grid-cols-12 lg:gap-8">
+      <!-- Copy + install -->
+      <div class="rise rise-3 flex flex-col lg:col-span-5 lg:pr-6">
+        <p class="t-lede max-w-[34rem]">
+          <span class="cmd-chip">dc up</span> starts this folder. No config?
+          <span class="cmd-chip">dc try</span>. No VS Code required.
+        </p>
+        <p class="t-body mt-4 max-w-[34rem]">
+          A daily workspace hub for the terminal: favorites and recent folders, pinned actions, and
+          session activity, built on the official Dev Containers CLI.
+        </p>
+
+        <div class="install-line mt-8">
+          <div class="panel flex min-w-0 items-stretch overflow-hidden">
+            <span class="flex items-center pl-4 pr-2 font-mono text-sm text-accent" aria-hidden="true">$</span>
+            <code class="min-w-0 flex-1 py-3.5 pr-4 font-mono text-[13px] leading-5 text-fg"><CommandText cmd={installCommand} /></code>
+          </div>
+          <div class="mt-3 flex flex-wrap items-center gap-2">
+            <CopyButton id="hero-copy-install" statusId="hero-copy-status" trackSource="hero" />
+            <a href="/play/" data-track-source="hero" class="btn btn-outline">Play in the browser</a>
+          </div>
+          <p id="hero-copy-status" class="mt-3 min-h-5 font-mono text-[12px] text-accent" aria-live="polite"></p>
+          <p class="mt-1 flex flex-wrap items-center gap-x-1 font-mono text-[12px] text-muted">
+            <span>or read</span>
+            <a href="/guide/" class="link inline-flex min-h-11 items-center px-1">the guides</a>
+            <span aria-hidden="true">·</span>
+            <a href="https://github.com/Brasth/dc-cli" class="link inline-flex min-h-11 items-center px-1">the source on GitHub</a>
+          </p>
+        </div>
       </div>
-      <div class="mt-5">
-        <ProductHuntCard />
-      </div>
-      <p id="hero-copy-status" class="mt-3 min-h-5 font-mono text-[11px] text-amber" aria-live="polite"></p>
+
+      <!-- Product -->
+      <figure class="rise rise-3 lg:col-span-7">
+        <div class="frame">
+          <span class="frame-pip" aria-hidden="true"></span>
+          <div class="frame-bar">
+            <span>terminal recording</span>
+            <span class="hidden sm:inline">no editor in the loop</span>
+          </div>
+          <div class="screen">
+            <DemoVideo
+              id="hero-video"
+              src="/videos/hero.mp4"
+              poster="/videos/posters/hero.webp"
+              label="Terminal recording: dc lists its verbs, dc up starts a devcontainer and forwards ports, then dc opens the board"
+              framed
+              eager
+            />
+          </div>
+        </div>
+        <figcaption class="mt-4 grid gap-x-6 gap-y-2 font-mono text-[12px] leading-5 sm:grid-cols-3">
+          {
+            replay.map((step) => (
+              <span class="flex flex-col">
+                <span class="text-fg"><span class="text-accent">$</span> {step.cmd}</span>
+                <span class="text-muted">{step.out}</span>
+              </span>
+            ))
+          }
+        </figcaption>
+      </figure>
     </div>
 
-    <div class="hero-rise md:col-span-6" style="animation-delay: 80ms">
-      <div class="overflow-hidden rounded-sm border border-ink/15 bg-core">
-        <DemoVideo
-          id="hero-video"
-          src="/videos/hero.mp4"
-          poster="/videos/posters/hero.webp"
-          label="dc-cli terminal demo"
-          framed
-        />
-      </div>
-    </div>
+    <ul class="mt-16 grid grid-cols-1 border-y border-line sm:grid-cols-2 lg:mt-20 lg:grid-cols-4" aria-label="Guarantees">
+      {
+        facts.map((fact, i) => (
+          <li
+            class:list={[
+              'flex items-baseline gap-3 py-4 sm:px-5 lg:py-5',
+              i > 0 && 'border-t border-line sm:border-t-0',
+              i % 2 === 1 && 'sm:border-l sm:border-line',
+              i === 2 && 'lg:border-l lg:border-line',
+              i >= 2 && 'sm:border-t sm:border-line lg:border-t-0',
+              i === 0 && 'sm:pl-0',
+            ]}
+          >
+            <span class="mt-[0.35em] h-1.5 w-1.5 flex-none rounded-[1px] bg-accent" aria-hidden="true" />
+            <span class="text-[15px] leading-6">
+              <span class="font-medium text-fg">{fact.k}</span> <span class="text-muted">{fact.v}</span>
+            </span>
+          </li>
+        ))
+      }
+    </ul>
   </div>
 </section>
-
-<script>
-  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  document.querySelectorAll<HTMLElement>('.hero-rise').forEach((rise, i) => {
-    if (reduce) return;
-    rise.style.opacity = '0';
-    rise.style.transform = 'translateY(12px)';
-    requestAnimationFrame(() => {
-      rise.style.transition =
-        'opacity 600ms cubic-bezier(0.32,0.72,0,1), transform 600ms cubic-bezier(0.32,0.72,0,1)';
-      rise.style.transitionDelay = `${i * 80}ms`;
-      rise.style.opacity = '1';
-      rise.style.transform = 'translateY(0)';
-    });
-  });
-</script>

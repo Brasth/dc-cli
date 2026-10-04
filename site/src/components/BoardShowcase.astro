@@ -1,0 +1,98 @@
+---
+const groups = [
+  {
+    name: 'act',
+    keys: [
+      { k: 'u', v: 'start' },
+      { k: 'e', v: 'shell' },
+      { k: 's', v: 'stop' },
+      { k: 'x', v: 'remove (asks y/n)' },
+    ],
+  },
+  {
+    name: 'look',
+    keys: [
+      { k: 'l', v: 'logs' },
+      { k: 't', v: 'top' },
+      { k: 'n', v: 'nets' },
+      { k: 'd', v: 'disk' },
+    ],
+  },
+  {
+    name: 'move',
+    keys: [
+      { k: 'j k', v: 'select a service' },
+      { k: '↵', v: 'shell into that row' },
+      { k: 'f', v: 'fleet' },
+      { k: '1–9', v: 'open a website port' },
+    ],
+  },
+];
+---
+
+<section id="board-tour" class="section border-t border-line" aria-labelledby="board-title">
+  <div class="page-container">
+    <div class="grid gap-6 lg:grid-cols-12 lg:items-end" data-reveal>
+      <div class="lg:col-span-7">
+        <p class="prompt"><span>~/src/acme-storefront</span><span class="sigil">$</span><span class="cmd-text">dc</span></p>
+        <h2 id="board-title" class="t-h2 mt-4">The board is the product.</h2>
+      </div>
+      <p class="t-body max-w-[30rem] lg:col-span-5 lg:justify-self-end">
+        Type <span class="cmd">dc</span> with no arguments. One screen holds this folder’s services, state, ports
+        and the next keys to press. After a shell or logs, the board comes back so you can press the next one.
+      </p>
+    </div>
+
+    <div class="mt-10 grid gap-8 lg:mt-14 lg:grid-cols-12" data-reveal>
+      <figure class="lg:col-span-9">
+        <div class="frame">
+          <span class="frame-pip" aria-hidden="true"></span>
+          <div class="frame-bar">
+            <span>dc-tui · screenshot</span>
+            <span class="hidden sm:inline">running · devcontainer · colima</span>
+          </div>
+          <div class="screen screen-scan">
+            <div class="board-shot overflow-x-auto" tabindex="0" role="region" aria-label="dc-tui board screenshot (scrolls sideways on small screens)">
+            <img
+              src="/images/tui.png"
+              width="1248"
+              height="768"
+              loading="lazy"
+              decoding="async"
+              class="block h-auto w-full min-w-[46rem] lg:min-w-0"
+              alt="The dc-tui board for acme-storefront: five services (app, db, redis, worker, mailpit) with state and container names, db selected with its image and id, an open link to 127.0.0.1:5173, and key hints for start, shell, stop, open, files, logs, fleet, refresh, help and quit."
+            />
+            </div>
+          </div>
+        </div>
+        <figcaption class="mt-3 font-mono text-[12px] text-muted lg:hidden">Swipe the screenshot sideways to read the full board.</figcaption>
+      </figure>
+
+      <div class="flex flex-col lg:col-span-3">
+        <dl class="grid gap-6 sm:grid-cols-3 lg:grid-cols-1 lg:gap-0">
+          {
+            groups.map((group) => (
+              <div class="lg:border-t lg:border-line lg:py-5 lg:first:border-t-0 lg:first:pt-0">
+                <dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-muted">{group.name}</dt>
+                <dd class="mt-3">
+                  <ul class="grid gap-2">
+                    {group.keys.map((key) => (
+                      <li class="flex items-center gap-3 text-sm text-soft">
+                        <kbd class="kbd">{key.k}</kbd>
+                        <span>{key.v}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </dd>
+              </div>
+            ))
+          }
+        </dl>
+        <div class="mt-8 flex flex-wrap gap-2 lg:mt-auto lg:pt-6">
+          <a href="/play/" data-track-source="board" class="btn btn-solid">Play the board</a>
+          <a href="/guide/tui/" class="btn btn-ghost">Every key <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

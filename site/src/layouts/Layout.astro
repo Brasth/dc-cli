@@ -101,12 +101,39 @@ const jsonLd =
 
     {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
   </head>
-  <body class="bg-page text-ink antialiased">
-    <div class="cols" aria-hidden="true"></div>
-    <div class="scan" aria-hidden="true"></div>
-    <div class="grain" aria-hidden="true"></div>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="texture-cols" aria-hidden="true"></div>
+    <div class="texture-grain" aria-hidden="true"></div>
     <slot />
+    <p id="copy-live" class="sr-only-live" aria-live="polite"></p>
     <script>
+      /*
+       * Shared copy handler. Any element with [data-install-copy] copies its
+       * [data-install-cmd]. Feedback: the button label (or its [data-copy-label]
+       * child) flips to "Copied", [data-copied] styles it, and the status element
+       * named by [data-copy-status] (or the shared sr-only live region) announces it.
+       */
+      const RESET_MS = 1800;
+      const timers = new WeakMap<HTMLElement, number>();
+
+      async function writeText(text: string) {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return;
+        }
+        const area = document.createElement('textarea');
+        area.value = text;
+        area.setAttribute('readonly', '');
+        area.style.position = 'fixed';
+        area.style.opacity = '0';
+        document.body.appendChild(area);
+        area.select();
+        const ok = document.execCommand('copy');
+        area.remove();
+        if (!ok) throw new Error('copy failed');
+      }
+
       document.addEventListener('click', async (event) => {
         const target = event.target;
         if (!(target instanceof Element)) return;
@@ -114,22 +141,51 @@ const jsonLd =
         if (!btn) return;
         const cmd = btn.getAttribute('data-install-cmd') ?? '';
         if (!cmd) return;
+        const label = btn.querySelector<HTMLElement>('[data-copy-label]') ?? btn;
+        if (!label.dataset.idle) label.dataset.idle = label.textContent?.trim() || 'Copy install';
+        const statusId = btn.getAttribute('data-copy-status');
+        const status = (statusId && document.getElementById(statusId)) || document.getElementById('copy-live');
+        const message = btn.getAttribute('data-copy-message') ?? 'Copied. Paste it in your terminal.';
         try {
-          await navigator.clipboard.writeText(cmd);
-          const label = btn.textContent?.trim() ?? 'Copy install';
-          btn.textContent = 'copied';
-          window.setTimeout(() => {
-            btn.textContent = label === 'copied' ? 'Copy install' : label;
-          }, 1600);
-          const message = 'copied — paste in your terminal';
-          for (const id of ['copy-status', 'hero-copy-status', 'play-copy-status']) {
-            const status = document.getElementById(id);
-            if (status) status.textContent = message;
-          }
+          await writeText(cmd);
+          label.textContent = 'Copied';
+          btn.dataset.copied = 'true';
+          if (status) status.textContent = message;
+          window.clearTimeout(timers.get(btn));
+          timers.set(
+            btn,
+            window.setTimeout(() => {
+              label.textContent = label.dataset.idle ?? 'Copy install';
+              delete btn.dataset.copied;
+              // The visible status stays a little longer than the button state.
+              window.setTimeout(() => {
+                if (status && status.textContent === message) status.textContent = '';
+              }, 2400);
+            }, RESET_MS),
+          );
         } catch {
           window.location.assign('/#install');
         }
       });
+
+      // Scroll reveal. Content is visible by default; .js opts in.
+      const reveal = document.querySelectorAll<HTMLElement>('[data-reveal]');
+      if ('IntersectionObserver' in window && reveal.length) {
+        document.documentElement.classList.add('reveal-ready');
+        const io = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              entry.target.classList.add('is-in');
+              io.unobserve(entry.target);
+            }
+          },
+          { rootMargin: '0px 0px -8% 0px', threshold: 0.08 },
+        );
+        reveal.forEach((el) => io.observe(el));
+      } else {
+        reveal.forEach((el) => el.classList.add('is-in'));
+      }
     </script>
     {cfBeacon && (
       <script

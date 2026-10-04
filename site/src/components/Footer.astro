@@ -1,27 +1,69 @@
 ---
-import { latestRelease } from '../lib/schema';
+import Logo from './Logo.astro';
 import ProductHuntBadge from './ProductHuntBadge.astro';
+import { latestRelease } from '../lib/schema';
 
 const year = new Date().getFullYear();
+
+const columns = [
+  {
+    name: 'product',
+    links: [
+      { href: '/play/', label: 'play', track: 'footer' },
+      { href: '/guide/', label: 'guides' },
+      { href: '/#install', label: 'install' },
+      { href: `https://github.com/Brasth/dc-cli/releases/tag/${latestRelease}`, label: `release ${latestRelease}` },
+    ],
+  },
+  {
+    name: 'project',
+    links: [
+      { href: 'https://github.com/Brasth/dc-cli', label: 'repository' },
+      { href: 'https://github.com/Brasth/dc-cli#readme', label: 'readme' },
+      { href: '/issues/', label: 'issues' },
+      { href: 'https://github.com/devcontainers/cli', label: '@devcontainers/cli' },
+    ],
+  },
+];
 ---
 
-<footer class="px-4 pb-10 md:px-6 md:pb-12">
-  <div
-    class="mx-auto flex w-full max-w-6xl flex-col gap-6 border-t border-ink/10 pt-6 md:gap-8"
-  >
-    <ProductHuntBadge class="self-start" />
-    <div class="flex flex-col gap-4 font-mono text-xs md:flex-row md:items-center md:justify-between">
-      <p class="text-mute">MIT. {year}. Canvilled / Brasth. {latestRelease}</p>
-      <div class="flex flex-wrap gap-5">
-      <a class="text-ink/75 hover:text-ink" href={`https://github.com/Brasth/dc-cli/releases/tag/${latestRelease}`}>
-        {latestRelease}
+<footer class="relative z-10 border-t border-line">
+  <div class="page-container grid grid-cols-2 gap-x-6 gap-y-10 py-12 md:grid-cols-12 md:py-16">
+    <div class="col-span-2 md:col-span-6">
+      <a href="/" class="inline-flex min-h-11 items-center gap-2.5 font-mono text-sm text-fg">
+        <Logo class="h-6 w-6 text-fg" />
+        <span class="font-medium">dc-cli</span>
       </a>
-      <a class="text-ink/75 hover:text-ink" href="/guide/">guides</a>
-      <a class="text-ink/75 hover:text-ink" href="/issues/">issues</a>
-      <a class="text-ink/75 hover:text-ink" href="https://github.com/Brasth/dc-cli">repository</a>
-      <a class="text-ink/75 hover:text-ink" href="https://github.com/Brasth/dc-cli#readme">readme</a>
-      <a class="text-ink/75 hover:text-ink" href="https://github.com/devcontainers/cli">@devcontainers/cli</a>
-      </div>
+      <p class="t-body mt-3 max-w-[22rem] text-sm">
+        Dev containers from your terminal. Wraps the official Dev Containers CLI.
+      </p>
+      <ProductHuntBadge class="mt-6" theme="dark" />
+    </div>
+    {
+      columns.map((col) => (
+        <nav class="col-span-1 md:col-span-3" aria-label={col.name}>
+          <h2 class="font-mono text-[11px] uppercase tracking-[0.14em] text-muted">{col.name}</h2>
+          <ul class="mt-3 grid">
+            {col.links.map((link) => (
+              <li>
+                <a
+                  href={link.href}
+                  data-track-source={link.track}
+                  class="inline-flex min-h-10 items-center font-mono text-xs text-soft transition-colors duration-[var(--dur-base)] hover:text-fg"
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))
+    }
+  </div>
+  <div class="page-container">
+    <div class="flex flex-col gap-2 border-t border-line py-6 font-mono text-[11px] text-muted sm:flex-row sm:justify-between">
+      <p>MIT · {year} · Canvilled / Brasth</p>
+      <p>{latestRelease}</p>
     </div>
   </div>
 </footer>
