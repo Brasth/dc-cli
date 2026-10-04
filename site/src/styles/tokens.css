@@ -1,25 +1,44 @@
-/* === PRIMITIVES === */
+/*
+ * dc-cli design tokens
+ *
+ * Three tiers. Components read tier 2 or 3, never raw primitives.
+ *   1. Primitives — raw values (palette, families, spacing).
+ *   2. Semantic   — what a value means (canvas, fg, accent, line…).
+ *   3. Component  — sizes and states for specific UI (button, frame, nav…).
+ *
+ * Tailwind utilities are generated from tier 2 in global.css (@theme inline),
+ * so `bg-surface`, `text-muted`, `border-line` resolve to these variables.
+ *
+ * Contrast (WCAG 2.x on --canvas #070806):
+ *   fg 17.8:1 · fg-soft 11.6:1 · muted 5.5:1 (4.8:1 on --overlay) · accent 10.4:1
+ *   text on accent 10.4:1 · danger 6.8:1 · warn 10.3:1
+ */
+
+/* === 1. PRIMITIVES === */
 :root {
-  --color-black-950: #070806;
-  --color-black-900: #111111;
-  --color-cream-50: #f4f1ea;
-  --color-cream-300: #c8c0b2;
-  --color-steel-500: #8a8680;
-  --color-steel-700: #3a3834;
-  --color-phosphor-400: #6fcf7b;
-  --color-phosphor-500: #4eae5a;
-  --color-danger-500: #c45c4a;
+  /* Near-black ramp — warm, never neutral grey */
+  --black-1000: #050604;
+  --black-950: #070806;
+  --black-900: #0c0d0a;
+  --black-850: #11120e;
+  --black-800: #171813;
+  --black-700: #1f201b;
 
-  --font-display: "Geist", "Satoshi", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --cream-50: #f4f1ea;
+  --cream-300: #c9c4ba;
 
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.25rem;
-  --text-display: clamp(3rem, 5vw, 5.5rem);
+  --steel-500: #8a8680;
 
+  --phosphor-300: #9be3a4;
+  --phosphor-400: #6fcf7b;
+
+  --red-400: #e07a68;
+  --amber-400: #e0b35c;
+
+  --family-sans: "Geist Variable", "Geist", ui-sans-serif, system-ui, sans-serif;
+  --family-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Spacing — 4px base. Tailwind's --spacing is also 0.25rem, so p-4 == --space-4. */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -27,64 +46,152 @@
   --space-6: 1.5rem;
   --space-8: 2rem;
   --space-12: 3rem;
+  --space-16: 4rem;
   --space-24: 6rem;
-  --space-32: 8rem;
-  --space-40: 10rem;
-
-  --radius-sm: 0.5rem;
-  --radius-md: 1rem;
-  --radius-lg: 1.5rem;
-  --radius-xl: 2rem;
-  --radius-full: 9999px;
-
-  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
-  --duration-fast: 180ms;
-  --duration-slow: 700ms;
 }
 
-/* === SEMANTIC === */
+/* === 2. SEMANTIC === */
 :root {
-  --color-bg: var(--color-black-950);
-  --color-fg: var(--color-cream-50);
-  --color-muted: var(--color-steel-500);
-  --color-line: var(--color-steel-700);
-  --color-accent: var(--color-phosphor-400);
-  --color-accent-hover: var(--color-phosphor-500);
-  --color-danger: var(--color-danger-500);
+  color-scheme: dark;
 
-  --font-heading: var(--font-display);
-  --font-body: var(--font-display);
-  --font-code: var(--font-mono);
+  /* Surfaces: sunken < canvas < surface < raised < overlay */
+  --sunken: var(--black-1000);
+  --canvas: var(--black-950);
+  --surface: var(--black-900);
+  --raised: var(--black-850);
+  --overlay: var(--black-800);
+  --overlay-hover: var(--black-700);
 
-  --spacing-section: var(--space-12);
-  --spacing-section-lg: var(--space-16);
+  /* Text */
+  --fg: var(--cream-50);
+  --fg-soft: var(--cream-300);
+  --muted: var(--steel-500);
+  --on-accent: var(--black-950);
+  --on-fg: var(--black-950);
+
+  /* Signal — the only hue. Prompts, focus, primary CTA, one label per area. */
+  --accent: var(--phosphor-400);
+  --accent-hover: var(--phosphor-300);
+  --accent-wash: rgb(111 207 123 / 0.07);
+  --accent-line: rgb(111 207 123 / 0.35);
+
+  --danger: var(--red-400);
+  --warn: var(--amber-400);
+
+  /* Hairlines — decorative (<3:1); never the only carrier of meaning */
+  --line: rgb(244 241 234 / 0.09);
+  --line-strong: rgb(244 241 234 / 0.16);
+  --line-hover: rgb(244 241 234 / 0.34);
+
+  --focus: var(--accent);
+
+  /* Type roles */
+  --font-body: var(--family-sans);
+  --font-display: var(--family-sans);
+  --font-code: var(--family-mono);
+
+  /* Type scale */
+  --text-display: clamp(2.625rem, 1.2rem + 5.4vw, 5.75rem);
+  --leading-display: 0.95;
+  --tracking-display: -0.052em;
+
+  --text-h2: clamp(2rem, 1.3rem + 2.5vw, 3.375rem);
+  --leading-h2: 1.02;
+  --tracking-h2: -0.042em;
+
+  --text-h3: 1.25rem;
+  --leading-h3: 1.3;
+  --tracking-h3: -0.022em;
+
+  --text-lede: clamp(1.0625rem, 0.98rem + 0.35vw, 1.25rem);
+  --leading-lede: 1.5;
+
+  --text-body: 1rem;
+  --text-small: 0.875rem;
+  --text-cmd: 0.875rem;
+  --text-label: 0.75rem;
+  --text-micro: 0.6875rem;
+
+  /* Layout */
+  --container: 76rem;
+  --gutter: var(--space-4);
+  --section-y: clamp(4rem, 2.75rem + 3.5vw, 6.5rem);
+
+  /* Shape — the logo: a rounded host frame around a rounded guest */
+  --radius-none: 0;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+
+  /* Motion — one curve, three durations */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-fast: 160ms;
+  --dur-base: 240ms;
+  --dur-slow: 600ms;
 }
 
-/* === COMPONENTS === */
+@media (min-width: 768px) {
+  :root {
+    --gutter: var(--space-6);
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --gutter: var(--space-8);
+  }
+}
+
+/* === 3. COMPONENTS === */
 :root {
-  --nav-bg: rgb(5 5 5 / 0.72);
-  --nav-radius: var(--radius-full);
+  /* Nav */
+  --nav-h: 3.5rem;
+  --nav-bg: rgb(7 8 6 / 0.8);
 
-  --button-bg: var(--color-cream-50);
-  --button-fg: var(--color-black-950);
-  --button-radius: var(--radius-full);
-  --button-pad-x: var(--space-6);
-  --button-pad-y: var(--space-3);
-  --button-press: 0.96;
+  /* Buttons — square, mono, verb first */
+  --btn-h: 2.75rem;
+  --btn-h-sm: 2.25rem;
+  --btn-pad-x: 1.125rem;
+  --btn-radius: var(--radius-none);
+  --btn-font: var(--font-code);
+  --btn-size: var(--text-label);
+  --btn-press: 0.97;
 
-  --button-secondary-bg: transparent;
-  --button-secondary-fg: var(--color-cream-50);
-  --button-secondary-line: rgb(244 241 234 / 0.14);
+  --btn-primary-bg: var(--accent);
+  --btn-primary-bg-hover: var(--accent-hover);
+  --btn-primary-fg: var(--on-accent);
 
-  --card-shell-bg: rgb(255 255 255 / 0.04);
-  --card-shell-line: rgb(244 241 234 / 0.1);
-  --card-shell-pad: 0.375rem;
-  --card-shell-radius: var(--radius-xl);
-  --card-core-bg: #0c0c0c;
-  --card-core-radius: calc(var(--card-shell-radius) - var(--card-shell-pad));
-  --card-pad: var(--space-8);
+  --btn-solid-bg: var(--fg);
+  --btn-solid-bg-hover: #ffffff;
+  --btn-solid-fg: var(--on-fg);
 
-  --install-bg: #0c0c0c;
-  --install-fg: var(--color-cream-50);
-  --install-accent: var(--color-accent);
+  --btn-outline-line: var(--line-strong);
+  --btn-outline-line-hover: var(--line-hover);
+  --btn-outline-fg: var(--fg);
+
+  --btn-ghost-fg: var(--fg-soft);
+  --btn-ghost-fg-hover: var(--fg);
+
+  /* Frame (host) around screen (guest) */
+  --frame-bg: var(--raised);
+  --frame-line: var(--line-strong);
+  --frame-pad: 6px;
+  --frame-radius: var(--radius-lg);
+  --screen-bg: var(--sunken);
+  --screen-radius: calc(var(--frame-radius) - var(--frame-pad));
+
+  /* Panels */
+  --panel-bg: var(--surface);
+  --panel-line: var(--line-strong);
+  --panel-radius: var(--radius-md);
+
+  /* Keycap */
+  --kbd-bg: var(--overlay);
+  --kbd-line: var(--line-strong);
+  --kbd-radius: var(--radius-xs);
+
+  /* Focus ring */
+  --ring-width: 2px;
+  --ring-offset: 2px;
 }

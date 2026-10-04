@@ -1,57 +1,93 @@
 ---
 import Logo from './Logo.astro';
+import CopyButton from './CopyButton.astro';
 import { latestRelease } from '../lib/schema';
+
+const path = Astro.url.pathname;
+const links = [
+  { href: '/play/', label: 'play', track: 'nav', match: '/play' },
+  { href: '/guide/', label: 'guides', match: '/guide' },
+  { href: 'https://github.com/Brasth/dc-cli', label: 'github' },
+];
+const isCurrent = (match?: string) => (match ? path.startsWith(match) : false);
 ---
 
-<header class="fixed inset-x-0 top-0 z-30 border-b border-ink/10 bg-page/80 px-4 backdrop-blur-2xl md:px-6">
-  <nav
-    class="mx-auto flex h-12 w-full max-w-6xl items-center justify-between gap-4"
-    aria-label="Primary"
-  >
-    <a href="/" class="flex min-h-10 items-center gap-2 font-mono text-sm text-ink">
-      <Logo class="h-5 w-5" />
-      <span>dc-cli</span>
-      <span class="hidden text-mute sm:inline">{latestRelease}</span>
+<header class="fixed inset-x-0 top-0 z-50 border-b border-line bg-[var(--nav-bg)] backdrop-blur-xl">
+  <nav class="page-container flex h-[var(--nav-h)] items-center justify-between gap-3" aria-label="Primary">
+    <a href="/" class="group -ml-1 flex min-h-11 items-center gap-2.5 px-1 font-mono text-sm text-fg" aria-label="dc-cli home">
+      <Logo class="h-6 w-6 text-fg" />
+      <span class="font-medium tracking-tight">dc-cli</span>
+      <span class="hidden rounded-[var(--radius-xs)] border border-line px-1.5 py-0.5 text-[11px] leading-none text-muted sm:inline">
+        {latestRelease}
+      </span>
     </a>
+
     <div class="flex items-center gap-1">
-      <span id="nav-clock" class="hidden px-3 font-mono text-[11px] tabular-nums text-mute sm:inline">00:00:00</span>
-      <a
-        href="/play/"
-        data-track-source="nav"
-        class="inline-flex min-h-10 items-center px-3 font-mono text-xs text-mute transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-ink"
-      >
-        play
-      </a>
-      <a
-        href="/guide/"
-        class="inline-flex min-h-10 items-center px-3 font-mono text-xs text-mute transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-ink"
-      >
-        guide
-      </a>
-      <a
-        href="https://github.com/Brasth/dc-cli"
-        class="inline-flex min-h-10 items-center px-3 font-mono text-xs text-mute transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:text-ink"
-      >
-        github
-      </a>
-      <a
-        href="/#install"
-        class="inline-flex min-h-10 items-center bg-amber px-3 font-mono text-xs text-page transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96]"
-      >
-        Copy install
-      </a>
+      <ul class="hidden items-center sm:flex">
+        {
+          links.map((link) => (
+            <li>
+              <a
+                href={link.href}
+                data-track-source={link.track}
+                aria-current={isCurrent(link.match) ? 'page' : undefined}
+                class="inline-flex min-h-11 items-center px-3 font-mono text-xs text-muted transition-colors duration-[var(--dur-base)] ease-fluid hover:text-fg aria-[current=page]:text-fg"
+              >
+                {link.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+
+      <details class="nav-menu relative sm:hidden">
+        <summary class="inline-flex min-h-11 cursor-pointer list-none items-center px-3 font-mono text-xs text-soft hover:text-fg">
+          menu
+        </summary>
+        <ul class="absolute right-0 top-full mt-2 w-44 border border-line-strong bg-raised py-1">
+          {
+            links.map((link) => (
+              <li>
+                <a
+                  href={link.href}
+                  data-track-source={link.track}
+                  aria-current={isCurrent(link.match) ? 'page' : undefined}
+                  class="flex min-h-11 items-center px-4 font-mono text-xs text-soft hover:bg-overlay hover:text-fg aria-[current=page]:text-accent"
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </details>
+
+      <CopyButton id="nav-copy-install" size="sm" trackSource="nav" class="ml-1" />
     </div>
   </nav>
 </header>
 
+<style>
+  .nav-menu summary::-webkit-details-marker {
+    display: none;
+  }
+  .nav-menu[open] summary {
+    color: var(--fg);
+  }
+</style>
+
 <script>
-  const clock = document.getElementById('nav-clock');
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const tick = () => {
-    if (!clock) return;
-    const d = new Date();
-    clock.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  };
-  tick();
-  window.setInterval(tick, 1000);
+  // Close the mobile menu on outside click or Escape.
+  const menu = document.querySelector<HTMLDetailsElement>('.nav-menu');
+  if (menu) {
+    document.addEventListener('click', (event) => {
+      if (menu.open && !menu.contains(event.target as Node)) menu.open = false;
+    });
+    menu.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && menu.open) {
+        menu.open = false;
+        menu.querySelector('summary')?.focus();
+      }
+    });
+  }
 </script>

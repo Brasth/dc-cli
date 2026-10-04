@@ -2,28 +2,20 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout
-  title="404 — dc-cli"
-  description="This path is not on dc.brasth.com."
-  noindex={true}
->
-  <main class="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-6xl flex-col justify-center px-4">
-    <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">not found</p>
-    <h1 class="mt-3 font-mono text-4xl tracking-tight">This path is not in the stack.</h1>
-    <p class="mt-4 max-w-md text-mute">No container, no page. Back to the board.</p>
-    <div class="mt-8 flex flex-wrap gap-3">
-      <a
-        href="/"
-        class="inline-flex w-max min-h-10 items-center bg-ink px-4 font-mono text-xs text-page"
-      >
-        $ cd ~
-      </a>
-      <a
-        href="/guide/"
-        class="inline-flex w-max min-h-10 items-center border border-ink/15 px-4 font-mono text-xs text-ink"
-      >
-        guides
-      </a>
+<Layout title="404 — dc-cli" description="This path is not on dc.brasth.com." noindex={true}>
+  <main id="main" class="page-container relative z-10 flex min-h-[100dvh] flex-col justify-center">
+    <p class="prompt"><span>~</span><span class="sigil">$</span><span class="cmd-text">cd <span id="nf-path">this-path</span></span></p>
+    <p class="mt-2 font-mono text-[12px] text-danger">no such file or directory</p>
+    <h1 class="t-h2 mt-6 max-w-[18ch]">This path is not in the stack.</h1>
+    <p class="t-body mt-4 max-w-md">No container, no page. Back to the board.</p>
+    <div class="mt-8 flex flex-wrap gap-2">
+      <a href="/" class="btn btn-solid">$ cd ~</a>
+      <a href="/guide/" class="btn btn-outline">Guides</a>
+      <a href="/play/" data-track-source="404" class="btn btn-ghost">Play</a>
     </div>
   </main>
+  <script>
+    const el = document.getElementById('nf-path');
+    if (el) el.textContent = window.location.pathname;
+  </script>
 </Layout>

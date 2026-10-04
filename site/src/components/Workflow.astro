@@ -1,0 +1,273 @@
+---
+import DemoVideo from './DemoVideo.astro';
+
+const steps = [
+  {
+    id: 'up',
+    cmd: 'dc up',
+    title: 'Start this folder.',
+    instead: 'digging through the VS Code Remote UI',
+    body: 'Run it from the project folder. A .devcontainer starts through the official Dev Containers CLI, then ports are forwarded. A compose-only folder starts through docker compose. Same verb either way.',
+    src: '/videos/clip-up.mp4',
+    poster: '/videos/posters/clip-up.webp',
+    guide: { href: '/guide/install/', label: 'Install and daily start' },
+  },
+  {
+    id: 'try',
+    cmd: 'dc try',
+    title: 'No config? Try a sandbox.',
+    instead: 'writing a devcontainer.json just to get a shell',
+    body: 'In a folder with no .devcontainer and no root compose file, dc try starts a sandbox from a detected profile (node, python, go, or a generic base) with default localhost ports. The override lives outside the repo, so git status stays clean.',
+    src: '/videos/walkthrough-try.mp4',
+    poster: '/videos/posters/walkthrough-try.webp',
+    guide: { href: '/guide/try/', label: 'Sandbox without config' },
+  },
+  {
+    id: 'exec',
+    cmd: 'dc exec',
+    title: 'Shell in the app.',
+    instead: 'remembering raw docker exec names',
+    body: 'Opens a shell in the labeled app container. Use --service NAME for a compose sibling. dc exec --no-start runs a command only when that target is already up, and refuses a stopped or missing container.',
+    src: '/videos/clip-exec.mp4',
+    poster: '/videos/posters/clip-exec.webp',
+    guide: { href: '/guide/tui/', label: 'App vs other services' },
+  },
+  {
+    id: 'forward',
+    cmd: 'dc forward',
+    title: 'Ports that reach the host.',
+    instead: 'hand-rolling Colima port sidecars',
+    body: 'Colima-safe forwarding through sidecars dc-cli owns. dc up already runs it; run it again when the browser cannot reach the app. Unlabeled port holders are reported, never stopped.',
+    src: '/videos/clip-forward.mp4',
+    poster: '/videos/posters/clip-forward.webp',
+    guide: { href: '/guide/ports/', label: 'Ports and host clashes' },
+  },
+  {
+    id: 'recover',
+    cmd: 'dc doctor',
+    title: 'Diagnose, then one next step.',
+    instead: 'guessing which engine owns this folder',
+    body: 'dc doctor is read-only: it checks the engine, socket and workspace without touching Docker or project files. dc recover then names one next step, and --yes applies it when an engine is already installed.',
+    src: '/videos/clip-recover.mp4',
+    poster: '/videos/posters/clip-recover.webp',
+    guide: { href: '/guide/doctor/', label: 'Read-only checks' },
+  },
+];
+---
+
+<section id="workflow" class="section" aria-labelledby="workflow-title">
+  <div class="page-container">
+    <div class="grid gap-6 lg:grid-cols-12 lg:items-end" data-reveal>
+      <div class="lg:col-span-7">
+        <p class="prompt"><span>~/src/app</span><span class="sigil">$</span><span class="cmd-text">dc --help</span></p>
+        <h2 id="workflow-title" class="t-h2 mt-4">Type <span class="font-mono text-[0.86em] tracking-[-0.06em]">dc</span>. Then a verb.</h2>
+      </div>
+      <p class="t-body max-w-[30rem] lg:col-span-5 lg:justify-self-end">
+        The verbs you reach for every day, run from the folder you are already in. Hyphenated names like
+        <span class="cmd">dc-up</span> still work. Flags: <span class="cmd">dc --help</span>.
+      </p>
+    </div>
+
+    <div class="workflow mt-10 grid gap-6 lg:mt-14 lg:grid-cols-12 lg:gap-8" data-tabs>
+      <div
+        class="workflow-tabs -mx-[var(--gutter)] flex gap-2 overflow-x-auto px-[var(--gutter)] pb-1 lg:col-span-4 lg:mx-0 lg:flex-col lg:gap-0 lg:overflow-visible lg:border-t lg:border-line lg:px-0 lg:pb-0"
+        role="tablist"
+        aria-label="Commands"
+        aria-orientation="vertical"
+      >
+        {
+          steps.map((step, i) => (
+            <button
+              type="button"
+              role="tab"
+              id={`wf-tab-${step.id}`}
+              aria-controls={`wf-panel-${step.id}`}
+              aria-selected={i === 0 ? 'true' : 'false'}
+              tabindex={i === 0 ? 0 : -1}
+              class="wf-tab group relative flex-none text-left"
+            >
+              <span class="wf-tab-cmd font-mono">
+                <span class="wf-sigil" aria-hidden="true">$</span> {step.cmd}
+              </span>
+              <span class="wf-tab-title hidden lg:block">{step.title}</span>
+            </button>
+          ))
+        }
+      </div>
+
+      <div class="lg:col-span-8">
+        {
+          steps.map((step, i) => (
+            <div
+              role="tabpanel"
+              id={`wf-panel-${step.id}`}
+              aria-labelledby={`wf-tab-${step.id}`}
+              class="wf-panel"
+              hidden={i !== 0}
+              tabindex="0"
+            >
+              <div class="frame">
+                <div class="frame-bar">
+                  <span>
+                    <span class="text-accent">$</span> <span class="text-fg">{step.cmd}</span>
+                  </span>
+                  <span>loop · {i + 1} of {steps.length}</span>
+                </div>
+                <div class="screen">
+                  <DemoVideo src={step.src} poster={step.poster} label={`Terminal recording of ${step.cmd}`} framed />
+                </div>
+              </div>
+              <div class="mt-6 grid gap-4 md:grid-cols-[1fr_auto] md:items-start md:gap-10">
+                <div>
+                  <h3 class="t-h3">{step.title}</h3>
+                  <p class="t-body mt-2 max-w-[40rem]">{step.body}</p>
+                  <p class="mt-3 font-mono text-[12px] leading-5 text-muted">
+                    <span class="text-soft">instead of</span> {step.instead}
+                  </p>
+                </div>
+                <a href={step.guide.href} class="btn btn-ghost -ml-3 self-start md:ml-0">
+                  {step.guide.label} <span aria-hidden="true">→</span>
+                </a>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .workflow-tabs {
+    scrollbar-width: none;
+  }
+  .workflow-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .wf-tab {
+    min-height: 2.75rem;
+    padding: 0 0.9rem;
+    border: 1px solid var(--line-strong);
+    color: var(--muted);
+    cursor: pointer;
+    transition:
+      color var(--dur-base) var(--ease),
+      border-color var(--dur-base) var(--ease),
+      background-color var(--dur-base) var(--ease);
+  }
+
+  .wf-tab-cmd {
+    display: flex;
+    align-items: center;
+    gap: 0.6ch;
+    min-height: 2.75rem;
+    font-size: var(--text-cmd);
+    white-space: nowrap;
+  }
+
+  .wf-sigil {
+    color: var(--muted);
+    transition: color var(--dur-base) var(--ease);
+  }
+
+  .wf-tab:hover {
+    color: var(--fg);
+    border-color: var(--line-hover);
+  }
+
+  .wf-tab[aria-selected='true'] {
+    color: var(--fg);
+    border-color: var(--accent-line);
+    background: var(--accent-wash);
+  }
+
+  .wf-tab[aria-selected='true'] .wf-sigil {
+    color: var(--accent);
+  }
+
+  @media (min-width: 1024px) {
+    .wf-tab {
+      padding: 1rem 0 1rem 1.25rem;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+    }
+
+    .wf-tab::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 1rem;
+      bottom: 1rem;
+      width: 2px;
+      background: var(--accent);
+      transform: scaleY(0);
+      transform-origin: top;
+      transition: transform var(--dur-base) var(--ease);
+    }
+
+    .wf-tab[aria-selected='true'] {
+      background: transparent;
+    }
+
+    .wf-tab[aria-selected='true']::before {
+      transform: scaleY(1);
+    }
+
+    .wf-tab-cmd {
+      min-height: 0;
+      font-size: 1.0625rem;
+    }
+
+    .wf-tab-title {
+      margin-top: 0.25rem;
+      font-size: var(--text-small);
+      color: var(--muted);
+    }
+
+    .wf-tab[aria-selected='true'] .wf-tab-title {
+      color: var(--fg-soft);
+    }
+  }
+
+  .wf-panel:not([hidden]) {
+    animation: fade var(--dur-base) var(--ease);
+  }
+
+  .wf-panel:focus-visible {
+    outline-offset: 6px;
+  }
+</style>
+
+<script>
+  // WAI-ARIA tabs with automatic activation. Arrow keys move, Home/End jump.
+  document.querySelectorAll<HTMLElement>('[data-tabs]').forEach((root) => {
+    const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const select = (next: HTMLButtonElement, focus = false) => {
+      for (const tab of tabs) {
+        const on = tab === next;
+        tab.setAttribute('aria-selected', on ? 'true' : 'false');
+        tab.tabIndex = on ? 0 : -1;
+        const panel = document.getElementById(tab.getAttribute('aria-controls') ?? '');
+        if (panel) panel.hidden = !on;
+      }
+      if (focus) next.focus();
+      next.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    };
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => select(tab));
+      tab.addEventListener('keydown', (event) => {
+        const last = tabs.length - 1;
+        let to = -1;
+        if (event.key === 'ArrowDown' || event.key === 'ArrowRight') to = i === last ? 0 : i + 1;
+        if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') to = i === 0 ? last : i - 1;
+        if (event.key === 'Home') to = 0;
+        if (event.key === 'End') to = last;
+        if (to < 0) return;
+        event.preventDefault();
+        select(tabs[to], true);
+      });
+    });
+  });
+</script>

@@ -1,0 +1,53 @@
+---
+/**
+ * Copy-to-clipboard button. Behaviour lives in Layout.astro (shared handler):
+ * the label flips to "Copied", [data-copied] restyles the button, and the
+ * element named by `statusId` (or the shared live region) announces it.
+ */
+import { installCommand } from '../lib/install';
+
+interface Props {
+  cmd?: string;
+  label?: string;
+  variant?: 'primary' | 'solid' | 'outline' | 'ghost';
+  size?: 'sm' | 'md';
+  id?: string;
+  statusId?: string;
+  trackSource?: string;
+  message?: string;
+  class?: string;
+  /** Accessible name when the visible label is short or ambiguous. */
+  ariaLabel?: string;
+}
+
+const {
+  cmd = installCommand,
+  label = 'Copy install',
+  variant = 'primary',
+  size = 'md',
+  id,
+  statusId,
+  trackSource,
+  message,
+  class: className = '',
+  ariaLabel,
+} = Astro.props;
+---
+
+<button
+  id={id}
+  type="button"
+  class:list={['btn', `btn-${variant}`, size === 'sm' && 'btn-sm', className]}
+  data-install-copy
+  data-install-cmd={cmd}
+  data-copy-status={statusId}
+  data-copy-message={message}
+  data-track-source={trackSource}
+  aria-label={ariaLabel}
+>
+  <svg class="icon" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
+    <rect x="5.5" y="5.5" width="8" height="8" rx="1" stroke="currentColor" stroke-width="1.4"></rect>
+    <path d="M10.5 3.5v-.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h.5" stroke="currentColor" stroke-width="1.4"></path>
+  </svg>
+  <span data-copy-label>{label}</span>
+</button>

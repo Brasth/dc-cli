@@ -1,69 +1,146 @@
 ---
+import CopyButton from './CopyButton.astro';
+import CommandText from './CommandText.astro';
 import { latestRelease } from '../lib/schema';
 import { installCommand } from '../lib/install';
+
+const brewCommand = 'brew tap Brasth/dc-cli && brew install dc-cli';
 ---
 
-<section id="install" class="px-4 py-12 md:px-6 md:py-16">
-  <div class="mx-auto w-full max-w-6xl overflow-hidden rounded-sm border border-ink/15 bg-core">
-    <div class="flex items-center justify-between border-b border-ink/10 px-4 py-2">
-      <p class="font-mono text-[10px] text-mute">~/ — bash</p>
-      <button
-        id="copy-install"
-        type="button"
-        data-install-copy
-        data-install-cmd={installCommand}
-        class="inline-flex min-h-10 items-center px-2 font-mono text-[11px] text-amber transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.96]"
-      >
-        copy
-      </button>
-    </div>
-    <div class="px-4 py-8 md:px-8 md:py-10">
-      <h2 class="max-w-3xl text-3xl leading-tight tracking-tight md:text-5xl">
-        One curl. Then dc.
-      </h2>
-      <p class="mt-4 max-w-xl text-sm text-mute">
-        This line is helpers + official standalone CLI if missing (<span class="font-mono text-ink/80">--with-cli</span>). Then dc in this folder.
-      </p>
-      <pre class="mt-8 overflow-x-auto font-mono text-sm leading-relaxed text-ink md:text-base"><span class="text-amber">$</span> <code id="install-cmd" data-cmd={installCommand}></code><span class="cursor-block" aria-hidden="true"></span></pre>
-      <p id="copy-status" class="mt-3 min-h-5 font-mono text-[11px] text-amber" aria-live="polite"></p>
-      <p class="font-mono text-xs text-mute">source ~/.zshrc <span class="text-ink/30">or</span> source ~/.bashrc <span class="text-ink/30">then</span> dc</p>
-      <p class="mt-4 font-mono text-xs text-mute">
-        or <span class="text-ink/80">brew tap Brasth/dc-cli && brew install dc-cli</span>
-      </p>
-      <p class="mt-3 max-w-xl text-xs text-mute">
-        The curl line installs release {latestRelease}: compiled <span class="font-mono text-ink/80">dc-tui</span> and <span class="font-mono text-ink/80">dc-actions</span>.
-        A source install (<span class="font-mono text-ink/80">bash install.sh</span> in a clone) builds both when Go is on PATH. Without Go, <span class="font-mono text-ink/80">dc-tui</span> falls back to the shell menu. <span class="font-mono text-ink/80">dc actions</span> shell fallback answers <span class="font-mono text-ink/80">--help</span> and <span class="font-mono text-ink/80">--version</span>; other verbs report that the compiled binary is required.
-        npm is explicit <span class="font-mono text-ink/80">--with-cli-npm</span> only.
-        <a href="/guide/install/" class="text-ink/80 hover:text-ink">--full</a> also copies the agent skill.
-      </p>
+<section id="install" class="section border-t border-line" aria-labelledby="install-title">
+  <div class="page-container">
+    <div class="grid gap-10 lg:grid-cols-12 lg:gap-8">
+      <div class="lg:col-span-4" data-reveal>
+        <p class="prompt"><span>~</span><span class="sigil">$</span><span class="cmd-text">install</span></p>
+        <h2 id="install-title" class="t-h2 mt-4">One curl. Then <span class="font-mono text-[0.86em] tracking-[-0.06em]">dc</span>.</h2>
+        <p class="t-body mt-5 max-w-[26rem]">
+          Installs release {latestRelease}: the dc helpers, the compiled <span class="cmd">dc-tui</span> and
+          <span class="cmd">dc-actions</span>, and, with <span class="cmd">--with-cli</span>, the official standalone Dev
+          Containers CLI if it is missing. Needs bash 4+.
+        </p>
+        <a href="/guide/install/" class="btn btn-ghost -ml-3 mt-4">Install guide <span aria-hidden="true">→</span></a>
+      </div>
+
+      <div class="lg:col-span-8" data-reveal>
+        <div class="frame">
+          <span class="frame-pip" aria-hidden="true"></span>
+          <div class="frame-bar">
+            <span>~ — bash</span>
+            <span>macOS · Linux</span>
+          </div>
+          <div class="screen">
+            <ol class="divide-y divide-line">
+              <li class="p-5 sm:p-6">
+                <p class="font-mono text-[11px] text-muted"><span class="text-accent">1</span> · run the installer</p>
+                <p class="mt-3 font-mono text-sm leading-6 text-fg sm:text-[15px]"><span class="text-accent" aria-hidden="true">$ </span><code id="install-cmd" data-cmd={installCommand}><CommandText cmd={installCommand} /></code><span class="cursor-block" aria-hidden="true"></span></p>
+                <div class="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <CopyButton id="copy-install" statusId="copy-status" trackSource="install" />
+                  <p id="copy-status" class="min-h-5 font-mono text-[12px] text-accent" aria-live="polite"></p>
+                </div>
+              </li>
+              <li class="p-5 sm:p-6">
+                <p class="font-mono text-[11px] text-muted"><span class="text-accent">2</span> · reload your shell</p>
+                <p class="mt-3 font-mono text-sm leading-6 text-fg">
+                  <span class="text-accent" aria-hidden="true">$ </span>source ~/.zshrc
+                  <span class="px-2 text-muted">or</span>
+                  <span class="text-accent" aria-hidden="true">$ </span>source ~/.bashrc
+                </p>
+              </li>
+              <li class="p-5 sm:p-6">
+                <p class="font-mono text-[11px] text-muted"><span class="text-accent">3</span> · open the board in a project</p>
+                <p class="mt-3 font-mono text-sm leading-6 text-fg">
+                  <span class="text-accent" aria-hidden="true">$ </span>cd ~/src/your-project && dc
+                </p>
+              </li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="mt-4 flex flex-col gap-3 border border-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p class="min-w-0 font-mono text-[13px] leading-6 text-soft">
+            <span class="text-muted">or Homebrew</span>
+            <span class="block text-fg sm:inline sm:pl-3"><CommandText cmd={brewCommand} /></span>
+          </p>
+          <CopyButton
+            cmd={brewCommand}
+            label="Copy"
+            variant="outline"
+            size="sm"
+            statusId="brew-copy-status"
+            trackSource="install-brew"
+            ariaLabel="Copy Homebrew install command"
+            class="self-start sm:self-auto"
+          />
+        </div>
+        <p id="brew-copy-status" class="mt-2 min-h-5 font-mono text-[12px] text-accent" aria-live="polite"></p>
+
+        <details class="install-details mt-2 border-t border-line pt-4">
+          <summary class="flex min-h-11 cursor-pointer list-none items-center gap-2 font-mono text-xs text-soft hover:text-fg">
+            <span class="install-caret text-accent" aria-hidden="true">›</span> What the installer does and does not do
+          </summary>
+          <div class="t-body mt-3 grid max-w-[44rem] gap-3 text-sm">
+            <p>
+              The curl line installs release {latestRelease}: compiled <span class="cmd">dc-tui</span> and
+              <span class="cmd">dc-actions</span>. A source install (<span class="cmd">bash install.sh</span> in a clone)
+              builds both when Go is on PATH. Without Go, <span class="cmd">dc-tui</span> falls back to the shell menu, and
+              the <span class="cmd">dc actions</span> shell fallback answers <span class="cmd">--help</span> and
+              <span class="cmd">--version</span>; other verbs report that the compiled binary is required.
+            </p>
+            <p>
+              Docker can be missing at install time: helpers still install and print a readiness block. The installer never
+              installs an engine. npm is used only with an explicit <span class="cmd">--with-cli-npm</span>.
+              <a href="/guide/install/" class="link">--full</a> also copies the agent skill.
+            </p>
+            <p>Prefer not to pipe curl? Clone the repo, then run <span class="cmd">bash install.sh</span>.</p>
+          </div>
+        </details>
+      </div>
     </div>
   </div>
 </section>
 
+<style>
+  .install-details summary::-webkit-details-marker {
+    display: none;
+  }
+  .install-caret {
+    display: inline-block;
+    transition: transform var(--dur-base) var(--ease);
+  }
+  .install-details[open] .install-caret {
+    transform: rotate(90deg);
+  }
+</style>
+
 <script>
+  // Type the command once when the section first comes into view.
   const code = document.getElementById('install-cmd');
-  const status = document.getElementById('copy-status');
   const full = code?.dataset.cmd ?? '';
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  if (code) {
-    if (reduce) {
-      code.textContent = full;
-    } else {
-      let i = 0;
-      const tick = () => {
-        i += 1;
-        code.textContent = full.slice(0, i);
-        if (i < full.length) window.setTimeout(tick, 16);
-      };
-      window.setTimeout(tick, 280);
-    }
+  if (code && full && !reduce && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        io.disconnect();
+        const markup = code.innerHTML;
+        code.setAttribute('aria-label', full);
+        let i = 0;
+        const tick = () => {
+          i += 2;
+          code.textContent = full.slice(0, i);
+          if (i < full.length) {
+            window.setTimeout(tick, 14);
+          } else {
+            code.innerHTML = markup; // restore wrap-friendly markup
+            code.removeAttribute('aria-label');
+          }
+        };
+        code.textContent = '';
+        tick();
+      },
+      { threshold: 0.6 },
+    );
+    io.observe(code);
   }
-
-  // Keep #copy-status in sync when the shared copy handler fires on #copy-install
-  document.getElementById('copy-install')?.addEventListener('click', () => {
-    window.setTimeout(() => {
-      if (status && !status.textContent) status.textContent = 'copied';
-    }, 0);
-  });
 </script>

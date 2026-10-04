@@ -1,0 +1,12 @@
+---
+/**
+ * Renders a shell command so it wraps between arguments, never inside one
+ * ("--with-cli" stays whole). URLs may still break at "/" when space is tight.
+ */
+interface Props {
+  cmd: string;
+}
+const tokens = Astro.props.cmd.split(' ');
+---
+
+{tokens.map((token, i) => <>{i > 0 ? ' ' : ''}<span class={/^https?:\/\//.test(token) ? '[overflow-wrap:anywhere]' : 'whitespace-nowrap'}>{token}</span></>)}

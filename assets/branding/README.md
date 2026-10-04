@@ -2,7 +2,7 @@
 
 ## Metaphor
 
-A host frame around a guest. Matches the product: host-global wrappers around official `@devcontainers/cli`. Same idea as the site’s double-bezel cards.
+A host frame around a guest. Matches the product: host-global wrappers around official `@devcontainers/cli`. Same idea as the site’s `.frame` → `.screen` containers (see `site/src/styles/tokens.css`).
 
 ## Mark
 
@@ -19,7 +19,7 @@ Concepts in `concepts/` are exploration only. Do not ship them.
 
 | Role | Hex |
 |---|---|
-| Background | `#050505` |
+| Background | `#070806` |
 | Foreground | `#F4F1EA` |
 | Accent | `#6FCF7B` |
 | Steel | `#8A8680` |

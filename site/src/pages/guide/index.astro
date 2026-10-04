@@ -33,39 +33,33 @@ const schema = [
   path="/guide/"
   schema={schema}
 >
-  <section class="px-4 pb-16 pt-20 md:px-6 md:pb-20 md:pt-24">
-    <div class="mx-auto w-full max-w-6xl">
-      <p class="font-mono text-[11px] tracking-[0.18em] text-amber uppercase">guide / tasks</p>
-      <h1 class="mt-3 max-w-3xl font-mono text-4xl leading-[0.95] tracking-tight md:text-6xl">
-        Task guides. README stays short.
-      </h1>
-      <p class="mt-5 max-w-xl text-sm text-mute">
-        Install, kind, board, doctor, missing Docker, ports, disk, sandbox try. Type
-        <span class="font-mono text-ink/80">dc</span>, then a verb.
-        <span class="font-mono text-ink/80">dc-up</span> still works. Flags:
-        <span class="font-mono text-ink/80">dc --help</span>.
-      </p>
-      <ol class="mt-12 grid gap-px bg-ink/10 sm:grid-cols-2">
-        {
-          cards.map((entry) => (
-            <li class="bg-page p-6 md:p-8">
-              <p class="font-mono text-[11px] text-amber">/{entry.id}</p>
-              <h2 class="mt-3 font-mono text-2xl tracking-tight">
-                <a href={`/guide/${entry.id}/`} class="hover:text-amber">
+  <section class="page-container pb-20 pt-12 md:pb-28 md:pt-20">
+    <p class="prompt"><span>~</span><span class="sigil">$</span><span class="cmd-text">dc --help</span></p>
+    <h1 class="t-display mt-5 max-w-[16ch] !text-[clamp(2.5rem,1.6rem+3.6vw,4.5rem)]">Task guides. README stays short.</h1>
+    <p class="t-lede mt-6 max-w-[38rem]">
+      Install, kind, board, doctor, missing Docker, ports, disk, sandbox try. Type
+      <span class="cmd">dc</span>, then a verb. <span class="cmd">dc-up</span> still works. Flags:
+      <span class="cmd">dc --help</span>.
+    </p>
+    <ol class="mt-12 border-b border-line md:mt-16">
+      {
+        cards.map((entry) => (
+          <li class="group relative grid gap-2 border-t border-line py-6 md:grid-cols-12 md:items-baseline md:gap-8">
+            <p class="font-mono text-[12px] text-accent md:col-span-2">/{entry.id}</p>
+            <div class="md:col-span-8">
+              <h2 class="t-h3">
+                <a href={`/guide/${entry.id}/`} class="after:absolute after:inset-0 group-hover:text-accent">
                   {entry.data.title}
                 </a>
               </h2>
-              <p class="mt-3 text-sm text-mute">{entry.data.description}</p>
-              <a
-                href={`/guide/${entry.id}/`}
-                class="mt-6 inline-flex min-h-10 items-center font-mono text-xs text-ink/80 hover:text-ink"
-              >
-                open →
-              </a>
-            </li>
-          ))
-        }
-      </ol>
-    </div>
+              <p class="mt-2 text-sm leading-6 text-muted">{entry.data.description}</p>
+            </div>
+            <span class="hidden font-mono text-xs text-soft group-hover:text-fg md:col-span-2 md:block md:justify-self-end" aria-hidden="true">
+              open →
+            </span>
+          </li>
+        ))
+      }
+    </ol>
   </section>
 </Page>

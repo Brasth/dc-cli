@@ -2,32 +2,27 @@
 import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
 import Hero from '../components/Hero.astro';
-import PainPayoff from '../components/PainPayoff.astro';
-import ClipStrip from '../components/ClipStrip.astro';
-import TuiTour from '../components/TuiTour.astro';
-import Board from '../components/Board.astro';
-import Bento from '../components/Bento.astro';
-import Commands from '../components/Commands.astro';
+import Workflow from '../components/Workflow.astro';
+import BoardShowcase from '../components/BoardShowcase.astro';
+import Hub from '../components/Hub.astro';
+import Playground from '../components/Playground.astro';
 import Install from '../components/Install.astro';
-import StickyInstall from '../components/StickyInstall.astro';
+import Commands from '../components/Commands.astro';
 import Footer from '../components/Footer.astro';
-import Glow from '../components/Glow.astro';
+import StickyInstall from '../components/StickyInstall.astro';
 ---
 
 <Layout>
-  <Glow />
-  <main id="top" class="relative z-10 overflow-x-hidden w-full max-w-full pb-20 md:pb-16">
-    <Nav />
+  <Nav />
+  <main id="main" class="relative z-10 w-full overflow-x-clip pb-16 md:pb-8">
     <Hero />
-    <PainPayoff />
-    <ClipStrip />
-    <TuiTour />
-    <Board />
-    <Bento />
+    <Workflow />
+    <BoardShowcase />
+    <Hub />
+    <Playground />
     <Install />
     <Commands />
-    <Footer />
   </main>
+  <Footer />
   <StickyInstall />
 </Layout>
-
