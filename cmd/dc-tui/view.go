@@ -2,33 +2,11 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
-)
-
-var (
-	titleStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("81"))
-	mutedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
-	okStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("114"))
-	badStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("203"))
-	warnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("215"))
-	btnStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("236")).Background(lipgloss.Color("109")).Bold(true).Padding(0, 1).Align(lipgloss.Center)
-	btnHover     = lipgloss.NewStyle().Foreground(lipgloss.Color("234")).Background(lipgloss.Color("159")).Bold(true).Padding(0, 1).Align(lipgloss.Center)
-	btnMeta      = lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Background(lipgloss.Color("238")).Padding(0, 1).Align(lipgloss.Center)
-	btnMetaHover = lipgloss.NewStyle().Foreground(lipgloss.Color("234")).Background(lipgloss.Color("246")).Padding(0, 1).Align(lipgloss.Center)
-	btnDisabled  = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Background(lipgloss.Color("236")).Padding(0, 1).Align(lipgloss.Center)
-	btnDanger    = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Background(lipgloss.Color("167")).Padding(0, 1).Align(lipgloss.Center)
-	btnDangerH   = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Background(lipgloss.Color("203")).Bold(true).Padding(0, 1).Align(lipgloss.Center)
-	hintStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	errStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("203"))
-	statusStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("108"))
-	headerStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("108"))
-	labelStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("243")).Width(10)
-	rowHover     = lipgloss.NewStyle().Background(lipgloss.Color("237"))
 )
 
 func kv(k, v string) string {
@@ -63,190 +41,16 @@ func (m model) View() string {
 	if m.activity.open {
 		return m.activityView()
 	}
+	if strings.Contains(m.status, "\n") {
+		return m.reportView()
+	}
 	s, _, _ := m.layout()
 	return s
 }
 
-func (m model) hostView() string {
-	w := m.width
-	if w <= 0 {
-		w = 80
-	}
-	var b strings.Builder
-	b.WriteString(titleStyle.Render("Recover") + "\n")
-	b.WriteString(mutedStyle.Render("one next step — apply stays in dc-cli, then the board returns") + "\n\n")
-	hostLine := m.host.Code
-	if m.host.EngineHint != "" && m.host.EngineHint != "unknown" {
-		hostLine += "  hint=" + m.host.EngineHint
-	}
-	if hostLine != "" {
-		b.WriteString(kv("host", trunc(hostLine, max(8, w-12))) + "\n")
-	}
-	if m.host.Summary != "" {
-		b.WriteString(errStyle.Render(trunc(m.host.Summary, w)) + "\n")
-	}
-	if m.host.Detail != nil && strings.TrimSpace(*m.host.Detail) != "" {
-		b.WriteString(mutedStyle.Render(trunc(*m.host.Detail, w)) + "\n")
-	}
-	b.WriteString("\n")
-	if m.host.NextID != "" {
-		b.WriteString(kv("next", trunc(m.host.NextID, max(8, w-12))) + "\n")
-	}
-	if m.host.NextCommand != "" {
-		b.WriteString(okStyle.Render(trunc("Run: "+m.host.NextCommand, w)) + "\n")
-	} else if m.host.Remediation != "" {
-		b.WriteString(okStyle.Render(trunc(m.host.Remediation, w)) + "\n")
-	}
-	if m.host.canApply() {
-		b.WriteString(statusStyle.Render(trunc("[f] apply this step — then start / shell", w)) + "\n")
-	} else if m.host.Code == "docker_cli_missing" || m.host.Code == "docker_engine_missing" {
-		guide := m.host.GuideURL
-		if guide == "" {
-			guide = "https://docs.docker.com/desktop/"
-		}
-		b.WriteString(okStyle.Render("Empty machine — install an engine, then retry") + "\n")
-		b.WriteString(mutedStyle.Render(trunc(guide, w)) + "\n")
-		b.WriteString(mutedStyle.Render("Lightweight: brew install docker colima && colima start") + "\n")
-	}
-	b.WriteString("\n")
-	hints := "[r] check again  [d] Desktop guide  [c] copy Colima setup  [w] workspaces  [q] quit"
-	if m.host.canApply() {
-		hints = "[f] apply  " + hints
-	}
-	b.WriteString(hintStyle.Render(hints) + "\n")
-	if m.status != "" {
-		b.WriteString("\n" + statusStyle.Render(trunc(m.status, w)) + "\n")
-	}
-	if m.err != "" {
-		b.WriteString("\n" + errStyle.Render(trunc(m.err, w)) + "\n")
-	}
-	return b.String()
-}
-
 func (m model) layout() (string, []button, int) {
-	var b strings.Builder
-	w := m.width
-	if w <= 0 {
-		w = 80
-	}
-	infoW := max(12, w-12)
-	if m.fleet {
-		info := logoWord.Render("dc-cli") + mutedStyle.Render("  "+cliVersion()) + mutedStyle.Render("  fleet") + "  " + mutedStyle.Render("j/k · enter")
-		if banner := m.updateBanner(); banner != "" {
-			info += "\n" + warnStyle.Render(trunc(banner, w))
-		}
-		b.WriteString(clipBlock(joinLogo(m.headerLogo(), info, w), w) + "\n\n")
-	} else {
-		base := filepath.Base(m.workspace)
-		var info strings.Builder
-		info.WriteString(logoWord.Render("dc-cli") + mutedStyle.Render("  "+cliVersion()) + "  " + headerStyle.Render(trunc(base, infoW)) + "\n")
-		info.WriteString(mutedStyle.Render(trunc(m.workspace, infoW)) + "\n")
-		cfg := badStyle.Render("no workspace")
-		if m.hasConfig {
-			cfg = okStyle.Render("ready")
-		} else if m.hasCompose {
-			cfg = okStyle.Render("compose")
-		}
-		st, id, ports := m.workspaceStatusParts()
-		meta := st + mutedStyle.Render("  ") + cfg
-		if id != "" {
-			meta += mutedStyle.Render("  ") + mutedStyle.Render(id)
-		}
-		if ports != "" {
-			meta += mutedStyle.Render("  ") + ports
-		}
-		info.WriteString(trunc(meta, infoW) + "\n")
-		info.WriteString(kv("editor", trunc(m.editor, max(8, infoW-12))) + "\n")
-		if m.pulse != "" {
-			info.WriteString(kv("load", trunc(m.pulse+"  t=top", max(8, infoW-12))) + "\n")
-		}
-		var opt []string
-		for _, row := range m.optionalRows() {
-			opt = append(opt, kv(row[0], trunc(row[1], max(8, infoW-12))))
-		}
-		info.WriteString(strings.Join(opt, "\n"))
-		if banner := m.updateBanner(); banner != "" {
-			info.WriteString("\n" + warnStyle.Render(trunc(banner, infoW)))
-		}
-		b.WriteString(clipBlock(joinLogo(m.headerLogo(), strings.TrimRight(info.String(), "\n"), w), w) + "\n\n")
-	}
-
-	y0 := strings.Count(b.String(), "\n")
-	line, buttons := renderGroups(m.buttonGroups(), w, y0, m.hover)
-	b.WriteString(line)
-	if !strings.HasSuffix(line, "\n") {
-		b.WriteString("\n")
-	}
-
-	if m.leaving != "" {
-		b.WriteString("\n" + warnStyle.Render(trunc(leaveLine(m.leaving), w)) + "\n")
-	}
-	if m.refreshing() {
-		b.WriteString("\n" + mutedStyle.Render(trunc("refreshing…", w)) + "\n")
-	}
-	if m.confirm == "rm" {
-		b.WriteString("\n" + warnStyle.Render("remove stack containers? y/n") + "\n")
-	}
-	if m.confirm == "try" {
-		b.WriteString("\n" + warnStyle.Render("No config — start a sandbox? y/n") + "\n")
-	}
-	if m.confirm == "upgrade" {
-		b.WriteString("\n" + warnStyle.Render(trunc("upgrade dc-cli to "+m.updateLatest+" via dc-upgrade --yes? y/n", w)) + "\n")
-	}
-	if m.confirm == "prune" {
-		b.WriteString("\n" + warnStyle.Render("safe prune (cache + dangling + orphan sidecars)? y/n") + "\n")
-	}
-	if m.status != "" {
-		b.WriteString("\n" + statusStyle.Render(trunc(m.status, w)) + "\n")
-	}
-	if m.err != "" {
-		b.WriteString("\n" + errStyle.Render(trunc(m.err, w)) + "\n")
-	}
-	if m.more {
-		b.WriteString("\n" + morePanel(m.editor, w) + "\n")
-	}
-
-	rowY0 := -1
-	if m.fleet {
-		b.WriteString("\n")
-		b.WriteString(mutedStyle.Render("  status    workspace") + "\n")
-		rowY0 = strings.Count(b.String(), "\n")
-		switch {
-		case m.hardLoading():
-			b.WriteString(mutedStyle.Render("  (checking containers…)") + "\n")
-		case m.load == loadFailed && !m.loaded:
-			b.WriteString(mutedStyle.Render("  (status unknown — press r)") + "\n")
-		case len(m.rows) == 0:
-			b.WriteString(mutedStyle.Render("  (empty — dc-up in a project, or dc try for no config)") + "\n")
-		default:
-			for i, r := range m.rows {
-				line := formatFleetRow(r, w)
-				if i == m.cursor {
-					line = rowHover.Width(w).Render(line)
-				}
-				b.WriteString(line + "\n")
-			}
-		}
-	} else if len(m.stack) > 0 {
-		b.WriteString("\n" + mutedStyle.Render("  stack") + hintStyle.Render("   j/k · enter · e is app") + "\n")
-		rowY0 = strings.Count(b.String(), "\n")
-		for i, s := range m.stack {
-			line := trunc(formatStackRow(s, w), w)
-			if i == m.cursor || i == m.hoverStack {
-				line = rowHover.Width(w).Render(line)
-			}
-			b.WriteString(line + "\n")
-		}
-	}
-
-	if m.confirm == "rm" || m.confirm == "try" || m.confirm == "upgrade" || m.confirm == "prune" {
-		b.WriteString("\n" + hintStyle.Render("y confirm  n/esc cancel  q quit") + "\n")
-	} else if !m.fleet && len(m.webLinks()) > 0 {
-		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  b db  m files  n nets  c actions  v activity  w recent  1-9 url  j/k  enter  ? more  q quit") + "\n")
-	} else {
-		b.WriteString("\n" + hintStyle.Render("u start  e shell  s stop  b db  m files  n nets  c actions  v activity  w recent  j/k  enter  ? more  q quit") + "\n")
-	}
-	return clipBlock(b.String(), w), buttons, rowY0
+	frame := m.consoleLayout()
+	return frame.view, frame.buttons, frame.rowY
 }
 
 // optionalRows are the header rows for disk / nets / ports: the value when

@@ -94,6 +94,7 @@ func (m model) openLogs() (model, tea.Cmd) {
 		return m.refuse("logs: " + err.Error())
 	}
 	m.logOpen = true
+	m.logEnded = false
 	m.logID = id
 	m.logName = name
 	if m.logName == "" {
@@ -114,6 +115,7 @@ func (m model) closeLogs() model {
 		m.logStop()
 	}
 	m.logOpen = false
+	m.logEnded = false
 	m.logID = ""
 	m.logName = ""
 	m.logLines = nil
@@ -164,11 +166,7 @@ func (m model) logPage() int {
 	if h <= 0 {
 		h = 24
 	}
-	page := h - 3
-	if page < 4 {
-		return 4
-	}
-	return page
+	return max(1, h-7)
 }
 
 func (m model) logMaxOff() int {

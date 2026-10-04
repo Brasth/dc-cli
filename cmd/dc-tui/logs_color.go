@@ -6,13 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
 )
-
-func init() {
-	// Highlight even when stdout is not a TTY (tests, some tmux).
-	lipgloss.SetColorProfile(termenv.ANSI256)
-}
 
 type logSpan struct {
 	start, end int

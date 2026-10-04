@@ -16,10 +16,10 @@ const (
 )
 
 var (
-	logoFrame = lipgloss.NewStyle().Foreground(lipgloss.Color("#8A8680"))
-	logoPip   = lipgloss.NewStyle().Foreground(lipgloss.Color("#6FCF7B")).Bold(true)
-	logoWord  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F4F1EA"))
-	logoTag   = lipgloss.NewStyle().Foreground(lipgloss.Color("#8A8680"))
+	logoFrame = mutedStyle
+	logoPip   = okStyle.Bold(true)
+	logoWord  = titleStyle
+	logoTag   = mutedStyle
 )
 
 // Clockwise around the outer host frame. Corners linger (slow-in/out).

@@ -434,8 +434,8 @@ func TestHeaderShowsVersion(t *testing.T) {
 	if !strings.Contains(s, "0.10.0") {
 		t.Fatalf("header missing version:\n%s", s)
 	}
-	if !strings.Contains(s, "db") || !strings.Contains(s, "files") {
-		t.Fatalf("board missing db/files:\n%s", s)
+	if !strings.Contains(s, "[m] Files") || !strings.Contains(s, "[?] Help") {
+		t.Fatalf("board missing files/help:\n%s", s)
 	}
 }
 
@@ -474,7 +474,7 @@ func TestClickTryStartConfirms(t *testing.T) {
 func TestTryConfirmCopy(t *testing.T) {
 	m := model{workspace: "/tmp/app", hoverStack: -1, confirm: "try", width: 80, height: 24}
 	s := m.View()
-	if !strings.Contains(s, "No config — start a sandbox?") {
+	if !strings.Contains(s, "No config — start a dc-try sandbox?") {
 		t.Fatalf("try confirm copy: %q", s)
 	}
 }
@@ -583,7 +583,7 @@ func TestSplashSkipsOnKey(t *testing.T) {
 	if mm.splashOn {
 		t.Fatal("space should skip splash")
 	}
-	if !strings.Contains(mm.View(), "start") {
+	if !strings.Contains(ansi.Strip(mm.View()), "[u] Start") {
 		t.Fatalf("board should show after skip:\n%s", mm.View())
 	}
 }
@@ -602,8 +602,8 @@ func TestSplashTickEnds(t *testing.T) {
 
 func TestViewHasPrimaryHint(t *testing.T) {
 	m := model{workspace: filepath.Join(os.TempDir(), "app"), hasConfig: true, width: 80, hoverStack: -1, editor: "zed"}
-	s := m.View()
-	if !strings.Contains(s, "start") || !strings.Contains(s, "shell") || !strings.Contains(s, "stop") {
+	s := ansi.Strip(m.View())
+	if !strings.Contains(s, "[u] Start") || !strings.Contains(s, "[e] Shell") || !strings.Contains(s, "[s] Stop") {
 		t.Fatalf("missing primary verbs:\n%s", s)
 	}
 }

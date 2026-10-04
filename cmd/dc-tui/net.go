@@ -62,8 +62,8 @@ func (m model) openNets() (model, tea.Cmd) {
 		return m.refuse("nets is this folder only.")
 	}
 	m.netOpen = true
-	m.status = ""
-	m.err = ""
+	m.netOff = 0
+	m = m.withStatus("")
 	return m, m.fetchNets()
 }
 
@@ -74,6 +74,19 @@ func (m model) closeNets() model {
 }
 
 func (m model) handleNetKey(k string) (tea.Model, tea.Cmd) {
+	_, h := m.consoleSize()
+	page := max(1, h-8)
+	switch k {
+	case "j", "down":
+		m.netOff++
+	case "k", "up":
+		m.netOff--
+	case "pgdown":
+		m.netOff += page
+	case "pgup":
+		m.netOff -= page
+	}
+	m.netOff = max(0, min(m.netOff, max(0, len(m.net.Networks)-page)))
 	switch k {
 	case "q", "esc", "n":
 		m = m.closeNets()

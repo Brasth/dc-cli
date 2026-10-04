@@ -7,7 +7,9 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/muesli/termenv"
 
 	"github.com/Canvilled/dc-cli/internal/workspaces"
 )
@@ -15,6 +17,7 @@ import (
 // TestMain keeps every test in this package away from the user's real
 // ~/.local/state registry.
 func TestMain(m *testing.M) {
+	lipgloss.SetColorProfile(termenv.ANSI256)
 	dir, err := os.MkdirTemp("", "dc-tui-state-")
 	if err != nil {
 		panic(err)
@@ -87,7 +90,7 @@ func TestPickerOpensFiltersAndCloses(t *testing.T) {
 		t.Fatalf("most recent first, got %s", m.wsItems[0].entry.Path)
 	}
 	s := ansi.Strip(m.View())
-	if !strings.Contains(s, "workspaces") || !strings.Contains(s, "current") {
+	if !strings.Contains(s, "WORKSPACES") || !strings.Contains(s, "current") {
 		t.Fatalf("picker view:\n%s", s)
 	}
 	// q is a filter character, not quit.
@@ -235,11 +238,11 @@ func TestPickerAvailableWhenDockerDown(t *testing.T) {
 	if !m.wsOpen {
 		t.Fatal("w must open the picker on the recover screen")
 	}
-	if !strings.Contains(ansi.Strip(m.View()), "workspaces") {
+	if !strings.Contains(ansi.Strip(m.View()), "WORKSPACES") {
 		t.Fatal("picker must render over the recover screen")
 	}
 	got, _ = m.handleKey("esc")
-	if !strings.Contains(ansi.Strip(got.(model).View()), "Recover") {
+	if !strings.Contains(ansi.Strip(got.(model).View()), "RECOVER") {
 		t.Fatal("esc must return to the recover screen")
 	}
 }

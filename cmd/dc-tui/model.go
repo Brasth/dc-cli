@@ -51,6 +51,8 @@ type model struct {
 	workspace       string
 	fleet           bool
 	status          string
+	feedbackWarning bool
+	feedbackSuccess bool
 	hasConfig       bool
 	hasCompose      bool
 	editor          string
@@ -64,6 +66,9 @@ type model struct {
 	err             string
 	quitting        bool
 	more            bool
+	moreOff         int
+	outputOff       int
+	netOff          int
 	hover           string
 	hoverStack      int // -1 = none
 	disk            string
@@ -81,6 +86,7 @@ type model struct {
 	logLines        []string
 	logOff          int
 	logFollow       bool
+	logEnded        bool
 	logStop         func()
 	logR            *bufio.Reader
 	topOpen         bool
@@ -223,8 +229,7 @@ func (m model) applyReload(msg reloadMsg) model {
 		m.host = msg.host
 		m.hostBlock = true
 		m.load = loadFailed
-		m.err = ""
-		m.status = ""
+		m = m.withStatus("")
 		if !m.loaded {
 			m.rows = nil
 			m.stack = nil
@@ -282,6 +287,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case logDoneMsg:
 		if m.logOpen {
 			m.logFollow = false
+			m.logEnded = true
 			if msg.err != nil && !strings.Contains(strings.ToLower(msg.err.Error()), "eof") {
 				m = m.withErr(msg.err.Error())
 			}
@@ -336,6 +342,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				markActivated()
 			}
 			m = m.withStatus(backStatus(msg.action))
+			if msg.err == nil && (msg.action == "u" || msg.action == "create-nets") {
+				m.feedbackSuccess = true
+			}
 		}
 		// Stream first, then the reload: the reload is the rescan of the gap.
 		m, resume := m.resumeActivity()
@@ -362,6 +371,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.wsOpen || m.actOpen {
 			return m, nil
 		}
+		if m.hostBlock {
+			return m, nil
+		}
+		if strings.Contains(m.status, "\n") && !m.hostBlock {
+			switch msg.Button {
+			case tea.MouseButtonWheelUp:
+				return m.handleKey("up")
+			case tea.MouseButtonWheelDown:
+				return m.handleKey("down")
+			}
+			return m, nil
+		}
 		if m.logOpen {
 			switch msg.Button {
 			case tea.MouseButtonWheelUp:
@@ -383,11 +404,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.topOpen || m.netOpen {
 			return m, nil
 		}
+		switch msg.Button {
+		case tea.MouseButtonWheelUp:
+			return m.moveCursor(-3), nil
+		case tea.MouseButtonWheelDown:
+			return m.moveCursor(3), nil
+		}
 		switch msg.Action {
 		case tea.MouseActionMotion:
 			m.hover = m.hitButton(msg.X, msg.Y)
 			if i := m.hitRow(msg.X, msg.Y); i >= 0 {
-				m.cursor = i
 				m.hoverStack = i
 			} else {
 				m.hoverStack = -1
@@ -451,6 +477,32 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 	if m.activity.open {
 		return m.handleActivityKey(k)
 	}
+	if strings.Contains(m.status, "\n") {
+		_, h := m.consoleSize()
+		page := max(1, h-7)
+		switch k {
+		case "q", "esc", "d":
+			m.status = ""
+			m.outputOff = 0
+			return m, nil
+		case "ctrl+c":
+			return m.quit()
+		case "j", "down":
+			m.outputOff++
+		case "k", "up":
+			m.outputOff--
+		case "pgdown", " ":
+			m.outputOff += page
+		case "pgup":
+			m.outputOff -= page
+		case "g", "home":
+			m.outputOff = 0
+		case "G", "end":
+			m.outputOff = len(strings.Split(m.status, "\n")) - page
+		}
+		m.outputOff = max(0, min(m.outputOff, max(0, len(strings.Split(m.status, "\n"))-page)))
+		return m, nil
+	}
 	if m.leaving != "" {
 		if k == "q" || k == "ctrl+c" {
 			return m.quit()
@@ -460,13 +512,27 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 	if m.confirm != "" {
 		return m.handleConfirmKey(k)
 	}
+	if m.more && (k == "pgdown" || k == "pgup") {
+		delta := 5
+		if k == "pgup" {
+			delta = -5
+		}
+		m.moreOff = max(0, min(m.moreOff+delta, len(strings.Split(morePanel(m.editor, m.width), "\n"))-1))
+		return m, nil
+	}
 	switch k {
 	case "q", "ctrl+c":
 		return m.quit()
 	case "esc":
+		if m.more {
+			m.more = false
+			m.moreOff = 0
+			return m, nil
+		}
 		return m.quit()
 	case "?", "h":
 		m.more = !m.more
+		m.moreOff = 0
 		return m, nil
 	case "f":
 		return m.switchContext(m.workspace, !m.fleet)
@@ -511,6 +577,19 @@ func (m model) handleKey(k string) (tea.Model, tea.Cmd) {
 			return m.refuse(reason)
 		}
 		return m.openNets()
+	case "pgdown", "pgup":
+		if m.hardLoading() {
+			return m, nil
+		}
+		delta := max(1, m.consoleLayout().rowVisible)
+		if k == "pgup" {
+			delta = -delta
+		}
+		return m.moveCursor(delta), nil
+	case "g", "home":
+		return m.moveCursor(-m.cursor), nil
+	case "G", "end":
+		return m.moveCursor(m.rowCount()), nil
 	case "j", "down":
 		if m.hardLoading() {
 			return m, nil
@@ -658,7 +737,7 @@ func (m model) moveCursor(delta int) model {
 	}
 	m.cursor += delta
 	m.clampCursor()
-	m.hoverStack = m.cursor
+	m.hoverStack = -1
 	return m
 }
 
@@ -690,22 +769,18 @@ func (m model) hitButton(x, y int) string {
 }
 
 func (m model) hitRow(x, y int) int {
-	_, _, rowY0 := m.layout()
-	if rowY0 <= 0 {
+	frame := m.consoleLayout()
+	if x < 0 || x >= frame.rowWidth || y < frame.rowY || y >= frame.rowY+frame.rowVisible {
 		return -1
 	}
-	i := y - rowY0
-	if i >= 0 && i < m.rowCount() {
-		return i
-	}
-	return -1
+	return frame.rowStart + y - frame.rowY
 }
 
 func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
 	if m.splashOn {
 		return m.skipSplash(), nil
 	}
-	if m.logOpen || m.topOpen || m.netOpen || m.activity.open {
+	if m.hostBlock || m.logOpen || m.topOpen || m.netOpen || m.activity.open || strings.Contains(m.status, "\n") {
 		return m, nil
 	}
 	if m.leaving != "" {
@@ -752,10 +827,13 @@ func (m model) handleClick(x, y int) (tea.Model, tea.Cmd) {
 
 func (m model) clickKey(key string) (tea.Model, tea.Cmd) {
 	switch key {
+	case "enter":
+		return m.handleKey("enter")
 	case "q":
 		return m.quit()
 	case "?":
 		m.more = !m.more
+		m.moreOff = 0
 		return m, nil
 	case "f":
 		return m.switchContext(m.workspace, !m.fleet)
@@ -806,16 +884,24 @@ func (m model) actionBlockReason(key string) string {
 }
 
 func (m model) refuse(reason string) (model, tea.Cmd) {
-	return m.withStatus(reason), nil
+	m = m.withStatus(reason)
+	m.feedbackWarning = true
+	return m, nil
 }
 
 func (m model) withErr(s string) model {
+	m.feedbackWarning = false
+	m.feedbackSuccess = false
+	m.outputOff = 0
 	m.err = s
 	m.status = ""
 	return m
 }
 
 func (m model) withStatus(s string) model {
+	m.feedbackWarning = false
+	m.feedbackSuccess = false
+	m.outputOff = 0
 	m.status = s
 	m.err = ""
 	return m

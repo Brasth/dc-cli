@@ -6,48 +6,39 @@ import (
 )
 
 func (m model) topView() string {
-	w := m.width
-	if w <= 0 {
-		w = 80
-	}
-	var b strings.Builder
-	head := logoWord.Render("dc-cli") + mutedStyle.Render("  top  ") +
-		headerStyle.Render(trunc(m.topSnap.Engine, 12))
-	if m.topSnap.SchemaVersion > 0 {
-		head += mutedStyle.Render(fmt.Sprintf("  %d boxes", len(m.topSnap.Containers)))
-	}
+	w, h := m.consoleSize()
+	meta := plainText(m.topSnap.Engine) + fmt.Sprintf(" · %d boxes", len(m.topSnap.Containers))
 	if m.topStale {
-		head += "  " + warnStyle.Render("stale")
+		meta += " · stale"
 	}
-	b.WriteString(clipBlock(head, w) + "\n")
-	b.WriteString(clipBlock(guestLine(m.topSnap.Guest), w) + "\n")
-	if m.topErr != "" {
-		b.WriteString(errStyle.Render(trunc(m.topErr, w)) + "\n")
+	lines := m.screenHeader("TOP · live dc-stats", meta)
+	lines = append(lines, guestLine(m.topSnap.Guest), mutedStyle.Render("  SERVICE           CPU     MEM              NET"))
+	page := max(1, h-len(lines)-2)
+	start := max(0, m.topCursor-page+1)
+	if len(m.topSnap.Containers) == 0 {
+		lines = append(lines, mutedStyle.Render("(no running boxes)"))
 	}
-	b.WriteString("\n")
-	b.WriteString(mutedStyle.Render(trunc("  SERVICE           CPU     MEM              NET", w)) + "\n")
-	if len(m.topSnap.Containers) == 0 && m.topErr == "" {
-		b.WriteString(mutedStyle.Render("  (no running boxes)") + "\n")
-	}
-	sparkW := 12
-	if w < 70 {
-		sparkW = 8
-	}
-	for i, c := range m.topSnap.Containers {
+	for i := start; i < len(m.topSnap.Containers) && i < start+page; i++ {
+		c := m.topSnap.Containers[i]
+		c.Name = plainText(c.Name)
+		c.Service = plainText(c.Service)
 		line := formatTopRow(c, w)
-		if h, ok := m.topHist[c.ID]; ok {
-			sp := sparkline(h.cpu, sparkW)
-			if sp != "" {
-				line = trunc(line+"  "+sp, w)
-			}
+		if hist, ok := m.topHist[c.ID]; ok {
+			line = trunc(line+"  "+sparkline(hist.cpu, 12), w)
 		}
 		if i == m.topCursor {
-			line = rowHover.Width(w).Render(line)
+			line = selectedRow("> "+strings.TrimPrefix(line, "  "), w)
 		}
-		b.WriteString(line + "\n")
+		lines = append(lines, line)
 	}
-	b.WriteString("\n" + hintStyle.Render("q/esc/t back  j/k select") + "\n")
-	return clipBlock(b.String(), w)
+	feedback := mutedStyle.Render("Live measurements")
+	if m.topStale {
+		feedback = warnStyle.Render("Stream lost — stale snapshot; reconnecting")
+	}
+	if m.topErr != "" {
+		feedback = badStyle.Render("✗ " + plainText(m.topErr))
+	}
+	return m.finishScreen(lines, feedback, []string{keyHint("j/k", "Select") + "  " + keyHint("q/Esc/t", "Back")})
 }
 
 func formatTopRow(c statsBox, width int) string {

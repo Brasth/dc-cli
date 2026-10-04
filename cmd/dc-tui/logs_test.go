@@ -223,7 +223,7 @@ func TestLogsViewHighlights(t *testing.T) {
 		logLines:  []string{`172.21.0.1 - - [16/Aug/2026:09:37:28 +0000] "POST /wp-admin/admin-ajax.php HTTP/1.1" 500 581`},
 	}
 	s := m.logsView()
-	if !strings.Contains(ansi.Strip(s), "logs") {
+	if !strings.Contains(ansi.Strip(s), "LOGS · app") {
 		t.Fatalf("header missing: %s", ansi.Strip(s))
 	}
 	if !strings.Contains(s, "\x1b[") {

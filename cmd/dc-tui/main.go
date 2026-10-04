@@ -69,7 +69,7 @@ func main() {
 	}
 }
 
-const helpText = `dc-tui — this folder's devcontainer (click buttons or keys)
+const helpText = `dc-tui — this folder's devcontainer (Phosphor Console)
 
   dc-tui [workspace]     this folder (cwd, then git root)
   dc-tui --all           every labeled container (fleet)
@@ -83,7 +83,10 @@ Meta:    open (o)  attach (a)  ports (p)  logs (l)  top (t)  nets (n)  db (b)  f
 Danger:  rm (x)    asks y/n before dc-down --rm
 Update:  U         when a newer release is available (dc-upgrade --yes)
 Urls:    click or 1-9  open a published website (http/https) in the browser
-Rows:    j/k or arrows, enter (fleet = open folder, stack = exec)
+Rows:    j/k or arrows, PgUp/PgDn, g/G, enter (fleet = open folder, stack = exec)
+Layout:  services first; wide terminals show details beside the list. Hover does not select.
+Help:    ? opens help; PgUp/PgDn scroll, Esc returns to the board.
+Output:  multiline command output scrolls with j/k or PgUp/PgDn; q/Esc returns.
 Actions: c  project actions (personal + trusted .dc/actions.json). Enter runs one in the
          foreground via dc-exec --no-start (never starts containers); the board returns
          with its exit status. Shared actions need review + y first. Actions can modify data.

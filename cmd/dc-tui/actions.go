@@ -259,6 +259,7 @@ func (m model) applyStayDone(msg stayDoneMsg) (model, tea.Cmd) {
 		return m.withErr(text), nil
 	}
 	m = m.withStatus(text)
+	m.feedbackSuccess = true
 	if msg.name == "dc-prune" {
 		diskCache.invalidate(m.engine)
 	}

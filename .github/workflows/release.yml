@@ -49,10 +49,17 @@ jobs:
           merge-multiple: true
       - name: Write SHA256SUMS
         run: scripts/print-release-shas.sh dist > dist/SHA256SUMS
+      - name: Select release notes
+        id: notes
+        run: |
+          if test -f "docs/releases/${GITHUB_REF_NAME}.md"; then
+            printf 'path=docs/releases/%s.md\n' "$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          fi
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          body_path: ${{ steps.notes.outputs.path }}
           files: |
             dist/*.tar.gz
             dist/SHA256SUMS

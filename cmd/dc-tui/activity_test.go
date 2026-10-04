@@ -14,6 +14,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // --- fakes ---
@@ -801,7 +802,7 @@ func TestActivityViewKeys(t *testing.T) {
 	if !p.m.activity.open || p.m.activity.off != p.m.activityMaxOff() {
 		t.Fatal("v opens following the newest entry")
 	}
-	if v := p.m.View(); !strings.Contains(v, "activity — ") || !strings.Contains(v, "app") || !strings.Contains(v, "c clear") {
+	if v := p.m.View(); !strings.Contains(ansi.Strip(v), "ACTIVITY · ") || !strings.Contains(v, "app") || !strings.Contains(ansi.Strip(v), "[c] Clear") {
 		t.Fatalf("view=%s", v)
 	}
 	p.key("g")

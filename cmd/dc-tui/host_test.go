@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
 )
@@ -20,14 +21,14 @@ func TestHostViewShowsSetup(t *testing.T) {
 			Remediation: "Start Docker Desktop",
 		},
 	}
-	s := m.View()
+	s := ansi.Strip(m.View())
 	for _, want := range []string{
-		"Recover",
+		"RECOVER",
 		"Docker engine is not running",
 		"Start Docker Desktop",
 		"[d] Desktop guide",
-		"[c] copy Colima setup",
-		"[r] check again",
+		"[c] Copy Colima setup",
+		"[r] Check again",
 	} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("missing %q in:\n%s", want, s)
@@ -49,11 +50,11 @@ func TestHostViewShowsTryFixWhenApplyAllowed(t *testing.T) {
 			ApplyAllowed: true,
 		},
 	}
-	s := m.View()
+	s := ansi.Strip(m.View())
 	for _, want := range []string{
 		"colima start",
-		"[f] apply",
-		"then start / shell",
+		"[f] Apply next step",
+		"[w] Workspaces",
 	} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("missing %q in:\n%s", want, s)

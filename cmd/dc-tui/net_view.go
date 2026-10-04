@@ -2,42 +2,31 @@ package main
 
 import (
 	"fmt"
-	"strings"
 )
 
 func (m model) netView() string {
-	w := m.width
-	if w <= 0 {
-		w = 80
+	w, h := m.consoleSize()
+	lines := m.screenHeader("NETWORKS", fmt.Sprintf("%d declared", len(m.net.Networks)))
+	lines = append(lines, mutedStyle.Render("  NAME                  KIND       STATE"))
+	page := max(1, h-len(lines)-2)
+	start := min(m.netOff, max(0, len(m.net.Networks)-page))
+	if len(m.net.Networks) == 0 {
+		lines = append(lines, mutedStyle.Render("(no declared compose networks)"))
 	}
-	var b strings.Builder
-	head := logoWord.Render("dc-cli") + mutedStyle.Render("  nets  ") +
-		headerStyle.Render("this folder")
-	if n := len(m.net.Networks); n > 0 {
-		head += mutedStyle.Render(fmt.Sprintf("  %d declared", n))
+	for _, n := range m.net.Networks[start:min(len(m.net.Networks), start+page)] {
+		lines = append(lines, trunc(formatNetRow(n), w))
 	}
-	b.WriteString(clipBlock(head, w) + "\n")
-	if m.netErr != "" {
-		b.WriteString(errStyle.Render(trunc(m.netErr, w)) + "\n")
-	}
-	b.WriteString("\n")
-	b.WriteString(mutedStyle.Render(trunc("  NAME                  KIND       STATE", w)) + "\n")
-	if len(m.net.Networks) == 0 && m.netErr == "" {
-		b.WriteString(mutedStyle.Render("  (no declared compose networks)") + "\n")
-	}
-	for _, n := range m.net.Networks {
-		b.WriteString(trunc(formatNetRow(n), w) + "\n")
-	}
-	b.WriteString("\n")
+	feedback := m.boardFeedback()
 	if len(m.net.MissingCreatable) > 0 {
-		b.WriteString(warnStyle.Render(trunc("create missing external nets and start? y/n", w)) + "\n")
-	} else if len(m.net.MissingBlocked) > 0 {
-		b.WriteString(errStyle.Render(trunc("blocked — overlay / ipam / unknown. not created.", w)) + "\n")
-		b.WriteString(hintStyle.Render("q/esc/n back") + "\n")
-	} else {
-		b.WriteString(hintStyle.Render("q/esc/n back") + "\n")
+		feedback = warnStyle.Render("create missing external nets and start? y/n")
 	}
-	return clipBlock(b.String(), w)
+	if len(m.net.MissingBlocked) > 0 {
+		feedback = badStyle.Render("blocked — overlay / ipam / unknown. not created.")
+	}
+	if m.netErr != "" {
+		feedback = badStyle.Render("✗ " + plainText(m.netErr))
+	}
+	return m.finishScreen(lines, feedback, []string{keyHint("j/k", "Scroll") + "  " + keyHint("y", "Create missing + start") + "  " + keyHint("q/Esc/n", "Back")})
 }
 
 func formatNetRow(n netRow) string {
@@ -55,7 +44,7 @@ func formatNetRow(n netRow) string {
 	if n.Present {
 		note = ""
 	}
-	return "  " + fmt.Sprintf("%-20s", trunc(n.Name, 20)) + "  " +
-		fmt.Sprintf("%-8s", n.Kind) + "  " + style.Render(st) +
-		mutedStyle.Render("  "+note)
+	return "  " + fmt.Sprintf("%-20s", cell(plainText(n.Name), 20)) + "  " +
+		fmt.Sprintf("%-8s", plainText(n.Kind)) + "  " + style.Render(st) +
+		mutedStyle.Render("  "+plainText(note))
 }

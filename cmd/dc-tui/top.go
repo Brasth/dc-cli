@@ -138,8 +138,7 @@ func (m model) openTop() (model, tea.Cmd) {
 	m.topOpen = true
 	m.topCursor = 0
 	m.topHist = map[string]sparkHist{}
-	m.status = ""
-	m.err = ""
+	m = m.withStatus("")
 	m, stream := m.beginTopStream()
 	return m, tea.Batch(m.fetchStats(), stream)
 }

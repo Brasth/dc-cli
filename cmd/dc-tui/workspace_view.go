@@ -1,8 +1,6 @@
 package main
 
 import (
-	"strings"
-
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -10,47 +8,38 @@ import (
 // workspaceView renders the w picker: filter line, rows (favorites first,
 // then most recent), missing folders flagged, registry warnings.
 func (m model) workspaceView() string {
-	w := m.width
-	if w <= 0 {
-		w = 80
-	}
-	var b strings.Builder
-	b.WriteString(titleStyle.Render("workspaces") + mutedStyle.Render("  recent folders this board opened") + "\n\n")
-	b.WriteString(kv("filter", m.wsFilter+"▏") + "\n\n")
+	w, h := m.consoleSize()
+	lines := m.screenHeader("WORKSPACES · recent folders this board opened", "favorites first")
+	lines = append(lines, kv("filter", plainText(m.wsFilter)+"▏"))
 	vis := m.wsVisible()
 	switch {
 	case m.wsLoading && len(m.wsItems) == 0:
-		b.WriteString(mutedStyle.Render("  (loading…)") + "\n")
+		lines = append(lines, mutedStyle.Render("(loading…)"))
 	case len(m.wsItems) == 0:
-		b.WriteString(mutedStyle.Render("  (none yet — folders appear here after the board opens them)") + "\n")
+		lines = append(lines, mutedStyle.Render("(none yet — folders appear here after the board opens them)"))
 	case len(vis) == 0:
-		b.WriteString(mutedStyle.Render("  (no match)") + "\n")
+		lines = append(lines, mutedStyle.Render("(no match)"))
 	default:
-		limit := len(vis)
-		if m.height > 0 {
-			if room := m.height - 9; room > 3 && limit > room {
-				limit = room
-			}
-		}
-		start := 0
-		if m.wsCursor >= limit {
-			start = m.wsCursor - limit + 1
-		}
-		for i := start; i < len(vis) && i < start+limit; i++ {
-			b.WriteString(m.workspaceRow(vis[i], i == m.wsCursor, w) + "\n")
+		page := max(1, h-len(lines)-3)
+		start := max(0, m.wsCursor-page+1)
+		for i := start; i < len(vis) && i < start+page; i++ {
+			lines = append(lines, m.workspaceRow(vis[i], i == m.wsCursor, w))
 		}
 	}
+	feedback := mutedStyle.Render("Type to filter · works while Docker is down")
 	if m.wsWarn != "" {
-		b.WriteString("\n" + warnStyle.Render(trunc(m.wsWarn, w)) + "\n")
+		feedback = warnStyle.Render("! " + plainText(m.wsWarn))
 	}
-	b.WriteString("\n" + hintStyle.Render(trunc("type to filter  ↑/↓ move  enter open  ctrl+f favorite  ctrl+d forget  esc back", w)) + "\n")
-	return clipBlock(b.String(), w)
+	return m.finishScreen(lines, feedback, []string{keyHint("↑/↓", "Move") + "  " + keyHint("enter", "Open") + "  " + keyHint("esc", "Back"), keyHint("ctrl+f", "Favorite") + "  " + keyHint("ctrl+d", "Forget")})
 }
 
 func (m model) workspaceRow(it wsItem, selected bool, w int) string {
 	mark := "  "
+	if selected {
+		mark = "> "
+	}
 	if it.entry.Favorite {
-		mark = "★ "
+		mark += "★ "
 	}
 	tags := ""
 	if it.missing {
@@ -61,15 +50,15 @@ func (m model) workspaceRow(it wsItem, selected bool, w int) string {
 	}
 	// Tags always stay visible; the path gives way first, then the label.
 	room := max(8, w-ansi.StringWidth(tags))
-	label := trunc(" "+mark+it.label, room)
-	path := trunc("  "+it.entry.Path, max(0, room-ansi.StringWidth(label)))
+	label := trunc(" "+mark+plainText(it.label), room)
+	path := trunc("  "+plainText(it.entry.Path), max(0, room-ansi.StringWidth(label)))
 	rowStyle := lipgloss.NewStyle()
 	if it.missing {
 		rowStyle = mutedStyle
 	}
 	out := rowStyle.Render(label) + mutedStyle.Render(path) + badStyle.Render(tags)
 	if selected {
-		return rowHover.Width(w).Render(out)
+		return selectedRow(out, w)
 	}
 	return out
 }

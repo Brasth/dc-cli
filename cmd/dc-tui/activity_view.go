@@ -63,10 +63,7 @@ func (m model) activityPage() int {
 	if h <= 0 {
 		h = 24
 	}
-	if page := h - 4; page >= 4 {
-		return page
-	}
-	return 4
+	return max(1, h-8)
 }
 
 func (m model) activityMaxOff() int {
@@ -111,33 +108,24 @@ func (m model) activityStatus() string {
 }
 
 func (m model) activityView() string {
-	w := m.width
-	if w <= 0 {
-		w = 80
-	}
-	var b strings.Builder
-	title := "activity — " + filepath.Base(m.workspace)
-	b.WriteString(titleStyle.Render(trunc(title, w)) + "\n")
-	b.WriteString(mutedStyle.Render(trunc(m.activityStatus()+" · "+engineLabel(m.engine)+" · latest "+strconv.Itoa(activityCap)+" in memory", w)) + "\n")
+	w, _ := m.consoleSize()
+	lines := m.screenHeader("ACTIVITY · "+plainText(filepath.Base(m.workspace)), m.activityStatus())
+	lines = append(lines, mutedStyle.Render("  TIME      SERVICE               EVENT"))
 	es := m.activity.entries
 	page := m.activityPage()
 	if len(es) == 0 {
-		b.WriteString(mutedStyle.Render("  (no events yet — start / stop / restart something in this workspace)") + "\n")
+		lines = append(lines, mutedStyle.Render("(no events yet — start / stop / restart something in this workspace)"))
 	} else {
-		off := m.activity.off
-		if off > len(es) {
-			off = len(es)
-		}
-		end := off + page
-		if end > len(es) {
-			end = len(es)
-		}
-		for _, e := range es[off:end] {
-			b.WriteString(formatActivityEntry(e, w) + "\n")
+		off := min(max(0, m.activity.off), m.activityMaxOff())
+		for _, e := range es[off:min(len(es), off+page)] {
+			lines = append(lines, formatActivityEntry(e, w))
 		}
 	}
-	b.WriteString(hintStyle.Render(trunc("j/k scroll  pgup/pgdn  g/G  c clear  esc back", w)) + "\n")
-	return clipBlock(b.String(), w)
+	feedback := mutedStyle.Render(m.activityStatus() + " · latest " + strconv.Itoa(activityCap) + " in memory")
+	if m.activity.retrying {
+		feedback = warnStyle.Render("Stream lost — " + m.activityStatus())
+	}
+	return m.finishScreen(lines, feedback, []string{keyHint("j/k", "Scroll") + "  " + keyHint("PgUp/PgDn", "Page") + "  " + keyHint("g/G", "Top/end") + "  " + keyHint("c", "Clear") + "  " + keyHint("Esc", "Back")})
 }
 
 func formatActivityEntry(e activityEntry, w int) string {
@@ -145,8 +133,8 @@ func formatActivityEntry(e activityEntry, w int) string {
 	if e.gap {
 		return warnStyle.Render(trunc(ts+"  ── "+e.what+" ──", w))
 	}
-	who := e.who
-	line := ts + "  " + padRight(trunc(who, 20), 20) + "  " + e.what
+	who := plainText(e.who)
+	line := ts + "  " + padRight(trunc(who, 20), 20) + "  " + plainText(e.what)
 	style := mutedStyle
 	switch {
 	case strings.HasPrefix(e.what, "exited (code 0)"), e.what == "started", e.what == "health: healthy":
@@ -157,9 +145,4 @@ func formatActivityEntry(e activityEntry, w int) string {
 	return style.Render(trunc(line, w))
 }
 
-func padRight(s string, n int) string {
-	if d := n - len([]rune(s)); d > 0 {
-		return s + strings.Repeat(" ", d)
-	}
-	return s
-}
+func padRight(s string, n int) string { return cell(s, n) }

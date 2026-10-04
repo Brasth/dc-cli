@@ -203,11 +203,11 @@ func (m model) openReview() model {
 // reviewPage is how many review body lines fit under the fixed header and
 // above the fixed footer.
 func (m model) reviewPage() int {
-	h := m.height
-	if h <= 0 {
-		h = 24
+	w, h := m.consoleSize()
+	if w < 20 {
+		return 0
 	}
-	return max(3, h-8)
+	return max(0, h-len(m.reviewHeader(w))-3)
 }
 
 func (m model) reviewMaxOff() int {
@@ -223,7 +223,7 @@ func (m model) viewWidth() int {
 
 // markReviewSeen records that the last line has been on screen.
 func (m model) markReviewSeen() model {
-	if m.actReviewOff >= m.reviewMaxOff() {
+	if m.reviewPage() > 0 && m.actReviewOff >= m.reviewMaxOff() {
 		m.actReviewSeenEnd = true
 	}
 	return m
@@ -253,6 +253,10 @@ func (m model) handleReviewKey(k string) (tea.Model, tea.Cmd) {
 	case "end", "G":
 		return m.scrollReview(m.reviewMaxOff()), nil
 	case "y":
+		if m.reviewPage() == 0 {
+			m.actWarn = "terminal too short — enlarge it to review commands"
+			return m, nil
+		}
 		if m.actSet == nil || m.actSet.Shared.Err != nil || !m.actSet.Shared.Present {
 			return m, nil
 		}
@@ -385,6 +389,7 @@ func (m model) applyActionDone(msg actionDoneMsg) (model, tea.Cmd) {
 		m = m.withErr("action " + label + ": " + msg.err.Error())
 	} else if code == 0 {
 		m = m.withStatus("action " + label + " · exit 0")
+		m.feedbackSuccess = true
 	} else {
 		m = m.withErr("action " + label + " · exit " + strconv.Itoa(code))
 	}
@@ -400,52 +405,53 @@ func (m model) applyActionDone(msg actionDoneMsg) (model, tea.Cmd) {
 // --- view ---
 
 func (m model) actionPickerView() string {
-	w := m.width
-	if w <= 0 {
-		w = 80
-	}
+	w, h := m.consoleSize()
 	if m.actReview {
 		return m.actionReviewView(w)
 	}
-	var b strings.Builder
-	b.WriteString(titleStyle.Render("actions") + mutedStyle.Render("  "+trunc(m.workspace, max(8, w-12))) + "\n\n")
-	b.WriteString(kv("filter", m.actFilter+"▏") + "\n\n")
+	lines := m.screenHeader("ACTIONS", "container commands · no auto-start")
+	lines = append(lines, kv("filter", plainText(m.actFilter)+"▏"))
+	feedback := mutedStyle.Render("Actions run inside your containers and can modify data")
 	set := m.actSet
-	switch {
-	case set == nil:
-		b.WriteString(mutedStyle.Render("  (loading…)") + "\n")
-	default:
+	if set == nil {
+		lines = append(lines, mutedStyle.Render("(loading…)"))
+	} else {
 		es := m.actEntries()
+		page := max(1, h-len(lines)-3)
+		start := max(0, m.actCursor-page+1)
 		if len(es) == 0 {
-			b.WriteString(mutedStyle.Render("  (no actions — add .dc/actions.json or your personal file; dc-actions --help)") + "\n")
+			lines = append(lines, mutedStyle.Render("(no actions — add .dc/actions.json or your personal file; dc-actions --help)"))
 		}
-		for i, e := range es {
+		for i := start; i < len(es) && i < start+page; i++ {
+			e := es[i]
 			state := okStyle.Render("on ")
 			if !e.Enabled {
 				state = warnStyle.Render("off")
 			}
-			line := "  " + state + "  " + actions.DisplayText(e.ID) + "  " + actions.DisplayText(e.Label) + mutedStyle.Render("  "+string(e.Source)+" · "+actions.Target(e.Action)+" · "+actions.FormatArgv(e.Argv))
-			line = trunc(line, w)
+			mark := "  "
 			if i == m.actCursor {
-				line = rowHover.Width(w).Render(line)
+				mark = okStyle.Render("> ")
 			}
-			b.WriteString(line + "\n")
+			line := mark + state + "  " + actions.DisplayText(e.ID) + "  " + actions.DisplayText(e.Label) + mutedStyle.Render("  "+string(e.Source)+" · "+actions.Target(e.Action)+" · "+actions.FormatArgv(e.Argv))
+			line = cell(line, w)
+			if i == m.actCursor {
+				line = selectedRow(line, w)
+			}
+			lines = append(lines, line)
 		}
 		if set.PersonalErr != nil {
-			b.WriteString("\n" + errStyle.Render(trunc("personal actions ignored: "+set.PersonalErr.Error(), w)) + "\n")
+			feedback = badStyle.Render("personal actions ignored: " + plainText(set.PersonalErr.Error()))
 		}
 		if set.Shared.Err != nil {
-			b.WriteString("\n" + errStyle.Render(trunc("shared actions ignored: "+set.Shared.Err.Error(), w)) + "\n")
+			feedback = badStyle.Render("shared actions ignored: " + plainText(set.Shared.Err.Error()))
 		} else if set.Shared.Present && !set.Shared.Trusted {
-			b.WriteString("\n" + warnStyle.Render(trunc("shared .dc/actions.json is disabled — enter on an off entry (or ctrl+t) to review", w)) + "\n")
+			feedback = warnStyle.Render("shared .dc/actions.json is disabled — enter on an off entry (or ctrl+t) to review")
 		}
 	}
 	if m.actWarn != "" {
-		b.WriteString("\n" + warnStyle.Render(trunc(m.actWarn, w)) + "\n")
+		feedback = warnStyle.Render("! " + plainText(m.actWarn))
 	}
-	b.WriteString("\n" + hintStyle.Render(trunc("type to filter  ↑/↓  enter run (leaves the board, comes back)  ctrl+t review shared  esc back", w)) + "\n")
-	b.WriteString(hintStyle.Render(trunc("actions run inside your containers and can modify data; nothing is started for you", w)) + "\n")
-	return clipBlock(b.String(), w)
+	return m.finishScreen(lines, feedback, []string{keyHint("↑/↓", "Move") + "  " + keyHint("enter", "Run / review") + "  " + keyHint("esc", "Back"), keyHint("ctrl+t", "Review shared") + mutedStyle.Render(" · can modify data · nothing is started for you")})
 }
 
 // reviewLines is the review body: every shared action — overridden ones
@@ -488,34 +494,41 @@ func wrapLines(s string, w int, first, rest string) []string {
 }
 
 // actionReviewView: fixed header, scrolled body, fixed footer.
-func (m model) actionReviewView(w int) string {
-	var b strings.Builder
-	set := m.actSet
-	b.WriteString(titleStyle.Render("review shared actions") + "\n")
-	for _, l := range wrapLines(actions.DisplayText(set.Shared.Path), w, "", "") {
-		b.WriteString(mutedStyle.Render(l) + "\n")
+func (m model) reviewHeader(w int) []string {
+	lines := m.screenHeader("REVIEW SHARED ACTIONS", "exact-byte trust")
+	if m.actSet != nil {
+		lines = append(lines, wrapLines(actions.DisplayText(m.actSet.Shared.Path), w, "", "")...)
+		lines = append(lines, mutedStyle.Render(trunc("sha256 "+m.actSet.Shared.Hash, w)))
 	}
-	b.WriteString(mutedStyle.Render(trunc("sha256 "+set.Shared.Hash, w)) + "\n")
-	lines := m.reviewLines(w)
+	return lines
+}
+
+func (m model) actionReviewView(w int) string {
+	if m.actSet == nil {
+		return m.actionPickerViewWithoutReview()
+	}
+	set := m.actSet
+	lines := m.reviewHeader(w)
+	body := m.reviewLines(w)
 	page := m.reviewPage()
-	off := min(m.actReviewOff, max(0, len(lines)-page))
-	end := min(len(lines), off+page)
-	b.WriteString(hintStyle.Render(trunc("lines "+strconv.Itoa(min(off+1, len(lines)))+"–"+strconv.Itoa(end)+" of "+strconv.Itoa(len(lines))+"  ↑/↓ pgup/pgdn g/G", w)) + "\n")
-	for _, l := range lines[off:end] {
-		b.WriteString(l + "\n")
+	off := min(m.actReviewOff, max(0, len(body)-page))
+	end := min(len(body), off+page)
+	lines = append(lines, body[off:end]...)
+	feedback := warnStyle.Render("These run inside your containers and can modify data. Any change disables them again.")
+	if m.actWarn != "" {
+		feedback = warnStyle.Render(plainText(m.actWarn))
+	}
+	hints := []string{mutedStyle.Render(trunc("lines "+strconv.Itoa(min(off+1, len(body)))+"–"+strconv.Itoa(end)+" of "+strconv.Itoa(len(body))+" · ↑/↓ pgup/pgdn g/G", w)), keyHint("y", "Enable exactly this file") + "  " + keyHint("n/esc", "Back")}
+	if end < len(body) || page == 0 {
+		hints[1] = hintStyle.Render("more below — scroll to the end before y  n/esc back")
 	}
 	if set.Shared.Err != nil {
-		b.WriteString("\n" + hintStyle.Render("invalid file cannot be enabled — esc back") + "\n")
-		return b.String()
+		hints[1] = hintStyle.Render("invalid file cannot be enabled — esc back")
 	}
-	b.WriteString(warnStyle.Render(trunc("These run inside your containers and can modify data. Any change to the file disables them again.", w)) + "\n")
-	if m.actWarn != "" {
-		b.WriteString(warnStyle.Render(trunc(m.actWarn, w)) + "\n")
-	}
-	if end < len(lines) {
-		b.WriteString(hintStyle.Render(trunc("more below — scroll to the end before y  n/esc back", w)) + "\n")
-	} else {
-		b.WriteString(hintStyle.Render("y enable exactly this file  n/esc back") + "\n")
-	}
-	return b.String()
+	return m.finishScreen(lines, feedback, hints)
+}
+
+func (m model) actionPickerViewWithoutReview() string {
+	m.actReview = false
+	return m.actionPickerView()
 }

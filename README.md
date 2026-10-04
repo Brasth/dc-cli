@@ -27,6 +27,8 @@ dc exec         # shell in the app
 dc down         # stop the stack
 ```
 
+The [Phosphor Console board](docs/tui-phosphor-console.md) puts services first, with a selected-service pane on wide terminals and compact layouts down to 40×12. Keyboard shortcuts stay visible at the bottom; mouse hover and selection are distinct.
+
 On the board: `w` recent folders (favorites first; reopening a stopped workspace does not start it), `c` project actions, `v` activity timeline (current session, in memory only), `f` fleet (other workspaces). Troubleshoot: `dc doctor` → `dc recover --yes`. Disk: `dc df` → `dc prune --yes`. **Never** `docker system prune -af --volumes`.
 
 ## Commands
